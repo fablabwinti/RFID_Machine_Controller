@@ -8,10 +8,11 @@ This repository contains the hardware design files (eagle) and the firmware (Ard
 - Multi-color LED
 - SD card for event logging
 - RTC for accurate time keeping without network access
-- Isolated output
-  - Option 1: Relay output: 250V, 5A NC or NO with screw terminal
+- Isolated output with screw terminal
+  - Option 1: Relay output: 250V, 5A NC or NO 
   - Option 2: Opto-coupled output (50V, 40mA)
 - Input voltage: 5V ±0.5V with input protection (reverse voltage protection, overvoltage protection)
+- Three input connecters: 5.5x2.1mm DC jack, Micro USB jack, screw termianl
 
 ## Firmware features
 - Easy web based configuration
