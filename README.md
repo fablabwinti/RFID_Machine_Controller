@@ -17,10 +17,11 @@ This repository contains the hardware design files (eagle) and the firmware (Ard
 ## Firmware features
 - Easy web based configuration
 - Time sync through NTP
+- Automatic synchronization of local RTC 
 - Automatic update of user database from server
 - Local storage of access rights: works during network failures
 - Local data logging to SD-Card or Flash (TBD)
-- Transmit log data to server
+- Transmit log data to server as soon as it is available
 
 
 # License
