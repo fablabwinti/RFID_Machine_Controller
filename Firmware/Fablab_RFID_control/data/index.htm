@@ -1,0 +1,273 @@
+<!DOCTYPE html>
+<html>
+<!-- Fablab RFID controller Configuration WebApp by Damian Schneider -->
+
+<head>
+    <title>RFID Machine Access - Configuration</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <!--preload the spinner image-->
+    <link rel="prefetch" href="images/ajax-loader.gif">
+    <link rel="stylesheet" href="jquery.mobile-1.4.5.min.css">
+    <script src="jquery.js"></script>
+    <script>
+    $(document).bind('mobileinit', function() {
+        $.mobile.changePage.defaults.changeHash = false;
+        $.mobile.hashListeningEnabled = false;
+        $.mobile.pushStateEnabled = false;
+    });
+    </script>
+    <script>
+    var ipValue;
+    var connection;
+    /*var urltext = "ws://" + window.location.hostname + "/ws"; */
+    var urltext = "ws://" + window.location.hostname + ":81";
+
+    function unixToTime(timestamp) {
+        var date = new Date(timestamp * 1000);
+        var hours = date.getHours();
+        var minutes = "0" + date.getMinutes();
+        var seconds = "0" + date.getSeconds();
+        return hours + ':' + minutes.substr(-2) + ':' + seconds.substr(-2);
+    }
+
+    function scanWiFi() {
+        var toSend = "scan";
+        $.mobile.loading("show");
+        connection.send(toSend);
+    };
+
+    function deleteWiFi() {
+        var toSend = "resetwifi";
+        connection.send(toSend);
+    };
+
+    
+    /*
+
+        function submitForm(callerform) {
+            todo: make this work!
+            console.log(callerform.length);
+            console.log(callerform.name);
+            console.log(callerform.id);
+            var data = $(callerform.id).serialize();
+            console.log(data);
+            //console.log(callerform.attr('action'));
+            $.ajax({
+                type: 'post',
+                //url: callerform.attr('action'),
+                data: callerform.serialize(),
+                success: function() {
+                    alert('form was submitted');
+                }
+            });
+
+        }
+    */
+
+    function DHCPcheckboxfun() {
+
+        if (document.getElementById("DHCPuse").value == "on") {
+
+            document.getElementById("DHCPinputs").style.display = "none";
+        } else {
+            document.getElementById("DHCPinputs").style.display = "inherit";
+        }
+    };
+    </script>
+    <script>
+    </script>
+</head>
+
+<body>
+    <!-- /mainpage -->
+    <div data-role="page" id="mainpage" data-theme="a">
+        <div data-role="header" data-position="fixed">
+            <h1>Control Center</h1>
+        </div>
+        <div data-role="content" data-theme="a">
+            <div data-role="content" style="text-align:center">
+                <h3 id="connstate">Wifi state: </h3>
+            </div>
+            <div data-role="collapsible">
+                <h4>Setup WiFi Connection:</h4>
+                <div data-role="fieldcontain" style="text-align:center">
+                    <h5 id="knownSSIDs">Known connections:</h5>
+                </div>
+                <a data-role="button" id="wifiscan" data-icon="search" onclick="scanWiFi()">Scan available networks</a>
+                <form action="#" name="setconnection" id="wifiform">
+                    <div data-role="fieldcontain">
+                        <label for="selectSSID">SSID:</label>
+                        <select name="SSID" id="selectSSID" data-mini="true" inline="true">
+                            <option id="SSIDoption" value="1">Please scan first</option>
+                        </select>
+                    </div>
+                    <div data-role="fieldcontain">
+                        <label for="password">Password:</label>
+                        <input type="password" name="PASS" id="wifipass" value="" maxlength="31" />
+                    </div>
+                    <BR>
+                    <BR>
+                    <!--
+                    <p>
+                        <input type="button" data-icon="refresh" name="submit" value="test" onclick="submitForm(this.form);">
+                    </p> -->
+                    <input type="submit" value="Save" data-icon="refresh">
+                </form>
+                <BR>
+                <div data-role="collapsible">
+                    <h4>Advanced WiFi Settings</h4>
+                    <h4>DHCP settings</h4>
+                    <form action="" method="get">
+                        <div data-role="fieldcontain">
+                            <label for="DHCPuse">Use DHCP </label>
+                            <select onchange="DHCPcheckboxfun()" name="DHCPuse" id="DHCPuse" data-role="slider">
+                                <option value="off">No</option>
+                                <option value="on">Yes</option>
+                            </select>
+                            <div id="DHCPinputs">
+                                <div data-role="fieldcontain">
+                                    <BR>
+                                    <label for="DHCPip">Static IP</label>
+                                    <input id="DHCPip" name="IP" required pattern="((25[0-5])|(2[0-4]\d)|(1\d\d)|([1-9]?\d))((^|\.)((25[0-5])|(2[0-4]\d)|(1\d\d)|([1-9]?\d))){3}$">
+                                    <label for="DHCPmask">Subnet Mask</label>
+                                    <input id="DHCPmask" name="MASK" required pattern="((25[0-5])|(2[0-4]\d)|(1\d\d)|([1-9]?\d))((^|\.)((25[0-5])|(2[0-4]\d)|(1\d\d)|([1-9]?\d))){3}$">
+                                    <label for="DHCPgate">Gateway</label>
+                                    <input id="DHCPgate" name="GATE" required pattern="((25[0-5])|(2[0-4]\d)|(1\d\d)|([1-9]?\d))((^|\.)((25[0-5])|(2[0-4]\d)|(1\d\d)|([1-9]?\d))){3}$">
+                                </div>
+                            </div>
+                            <BR>
+                            <div data-role="fieldcontain">
+                                <input type="submit" value="Save" id="DHCPsubmit" data-icon="refresh">
+                            </div>
+                        </div>
+                    </form>
+                    <div>
+                        <h4>Remove Network</h4>
+                        <a data-role="button" id="wifidel" data-mini="true" data-icon="delete" onclick="deleteWiFi()">Remove all known networks</a>
+                    </div>
+                </div>
+            </div>
+            <BR>
+            <BR>
+            <div data-role="collapsible">
+                <h4>Cayenne Setup</h4>
+                <form action="" method="get" onSubmit="captureForm()">
+                    <div data-role="fieldcontain">
+                        <div data-role="fieldcontain">
+                            <label for="Cuser">MQTT Username</label>
+                            <input id="Cuser" name="CA_USER" required maxlength="50">
+                        </div>
+                        <div data-role="fieldcontain">
+                            <label for="Cpass">MQTT Password</label>
+                            <input id="Cpass" name="CA_PASS" required maxlength="50">
+                        </div>
+                        <div data-role="fieldcontain">
+                            <label for="CID">Client ID</label>
+                            <input id="CID" name="CA_ID" required maxlength="50">
+                        </div>
+                        <BR>
+                        <input type="submit" value="Save" id="Csubmit" data-icon="refresh">
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+    
+            <div>
+                <BR>
+                <BR>
+                <label for="msg">Incoming Data:</label>
+                <div data-role="fieldcontain">
+                    <textarea rows="20" data-autogrow="false" id="msg"></textarea>
+                </div>
+            </div>
+        </div>
+    </div>
+    <script>
+    function wsconnect(localIP) {
+
+        ipValue = localIP;
+
+        connection = new WebSocket(ipValue);
+
+        connection.onerror = function(event) {
+                console.log("Websocket Error! Need Websocket support for this page to work")
+            }
+            /*incoming websocket message handling*/
+        connection.onmessage = function(evt) {
+            console.log(evt.data);
+            if (evt.data.substring(0, 4) == "SSID") { /*SSID update string: 'SSIDxxxxxxx,PASSxxxxxxx'*/
+                /*fill in the forms from the ESP*/
+                var defaultExists = document.getElementById("SSIDoption");
+
+                if (defaultExists) {
+                    $('#SSIDoption').remove();
+                }
+
+                var itemexists = document.getElementById(evt.data.substring(4, evt.data.length));
+
+                if (itemexists == null) {
+                    console.log("adding SSID");
+                    var option = document.createElement("option");
+                    option.text = evt.data.substring(4, evt.data.length);
+                    option.id = evt.data.substring(4, evt.data.length);
+                    option.value = evt.data.substring(4, evt.data.length);
+                    /*var select = document.getElementById("selectSSID");*/
+                    /*select.appendChild(option);*/
+
+                    $("#selectSSID").append(option);
+                    $("#selectSSID").selectmenu('refresh');
+                }
+                $.mobile.loading("hide");
+            } else if (evt.data.substring(0, 4) == "DHCP") { /*DHCP update string: 'DHCPYes,IPx.xx.xxx.x,SUBxx.xx.xx.x,GATExx.xx.xx.xx'*/
+                document.getElementById('DHCPuse').value = evt.data.substring(evt.data.indexOf("DHCP") + 4, evt.data.indexOf(",IP"));
+                document.getElementById('DHCPip').value = evt.data.substring(evt.data.indexOf(",IP") + 3, evt.data.indexOf(",SUB"));
+                document.getElementById('DHCPmask').value = evt.data.substring(evt.data.indexOf(",SUB") + 4, evt.data.indexOf(",GATE"));
+                document.getElementById('DHCPgate').value = evt.data.substring(evt.data.indexOf(",GATE") + 5, evt.data.length);
+                setTimeout(function() {
+                    $(document.getElementById('DHCPuse')).slider("refresh");
+                }, 1000);
+                DHCPcheckboxfun(); /*update DHCP settings */
+
+            } else if (evt.data.substring(0, 7) == "CA_USER") { /*Cayenne setting update string: 'CA_USERxxx,CA_PASSxx,CA_IDxx'*/
+                document.getElementById('Cuser').value = evt.data.substring(evt.data.indexOf("CA_USER") + 7, evt.data.indexOf(",CA_PASS"));
+                document.getElementById('Cpass').value = evt.data.substring(evt.data.indexOf(",CA_PASS") + 8, evt.data.indexOf(",CA_ID"));
+                document.getElementById('CID').value = evt.data.substring(evt.data.indexOf(",CA_ID") + 6, evt.data.length);
+
+            } else if (evt.data.substring(0, 4) == "WiFi") { /*Wifi connection status update*/
+                if (evt.data.substring(4, 6) == "OK") {
+                    document.getElementById("connstate").innerHTML = "Connected to " + evt.data.substring(6, evt.data.indexOf(",IP")) + " with IP address " + evt.data.substring(evt.data.indexOf(",IP") + 3, evt.data.length);
+                    document.getElementById("connstate").style.color = "limegreen";
+                } else {
+                    document.getElementById("connstate").innerHTML = "Wifi DISCONNECTED";
+                    document.getElementById("connstate").style.color = "crimson";
+                }
+            } else if (evt.data.substring(0, 7) == "network") { /*Wifi connection status update*/
+                var networks = evt.data.substring(8, evt.data.length);
+                networks = networks.split(",");
+                document.getElementById("knownSSIDs").innerHTML = "Known connections:" + networks;
+
+            } else if (evt.data.substring(0, 3) == "msg") {
+
+                document.getElementById('msg').value += evt.data.substring(3, evt.data.length);
+                document.getElementById('msg').scrollTop = document.getElementById('msg').scrollHeight 
+            }
+
+            /*todo: could use a slider to control the brighness of the LED and/or the color*/
+        }
+    };
+
+    $(document).ready(function() {
+        wsconnect(urltext);
+        $(document.getElementById('DHCPuse')).slider("refresh");
+    });
+    /*close the websocket connection when page is left or refreshed*/
+    window.onbeforeunload = function() {
+        connection.onclose = function() {}; /* disable onclose handler first*/
+        connection.close()
+    };
+    </script>
+</body>
+
+</html>
