@@ -8,13 +8,6 @@
 
 #define USERDB_TABLE_SIZE 14400 //14kb database, can hold 400 user entries
 
-//struct for user authentication
-
-struct userAuth {
-  uint32_t uid; //4 byte uid of the RFID card
-  char firstname[16]; //16byte first name of user
-  char familyname[16]; //16byte family name of user
-} userentry;
 
 
 char* db_users = "/db/users.db";
@@ -130,7 +123,7 @@ void userDBaddentry(uint32_t RFIDuid, char* famname, char* frstname)
   if (entryno > 0) //if it already exists, check if the name matches, update current entry if it does not
   {
     Serial.print(F("entry exists already "));
-    uint8_t equal = memcmp(userentry.familyname , famname, 16) ;
+    uint8_t equal = memcmp(userentry.familyname , famname, 16);
     equal += memcmp(userentry.firstname , frstname, 16);
     if (equal == 0) //entry is identical
     {
