@@ -20,18 +20,19 @@
 #define EE_NTP_ADDR EE_DEVICEPASS_ADDR+DEFAULTSTRINGLENGTH          //address for NTP server name string
 #define EE_IP_ADDR EE_NTP_ADDR+DEFAULTSTRINGLENGTH                  //address for static IP
 #define EE_NETMASK_ADDR EE_IP_ADDR+4                                //address for static Netmask IP
-#define EE_GATEWAY_ADDR EE_NETMASK_ADDR+4                              //address for static Gateway IP
+#define EE_GATEWAY_ADDR EE_NETMASK_ADDR+4                           //address for static Gateway IP
 #define EE_DHCP_ADDR EE_GATEWAY_ADDR+4                              //address for 'use DHCP' boolean
-#define EE_REGID_ADDR EE_DHCP_ADDR+1                                //address for registered local IDs
-#define EE_UIDFLAGS_ADDR EE_REGID_ADDR+32                           //address for unique ID flags
-#define EE_UID_ADDR EE_UIDFLAGS_ADDR+4                              //address for unique IDs (array of 31 32bit IDs generated from the Nodes 96bit unique ID)
-#define EE_RESERVED_ADDR EE_UID_ADDR+128                            //address reserved
+#define EE_TIMEZONE_ADDR EE_DHCP_ADDR+4                             //address for timezone, signed uint8_t
+#define EE_RESERVED_ADDR EE_TIMEZONE_ADDR+1                            //address reserved
 
 //function prototypes (todo: need to clean up the depedency mess!)
 void wifiAddAP(String name, String password);
+time_t getRtcTimestamp(void); 
+
 
 // global variables
 ESP8266WebServer server(80);  // The Webserver
+ESP8266HTTPUpdateServer httpUpdater; //http firmware update
 //AsyncWebServer server(80);  // The Webserver
 //AsyncWebSocket ws("/ws");
 
@@ -45,6 +46,7 @@ uint8_t APactive = 0;  // is zero if AP is deactivated, 1 if active (set to 1 to
 bool localTimeValid;
 bool RTCTimeValid = false; //is set true after setting the RTC successfully
 bool machineLocked = true;
+uint32_t userStarttime; //timestamp at start of machine use
 
 uint8_t websocket_connected = 0;
 
@@ -73,6 +75,16 @@ struct sendoutpackage {
   String data;       // numerical data (and unit)
   String logstring; //string for SDcard and webpage logging (format: "NodeType, DataType, Data") (written to SD card in JSON format)
 };
+
+//struct for user authentication
+
+struct userAuth {
+  uint32_t uid; //4 byte uid of the RFID card
+  char firstname[16]; //16byte first name of user
+  char familyname[16]; //16byte family name of user
+} userentry;
+
+uint16_t currentuser=0; //database entry of current user
 
 sendoutpackage nodeDatatosend[SERVERPACKETS];
 uint8_t sendoutindex;
@@ -230,7 +242,8 @@ void checkButtonState(void) {
       if (millis() - buttontimestamp > 8000) {
         writeDefaultConfig();  //"reset to factory defaults"
         uint32_t waittimestamp = millis();
-        LED_rainbow();
+       // LED_rainbow();
+       //TODO: print something on the display!
         while (millis() - waittimestamp < 3000)
         {
           updateLED();

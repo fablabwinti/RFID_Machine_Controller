@@ -25,18 +25,26 @@
 
  * */
 
+#define TIMEZONE 1 //GMT +1  adjust to your timezone if needed
+
+
+
+extern "C" {
+#include "user_interface.h" //for light sleep stuff
+}
 #define FS_NO_GLOBALS //allow spiffs to coexist with SD card
+#define FASTLED_ESP8266_RAW_PIN_ORDER
 #include <FS.h> //spiff file system
 #include <SPI.h>
 #include <MFRC522.h> //RFID library
-#include <Adafruit_NeoPixel.h>
+#include <FastLED.h>
 #include <TimeLib.h>  //Time library https://github.com/PaulStoffregen/Time
 #include "RtcDS3231.h" //RTC library: https://github.com/Makuna/Rtc
-#include <Ticker.h>
 #include <ESP8266WiFi.h>
 #include <ESP8266WiFiMulti.h>
 #include <WiFiClient.h>
 #include <ESP8266WebServer.h>
+#include <ESP8266HTTPUpdateServer.h>
 //#include <ESPAsyncTCP.h>
 //#include <ESPAsyncWebServer.h>
 #include <EEPROM.h>
@@ -45,24 +53,28 @@
 #include <Wire.h>
 #include <SD.h>
 #include <ESP8266mDNS.h>  //works on mac out of the box, need to install apple's 'Bonjour' service to work on other systems
-#include <ArduinoOTA.h>
 #include <WebSocketsServer.h>
 #include "helpers.h"
 #include "sound.h"
 #include "LED.h"
-#include "database.h"
+
 #include "global.h"
-#include "display.h"
+#include "database.h"
 #include "webpage.h"
-#include "RTC.h"
-#include "NTP.h"
+#include "display.h"
+#include "RTC.h" //real time clock and other time management
+#include "NTP.h" //network time protocol management
+
 #include "SDcard.h"
-#include "timer.h"
-#include "OTA_update.h"
+
 #include "WiFi.h"
 #include "SendToServer.h"
 #include "output.h"
 #include "RFID.h"
+
+
+
+
 
 // SPI pin configuration figured out from here:
 // http://d.av.id.au/blog/esp8266-hardware-spi-hspi-general-info-and-pinout/
@@ -73,19 +85,27 @@
    -add OLED support -> basic functionality: DONE
    -add RFID support -> basic functionality: DONE
    -use fastled instead of neopixel
-   -add buzzer support
-   -clean out unused stuff
+   -add buzzer support -> DONE
+   -clean out unused stuff -> DONE
+   -add user database -> DONE
    -maybe: add sleep functions to save power -> still need to check the RFID module like every 100ms
    -create log file structure
    -read log files on bootup, transfer flagged events to server and unflag them
-
+   -add timezone and automatic daylightsaving adjustment (for europe, us has different DST rules)
+   -add timezone to EEPROM and make selectable on webconfig
+  -add time control for access
+  -switch to async web server (more stable)
+  -webpage: add machine info, add button for firmware update
 */
 
 
 void setup() {
   delay(200);  // wait for power to stabilize
-  Serial.begin(115200);
-  Serial.println(F("\r\n\r\nFablab Winti RFID control"));  // todo: add actual build info here
+  //  Serial.begin(115200);
+  Serial.println(F("\r\n\r\n***********************************"));  // todo: add actual build info here
+  Serial.println(F("** Fablab Winti RFID CONTROL **"));  // todo: add actual build info here
+  Serial.println(F("*******************************"));  // todo: add actual build info here
+  Serial.println(F("\r\n\r\n"));  // todo: add actual build info here
 
   //*****************
   //SOFTWARE INIT
@@ -102,21 +122,23 @@ void setup() {
   //HARDWARE INIT
   //*****************
 
+  ConfigureWifi();  // connect to wifi
   Wire.begin(); //I2C, default pins: 4 & 5
   SPI.begin();
   displayinit(); //show bootup screen
   RTCinit(); //init the local time from RTC
-  initOutput(); //initialize output pin7
-  //LEDinit();
+  LEDinit();
   SDmanager();  // initialize SD card if present
   SDwriteLogfile("Boot");
   initRFID();
   playBeep(); //init the beeper by playing a short sound
+  initOutput(); //initialize output pin
   //*****************
   //NETWORK INIT
   //*****************
 
-  ConfigureWifi();  // connect to wifi
+  display.println(F("Webserver init"));
+  display.display();
 
   server.on("/", HTTP_GET, []() {
     if (!handleFileRead("/index.htm")) server.send(404, "text/plain", "FileNotFound");
@@ -126,21 +148,30 @@ void setup() {
       server.send(404, "text/plain", "FileNotFound");
   });
 
+  const char* update_path = "/firmware";
+  const char* update_username = "admin";
+  const char* update_password = "admin";
+  httpUpdater.setup(&server, update_path, update_username, update_password);
   server.begin();  // start webserver  todo: only need webserver in server mode, not in client mode so could just start it there... may save some ram and make system more stable?
-
   webSocket.begin(); //todo: check if this can lead to memory leaks if called multiple times
   webSocket.onEvent(webSocketEvent);
-  tkSecond.attach(1, Second_Tick);  // start ticker
-
 
   Serial.print("Free heap:");
   Serial.println(ESP.getFreeHeap(), DEC);
   Serial.print("EEPROM USED:");
   Serial.println(EE_RESERVED_ADDR, DEC);
 
+  display.println(F("setup done"));
+  display.display();
 
-
+  delay(800);
 }
+/*
+  void sleepcallback()
+  {
+  Serial.println("I'm Back!");
+  }
+*/
 
 void loop() {
   yield();  // run background processes
@@ -150,14 +181,18 @@ void loop() {
   displayUpdate();
   wifiCheckConnection();
   SendToServer();  // send data out
-  server.handleClient(); //handles http connections and webpage requests
-  webSocket.loop();   // handles websocket requests
   updateLED();  // update LED output
   checkButtonState();  // check GPIO0 button state
   timeManager(false); // check the local time
   SDmanager();  // check SD card
 
-  delay(100);
-  //todo: add light sleep here. check if local time is valid after sleep. if not, update from RTC before logging any event
+  if (machineLocked) //do not handle any server requests when machine is being used
+  {
+    server.handleClient(); //handles http connections and webpage requests
+    webSocket.loop();   // handles websocket requests
+  }
+
+  delay(180); //automatically adds some sleep mode, saving power, not necessary to manually put it to sleep (only works if connected to network)
+
 
 }
