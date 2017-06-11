@@ -15,7 +15,7 @@ unsigned long APtimestamp = 0; //time keeper for wifi connection
   {
   // Call MDNS.begin(<domain>) to set up mDNS to point to
   // "<domain>.local" or in this case alphanode.local
-  if (!MDNS.begin("lambdanodes"))
+  if (!MDNS.begin("rfidcontrol"))
   {
     Serial.println(F("Error setting up MDNS responder!"));
   }
@@ -38,7 +38,7 @@ void wifiHostAP()
 
   APactive = 2; //AP is up and running
   APtimestamp = millis();
-  LEDColor.h = 170; //set LED blue if accesspoint is active
+  LEDColor.h = 200; //set LED purple if accesspoint is active
   LEDColor.v = LED_MAXBRIGHTNESS; //high brightness
 
 }
@@ -107,7 +107,7 @@ void wifiCheckConnection()
     if (APactive == 1) wifiHostAP(); //AP was requested, so run it
     else if (APactive == 2)
     {
-      LEDColor.h = 180; //keep LED blue if accesspoint is active
+      LEDColor.h = 200; //keep LED purple if accesspoint is active
       LEDColor.v = LED_MAXBRIGHTNESS; //high brightness
     }
     return; //do not handle normal wifi connection in AP mode
@@ -119,29 +119,27 @@ void wifiCheckConnection()
     if (wifiConnected == 0) //if we were not connected before, setup services
     {
       wifiConnected = 1;
-      LEDColor.h = 86; //change color of LED to green
-      // setupMDNS(); //OTA service already adds MDNS
-      initOTAupdate(); //start OTA update service (also adds mdns service)
-      MDNS.addService("http", "tcp", 80);   // Add service to MDNS-SD
+      LED_blink_once(170); //blink in blue upon connection      
       timeManager(true); //force an NTP time update
       String logstring = getTimeString();
       logstring += "\tConnected to WIFI";
       Serial.print(logstring);
       Serial.print(" IP = ");
       Serial.println(WiFi.localIP());
-      SDwriteLogfile(logstring);
+      //SDwriteLogfile(logstring);
+  
     }
-    ArduinoOTA.handle();
+
   }
   else if (APactive == 0) {
     wifiConnected = 0;
-    LEDColor.h = 0; //change color of LED to red
-    ledbreathe = true; //'breathe' in red to indicate no WiFi connection
-    //try to reconnect every five seconds if AP is not active
-    if (millis() - wifiwatchdog > 5000)
+    
+    //try to reconnect every 2 seconds if AP is not active
+    if (millis() - wifiwatchdog > 2000)
     {
+      LED_blink_once(10); //blink in orange when not connected
       wifiConnectFailCounter++;
-      IPAddress ip;
+        Serial.println(F("(re)connecting wifi"));
       wifiwatchdog = millis();
       switch (wifiMulti.run()) {
         case WL_CONNECTED:
@@ -149,7 +147,6 @@ void wifiCheckConnection()
           {
             WiFi.config(config.IP, config.Gateway , config.Netmask);
           }
-          ip = WiFi.localIP();
           Serial.println(F("Connected to:"));
           Serial.print(F("SSID: "));
           Serial.println(WiFi.SSID().c_str());
@@ -184,6 +181,8 @@ void ConfigureWifi()
   //WiFi.disconnect(true); //delete any old wifi configuration (not needed with wifi multi)
   wifiwatchdog = millis();
   WiFi.mode(WIFI_STA); //set STA mode
+  //WiFi.setSleepMode(WIFI_LIGHT_SLEEP); //enable light sleep mode to save power
+  //wifi_fpm_set_sleep_type(LIGHT_SLEEP_T);
   wifiConnect(); //connect to wifi
 }
 
