@@ -184,20 +184,25 @@ bool SDinit(uint8_t pin)
   pinMode(SD_CSN_PIN, OUTPUT);
   digitalWrite(SD_CSN_PIN, HIGH);
   Serial.print(F("SD init... "));
+  display.print(F("SD init... "));
+  display.display();
   //check SD detect pin, sd is present if it is low
   if (analogRead(A0) < 800)
   {
     SDstate = SD_PRESENT;
     if (!SD.begin(pin)) {
       yield();
-      Serial.println(F("Card failed"));
-      //todo: add an LED feedback here
+      Serial.println(F("card failed"));
+      display.println(F("card failed"));
+      display.display();
       return false;
     }
     else
     {
       SDstate = SD_INITIALIZED;
       Serial.println(F("SD card initialized."));
+      display.println(F("OK"));
+      display.display();
       File dir = SD.open("/");
       printDirectory(dir, 0);
       dir.close();
@@ -207,6 +212,8 @@ bool SDinit(uint8_t pin)
   else
   {
     Serial.println(F("Card not present"));
+    display.println(F("no card"));
+      display.display();
     SDstate = SD_NOTPRESENT;
     return false;
   }
