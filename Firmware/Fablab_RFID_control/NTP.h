@@ -7,33 +7,7 @@ WiFiUDP udp; // A UDP instance to let us send and receive packets over UDP
 const unsigned int UDPlocalPort = 2390;
 
 
-//returns date and time string of current time, "X" if no internet time is available
-String getTimeString()
-{
 
-  String datetime;
-
-  if (localTimeValid)
-  {
-
-    char temparr[5];
-    sprintf(temparr, "%02u", month()); //need a fixed length, easiest using sprintf
-    String monthstr = String(temparr);
-    sprintf(temparr, "%02u", day()); //need a fixed length, easiest using sprintf
-    String daystr = String(temparr);
-    sprintf(temparr, "%02u", hour() + 1); //need a fixed length, easiest using sprintf
-    String hourstr = String(temparr);
-    sprintf(temparr, "%02u", minute()); //need a fixed length, easiest using sprintf
-    String minutestr = String(temparr);
-    sprintf(temparr, "%02u", second()); //need a fixed length, easiest using sprintf
-    String secondstr = String(temparr);
-
-    datetime = daystr + ". " + monthstr + ". " + String(year()) + " " + hourstr + ":" + minutestr + ":" + secondstr;
-  }
-  else datetime = "X";
-
-  return datetime;
-}
 
 // send an NTP request to the time server at the given address
 unsigned long sendNTPpacket(IPAddress& address, uint32_t* timestamp, byte* packetBuffer)
@@ -134,7 +108,7 @@ void timeManager(bool forceupdate)
   //run this code only if the WIFI is available:
   if (WiFi.status() == WL_CONNECTED) {
 
-    if (millis() - NTPupdate > 3600000 || forceupdate) //update local time from NTP once every 60 minutes
+    if (millis() - NTPupdate > 3600000 || forceupdate) //update from NTP once every 60 minutes
     {
       uint8_t errorcounter = 0;
       int roundtripdelay;
@@ -156,7 +130,8 @@ void timeManager(bool forceupdate)
       if (errorcounter < 8) {
         localTimeValid = true;
         setTime(NTPtime - 2208988800UL); //initialize the time with epoch timestamp
-        syncRTC(); //check sync of local RTC               
+        Serial.print(F("Synchronizing RTC with NTP... "));
+        syncRTC(NTPtime - 2208988800UL); //check sync of local RTC               
       }
        NTPupdate = millis(); //update again in a few minutes
     }
