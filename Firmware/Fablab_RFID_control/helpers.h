@@ -109,5 +109,20 @@ String urldecode(String input) // (based on https://code.google.com/p/avr-netino
     ret.concat(c);
   }
   return ret;
-
 }
+
+//split an input string at a separator, returns part before the separator (maximum sting length: 255)
+String splitStringbySeparator(String inputstr, char separator)
+{
+  uint8_t i,j;
+  j = inputstr.length();
+  for(i=0; i<j; i++)
+  {
+    if(inputstr.charAt(i)==separator)
+    {
+      return inputstr.substring(0, i);
+    }
+  }
+  return inputstr; //not found, return full string
+}
+

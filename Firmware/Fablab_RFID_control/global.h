@@ -2,18 +2,18 @@
 //#include <WiFiClientSecure.h>
 
 #define SD_CSN_PIN 0
-#define SERVERPACKETS 16        // number of server sendout packets (=buffer)
+#define SERVERPACKETS 8        // number of server sendout packets (=buffer)
 
 #define USE_SERIALINPUT  // uncomment to acvate serial input commands (see ackpayloads.h)
-#define SERVERMININTERVAL 50  // minimum interval (in ms) between server sendouts (where all pending values in the buffer are sent)
+#define SERVERMININTERVAL 1000  // minimum interval (in ms) between server sendouts (where a pending event is sent)
 #define DEFAULTSTRINGLENGTH 32 //strings stored in eeprom have this length by default (31 chars + termination)
 #define SERVERCREDENTIALSTRINGLENGTH 55 //string length for server credentials (Cayenne credentials are up to 50 chars long)
 #define MULTIWIFIS 5 //number of wifi credentials to store for wifi multi
 
 //EEPROM definitions
 #define EEPROMSIZE 1024
-#define EE_SSID_ADDR 8                                              //address for SSID string
-#define EE_WIFIPASS_ADDR EE_SSID_ADDR+(MULTIWIFIS*DEFAULTSTRINGLENGTH)         //address for wifi password
+#define EE_SSID_ADDR 8                                              //base address for SSID strings
+#define EE_WIFIPASS_ADDR EE_SSID_ADDR+(MULTIWIFIS*DEFAULTSTRINGLENGTH)         //base address for wifi passwords
 #define EE_NEXTWIFI_ADDR EE_WIFIPASS_ADDR+(MULTIWIFIS*DEFAULTSTRINGLENGTH)         //address for next wifi credentials to (over)write (wifi multi)
 #define EE_DEVICENAME_ADDR EE_NEXTWIFI_ADDR+SERVERCREDENTIALSTRINGLENGTH //address for device name (accesspoint name, default: RFIDnode-xx)
 #define EE_DEVICEPASS_ADDR EE_DEVICENAME_ADDR+DEFAULTSTRINGLENGTH   //address for device passworkd (accesspoint passworkd, default: 12345678)
@@ -22,12 +22,23 @@
 #define EE_NETMASK_ADDR EE_IP_ADDR+4                                //address for static Netmask IP
 #define EE_GATEWAY_ADDR EE_NETMASK_ADDR+4                           //address for static Gateway IP
 #define EE_DHCP_ADDR EE_GATEWAY_ADDR+4                              //address for 'use DHCP' boolean
-#define EE_TIMEZONE_ADDR EE_DHCP_ADDR+4                             //address for timezone, signed uint8_t
-#define EE_RESERVED_ADDR EE_TIMEZONE_ADDR+1                            //address reserved
+#define EE_TIMEZONE_ADDR EE_DHCP_ADDR+4                             //address for timezone, signed uint8_t (currently not used)
+#define EE_MID_ADDR EE_TIMEZONE_ADDR+1                              //address for machine ID, uint8_t
+#define EE_MACHINENAME_ADDR EE_MID_ADDR+1                           //address for machine name, string
+#define EE_SERVERIP_ADDR EE_MACHINENAME_ADDR+DEFAULTSTRINGLENGTH    //address for server IP address, uint32_t
+#define EE_SERVERPORT_ADDR EE_SERVERIP_ADDR+4                       //address for server port, uint16_t
+#define EE_RESERVED_ADDR EE_SERVERPORT_ADDR+2                       //address reserved
+
+//additional config stuff needed:
+/*
+  currently none
+
+*/
+
 
 //function prototypes (todo: need to clean up the depedency mess!)
 void wifiAddAP(String name, String password);
-time_t getRtcTimestamp(void); 
+time_t getRtcTimestamp(void);
 
 
 // global variables
@@ -43,6 +54,7 @@ WiFiClient espClient;
 // uint8_t* SSLspacebloackreservation;
 uint8_t watchdog;      // counter for watchdog
 uint8_t APactive = 0;  // is zero if AP is deactivated, 1 if active (set to 1 to launch accesspoint mode)
+bool refreshUserDB = true; //update the user database immediately if set to true (do so on bootup)
 bool localTimeValid;
 bool RTCTimeValid = false; //is set true after setting the RTC successfully
 bool machineLocked = true;
@@ -69,25 +81,27 @@ struct NodeConfig {
 // Server Payload
 struct sendoutpackage {
   bool pending;
-  String timestamp;  // time when received
-  uint8_t ID;         // ID of node
-  String topic;     //topic (i.e. data name)
-  String data;       // numerical data (and unit)
-  String logstring; //string for SDcard and webpage logging (format: "NodeType, DataType, Data") (written to SD card in JSON format)
+  uint32_t timestamp;  // time of event
+  uint8_t event;     //event to send (0 = controller_start, 1 = controller_ok, 2 = controller_error, 3 = tag_login,4 = tag_logout)
+  int16_t tid;         //tag id (set to -1 if not a tag event)
+  char remarks[40]; //string for any remarks for the log
+  //note the machine id is read from the config, it does not to be saved in the payload but is added during parsing of the payload
 };
 
-//struct for user authentication
+//struct for user authentication, 46byte per entry, at 500 entries: 23kB -> no problem to stor in flash (but may take some time to validate a tag...read speed of flash is about 400kB/s according to a test found in the forum, so at 23kb this should take less than 100ms which is ok)
 
 struct userAuth {
+  uint16_t tagid; //2byte database tag id (used in the database as a reference to the uid)
   uint32_t uid; //4 byte uid of the RFID card
-  char firstname[16]; //16byte first name of user
-  char familyname[16]; //16byte family name of user
+  uint32_t ts_validfrom; //entry date and time of tag
+  uint32_t ts_validuntil; //expiration date and time of tag
+  char name[32]; //32byte name of user
 } userentry;
 
-uint16_t currentuser=0; //database entry of current user
+uint16_t currentuser = 0; //database entry of current user
 
-sendoutpackage nodeDatatosend[SERVERPACKETS];
-uint8_t sendoutindex;
+sendoutpackage datatosend[SERVERPACKETS]; //buffer for packages to send out
+uint8_t sendoutindex; //index of current package to be sent from buffer
 
 void WriteConfig() {
   uint8_t i;
@@ -122,6 +136,14 @@ void WriteConfig() {
   EEPROM.write(EE_IP_ADDR + 2, config.IP[2]);
   EEPROM.write(EE_IP_ADDR + 3, config.IP[3]);
   EEPROM.write(EE_DHCP_ADDR, config.useDHCP);
+
+
+  WriteStringToEEPROM(EE_DEVICENAME_ADDR, config.DeviceName, DEFAULTSTRINGLENGTH);
+#define EE_MACHINENAME_ADDR EE_MID_ADDR+1                           //address for machine name, string
+#define EE_SERVERIP_ADDR EE_MACHINENAME_ADDR+DEFAULTSTRINGLENGTH    //address for server IP address, uint32_t
+#define EE_SERVERPORT_ADDR EE_SERVERIP_ADDR+4                       //address for server port, uint16_t
+#define EE_RESERVED_ADDR EE_SERVERPORT_ADDR+2                       //address reserved
+
   EEPROM.commit();
   EEPROM.end();
 }
@@ -161,7 +183,7 @@ void writeDefaultConfig(void) {
   config.CayenneUser = "";
   config.CayennePass = "";
   config.CayenneID = "";
-  
+
   WriteConfig();
   Serial.println(F("Standard config applied"));
 }
@@ -214,49 +236,49 @@ void checkButtonState(void) {
   // note: button is connected to SD cards CSN. when pressed, the card's SPI
   // becomes active. This is not a problem just a hint.
 
-    // wait for any ongoing SPI transaction to finish:
-    while (SPI1CMD & SPIBUSY) {
-    }
+  // wait for any ongoing SPI transaction to finish:
+  while (SPI1CMD & SPIBUSY) {
+  }
 
-    // now make the pin an input, read it and set it to an output again
-    pinMode(SD_CSN_PIN, INPUT);
-    if (digitalRead(SD_CSN_PIN) == LOW) {
-      if (buttonstate == 0)
-      {
-        buttonstate = 1;
-        buttontimestamp = millis();
-      }
-    } else
+  // now make the pin an input, read it and set it to an output again
+  pinMode(SD_CSN_PIN, INPUT);
+  if (digitalRead(SD_CSN_PIN) == LOW) {
+    if (buttonstate == 0)
     {
-      buttonstate = 0;
+      buttonstate = 1;
+      buttontimestamp = millis();
     }
-    pinMode(SD_CSN_PIN, OUTPUT);
-    digitalWrite(SD_CSN_PIN, HIGH);
-    if (buttonstate == 1)
+  } else
+  {
+    buttonstate = 0;
+  }
+  pinMode(SD_CSN_PIN, OUTPUT);
+  digitalWrite(SD_CSN_PIN, HIGH);
+  if (buttonstate == 1)
+  {
+    if (millis() - buttontimestamp > 2000 && APactive < 2)
     {
-      if (millis() - buttontimestamp > 2000 && APactive < 2)
-      {
-        APactive = 1;  // activate accesspoint
-        Serial.println(F("accesspoint triggered"));
-      }
-      if (millis() - buttontimestamp > 8000) {
-        writeDefaultConfig();  //"reset to factory defaults"
-        uint32_t waittimestamp = millis();
-       // LED_rainbow();
-       //TODO: print something on the display!
-        while (millis() - waittimestamp < 3000)
-        {
-          updateLED();
-          delay(1);
-        }
-        delay(100);
-        ESP.restart();  // reboot
-      }
+      APactive = 1;  // activate accesspoint
+      Serial.println(F("accesspoint triggered"));
     }
+    if (millis() - buttontimestamp > 8000) {
+      writeDefaultConfig();  //"reset to factory defaults"
+      uint32_t waittimestamp = millis();
+      // LED_rainbow();
+      //TODO: print something on the display!
+      while (millis() - waittimestamp < 3000)
+      {
+        updateLED();
+        delay(1);
+      }
+      delay(100);
+      ESP.restart();  // reboot
+    }
+  }
 
-    // todo: possibility to add more functions, like change to default radio
-    // channel or something
-  
+  // todo: possibility to add more functions, like change to default radio
+  // channel or something
+
 }
 
 void printConfig(void) {
@@ -284,6 +306,8 @@ void printConfig(void) {
   Serial.println(config.DeviceName);
   Serial.println(config.DevicePW);
   //  Serial.println(config.APIkey);
-
 }
+
+//todo: add function to generate a log event (if the buffer is full, write the new event to the SD card, also if WIFI is not available)
+//todo: add function to generate an error event
 

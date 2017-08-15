@@ -6,9 +6,6 @@ IPAddress timeServerIP; // pool.ntp.org NTP server address
 WiFiUDP udp; // A UDP instance to let us send and receive packets over UDP
 const unsigned int UDPlocalPort = 2390;
 
-
-
-
 // send an NTP request to the time server at the given address
 unsigned long sendNTPpacket(IPAddress& address, uint32_t* timestamp, byte* packetBuffer)
 {

@@ -114,12 +114,15 @@ void verifyRFIDdata(byte *uidbuffer, byte uidsize) {
 
   uint16_t dbentryno = userDBfindentry(uid);
 
+  //todo: need to add a verification here, the functuion must be implemented in database.h first (check if user's time is already valid and not yet expired)
+  
+  
   if (dbentryno > 0)
   {
     if (machineLocked == false)
     {
       //if machine is running, check if the user is logging out:
-      if (currentuser == dbentryno)
+      if(currentuser == dbentryno)
       {
         playLogout();
         //todo: send the entry to the server here
@@ -131,8 +134,6 @@ void verifyRFIDdata(byte *uidbuffer, byte uidsize) {
         //if running and not current user, play sound
         authenticationFail();
       }
-
-
     }
     else
     {
@@ -140,9 +141,6 @@ void verifyRFIDdata(byte *uidbuffer, byte uidsize) {
       currentuser = dbentryno;
       authenticationSuccess();
     }
-
-
-
   }
   else
   {

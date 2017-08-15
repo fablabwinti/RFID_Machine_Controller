@@ -159,7 +159,7 @@ void RTCinit(void)
 
 }
 
-//returns date and time string of current local time, "X" if no time is available
+//returns date and time string of current local time, "2014-03-14T03:14:15.927Z" if no time is available (pi day 2014, founding date of FablabWinti)
 String getTimeString()
 {
   String datetime;
@@ -180,9 +180,24 @@ String getTimeString()
     sprintf(temparr, "%02u", second()); //need a fixed length, easiest using sprintf
     String secondstr = String(temparr);
 
-    datetime = daystr + ". " + monthstr + ". " + String(year()) + " " + hourstr + ":" + minutestr + ":" + secondstr;
+    datetime = String(year()) + "-" + monthstr + "-" + daystr + "T" + hourstr + ":" + minutestr + ":" + secondstr +".000Z";
   }
-  else datetime = "X";
+  else datetime = "2014-03-14T03:14:15.927Z";
 
   return datetime;
 }
+
+
+/*
+ * to parse a datestring into local time format, the time library can be used, but first, the string has to be parsed into integers, something like this:
+ * int commaIndex = myString.indexOf(',');
+//  Search for the next comma just after the first
+int secondCommaIndex = myString.indexOf(',', commaIndex + 1);
+Then you could use that index to create a substring using the String class's substring() method. This returns a new String beginning at a particular starting index, and ending just before a second index (Or the end of a file if none is given). So you would type something akin to:
+
+String firstValue = myString.substring(0, commaIndex);
+String secondValue = myString.substring(commaIndex + 1, secondCommaIndex);
+String thirdValue = myString.substring(secondCommaIndex + 1); // To the end of the string
+
+
+ */

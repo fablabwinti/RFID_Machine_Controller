@@ -69,7 +69,7 @@ void displayUpdate(void) {
   {
     display.setFont(&FreeSans9pt7b);
     display.setCursor(20, 12);
-    
+
     char temparr[5];
     sprintf(temparr, "%02u", hour()); //need a fixed length, easiest using sprintf
     String hourstr = String(temparr);
@@ -79,7 +79,7 @@ void displayUpdate(void) {
     String secondstr = String(temparr);
     String localtimestr = hourstr + ":" + minutestr + ":" + secondstr;
     display.print(localtimestr);
-    
+
     display.setFont(&FreeSansBoldOblique12pt7b);
     display.setCursor(30, 43);
     display.print("FREI");
@@ -98,21 +98,26 @@ void displayUpdate(void) {
   }
   else
   {
+    //get current users name from database
+    userdatabase.readRec(currentuser, EDB_REC userentry); //get the currently loggeed in user entry
+    String fullname = String(userentry.name);
+    String firstname = splitStringbySeparator(fullname, char(' ')); //split the name string into first name and surname
+    String surname = fullname.substring(firstname.length()+1);
     display.setFont(&FreeSans9pt7b);
     display.setCursor(0, 12);
-    display.print("Mensch");
-    display.setCursor(0, 26);
-    display.print("Meyer");
+    display.print(firstname);
+    display.setCursor(0, 27);
+    display.print(surname);
 
     display.setFont(&FreeSansBold12pt7b);
     display.setCursor(10, 60);
 
     time_t timeinuse = getRtcTimestamp() - userStarttime;
-  
-    uint16_t usehours = timeinuse/3600;
-    uint16_t useminutes = (timeinuse%3600)/60;
-    uint16_t useseconds = timeinuse%60;
-    
+
+    uint16_t usehours = timeinuse / 3600;
+    uint16_t useminutes = (timeinuse % 3600) / 60;
+    uint16_t useseconds = timeinuse % 60;
+
     char temparr[5];
     sprintf(temparr, "%02u", usehours); //need a fixed length, easiest using sprintf
     String hourstr = String(temparr);
