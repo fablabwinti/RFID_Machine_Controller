@@ -110,7 +110,8 @@ extern "C" {
   -program a cache function that writes log entries to the SD card. one log file per month or something and one file for 'unsent messages' or better: create a database on the sd card for entries, add a flag and clear it if the entry was sent out succesfully.
   -parse incoming json string
   -json input and output functions for database
-  
+  -IMPORTANT BUGFIX: in case RTC fails, the controller has to display a huge warning! also, update has to be forced more frequently!
+
 
 */
 
@@ -127,7 +128,7 @@ void setup() {
   //SOFTWARE INIT
   //*****************
 
-  sendoutindex = 0;
+
   watchdog = 0;  // initialize watchdog counter (used in ticker interrupt)
   localTimeValid = false;  // set true once the time is set from NTP server
   ReadConfig();  // read configuration from eeprom, apply default config if invalid
@@ -195,7 +196,7 @@ void setup() {
 
   //print full user database:
   //userDBprintout();
-
+  createErrorEvent("error Event Test at Bootup");
 
 }
 /*
@@ -232,13 +233,14 @@ void loop() {
 
   if (millis() - testtimestamp > 30000)
   {
+    /*
     //generate some random event data
     testtimestamp = millis();
     datatosend[0].pending = 1;
     datatosend[0].timestamp = getRtcTimestamp();  // time of event
     datatosend[0].event = random(4);     //event to send (0 = controller_start, 1 = controller_ok, 2 = controller_error, 3 = tag_login,4 = tag_logout)
     datatosend[0].tid = random(5);         //tag id (set to -1 if not a tag event)
-    datatosend[0].remarks = "testing testing 1234. is this on?"; //string for any remarks for the log
-
+    strncpy(datatosend[0].remarks, "testing testing 1234. is this on?", sizeof(datatosend[0].remarks)); ; //string for any remarks for the log
+*/
   }
 }

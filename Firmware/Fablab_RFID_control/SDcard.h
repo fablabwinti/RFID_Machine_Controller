@@ -6,6 +6,10 @@
   https://github.com/PaulStoffregen/Time  (licensed under GPL)
   https://github.com/arduino/Arduino/tree/master/libraries/SD (licensed under LGPL)
 
+
+  //Note on formatting SD cards: the arduino website recommends FAT16 even though FAT32 is also supported
+  
+
 */
 
 #define LEAP_YEAR(Y)     ( ((1970+Y)>0) && !((1970+Y)%4) && ( ((1970+Y)%100) || !((1970+Y)%400) ) )  //from time library
@@ -19,19 +23,20 @@
 
 #define EVENTB_TABLE_SIZE 102400 //100kb database, can hold over 2000 user entries
 
+//function prototypes (todo: need to clean up the head file depedency mess!)
+void sendToServer(sendoutpackage* datastruct, bool save);
 
 uint8_t SDstate = SD_UNKNOWN;
-int16_t eventDBentrytosend = -1; //index of the event currently being transmitted from the event database (send one by one to have better database control)
+int16_t eventDBentrytosend; //index of the event currently being transmitted from the event database (send one by one to have better database control)
 sendoutpackage eventDBpackage; //buffer for one package to be read from DB and sent out
 
 //SD card database for storing unsent events
-const char* db_events = "/db/events.db"; 
+const char* db_events = "events.db"; //file for storing events database
 File eventDBfile; //event database resides on the SD card (it may be written often, if worn out, the SD card is easy to replace)
-EDB eventdatabase(&userDBwriter, &userDBreader); //create the event database
 
 void eventDBwriter (unsigned long address, const uint8_t* data, unsigned int datasize) {
   eventDBfile.seek(address);
-  eventDBfile.write(data,datasize);
+  eventDBfile.write(data, datasize);
   eventDBfile.flush();
 }
 
@@ -40,13 +45,14 @@ void eventDBreader (unsigned long address, uint8_t* data, unsigned int datasize)
   eventDBfile.read(data, datasize);
 }
 
+EDB eventdatabase(&eventDBwriter, &eventDBreader); //create the event database
 
 
 //open a database file, create it if it does not exist
 void eventDBInit(void)
 {
   if (SD.exists(db_events)) {
-
+    Serial.println(F("SD database file exists")); //!!!
     eventDBfile = SD.open(db_events, FILE_WRITE); //open file for reading and writing
 
     if (eventDBfile) {
@@ -70,14 +76,15 @@ void eventDBInit(void)
       SD.remove(db_events);
       //now go on and create a new file with a new table
     }
-  } 
-    Serial.print(F("Creating event database... "));
-    // create table at with starting address 0
-    eventDBfile = SD.open(db_events, FILE_WRITE); //create file, overwrite if it exists (w+)
-    eventdatabase.create(0, EVENTB_TABLE_SIZE, (unsigned int)sizeof(eventDBpackage));
-    Serial.println(F("DONE"));
-  
+  }
+  Serial.print(F("Creating event database... "));
+  // create table at with starting address 0
+  eventDBfile = SD.open(db_events, FILE_WRITE); //create file, overwrite if it exists (w+)
+  eventdatabase.create(0, EVENTB_TABLE_SIZE, (unsigned int)sizeof(eventDBpackage));
+  Serial.println(F("DONE"));
+
 }
+
 
 void eventDBclose(void)
 {
@@ -90,8 +97,13 @@ void eventDBclose(void)
 
 void eventDBdeleteentry(uint16_t entryno)
 {
+  if (!eventDBfile) //database file not open, so open the database
+  {
+    eventDBInit();
+  }
+
   Serial.print(F("Deleting entry... "));
-  if (entryno < eventdatabase.count()) //if entry exists
+  if (entryno <= eventdatabase.count()) //if entry exists (entries are from 1 to count, not starting at 0!)
   {
     eventdatabase.deleteRec(entryno);
     Serial.println(F("DONE"));
@@ -100,25 +112,64 @@ void eventDBdeleteentry(uint16_t entryno)
   {
     Serial.println(F("NOT FOUND"));
   }
+  eventDBclose();
+
 }
 
-//add an entry to the eventDatabase (database must be initialized and file open before running this function)
+//add an entry to the eventDatabase
 bool eventDBaddentry(sendoutpackage* evententry)
 {
+  if (!eventDBfile) //database file not open, so open the database
+  {
+    eventDBInit();
+  }
+
   Serial.print(F("Appending eventDB entry... "));
 
   //make sure the package is pending:
-  evententry->pending = 1;
+  evententry->pending = true;
 
-  EDB_Status result = eventdatabase.appendRec(EDB_REC *evententry);
+  EDB_Status result = eventdatabase.appendRec(EDB_REC * evententry); //eventDBpackage is passed as a pointer but is dereferenced first, then cast back into a pointer by EDB_REC macro (kind of convoluted... see library definitions for details)
   if (result != EDB_OK) {
     DBprintError(result);
+    eventDBclose();
     return false;
   }
   Serial.println(F("DONE"));
+  eventDBclose();
+  //entry is now in the database, remove it from the queue
+  evententry->pending = false;
   return true;
-
 }
+
+
+//read a pending event from the database (if any) into the eventDBpackage (can only be called from within this file)
+void eventDBgetpending(void)
+{
+  Serial.println(F("Checking pending events on DB"));
+  if (!eventDBfile) //database file not open, so open the database
+  {
+    eventDBInit();
+  }
+  eventDBpackage.pending = false; //reset pending (use it to check in calling function to check if data was even read)
+  uint16_t i;
+  Serial.print(F("number of event DB entries: "));
+  Serial.println(eventdatabase.count());
+  for (i = eventdatabase.count(); i > 0; i--) //start scanning from the end (deleting end entries is faster), also, zero index is not used in EDB
+  {
+    EDB_Status result = eventdatabase.readRec(i, EDB_REC eventDBpackage); //eventDBpackage is passed as a pointer
+    if (result == EDB_OK)
+    {
+      Serial.println(F("read entry from EventDB"));
+      eventDBentrytosend = i;
+      break; //end the for loop now
+    }
+  }
+  eventDBclose();
+}
+
+
+
 
 
 
@@ -144,7 +195,7 @@ void SDwriteLogfile(String entry)
     {
       File dataFile = SD.open(filename, FILE_WRITE); //create the file, open for writing, start at the end of the file
       if (dataFile) {
-        dataFile.println("Alpha Node Logfile");
+        dataFile.println(F("RFID Controller Logfile"));
       }
       dataFile.close();
     }
@@ -239,13 +290,13 @@ void SDwriteNodeDataFileEntry(String data) //writes a string to SD card, one dat
 }
 
 
-void SDwriteNodeData(uint8_t index) //todo: update this function 
+void SDwriteData(uint8_t index) //todo: update this function
 {
   if (SDstate == SD_INITIALIZED)
   {
     String datastr = "{";
     datastr += datatosend[index].timestamp;
-   
+
     datastr += "}";
     SDwriteNodeDataFileEntry(datastr);
   }
@@ -308,7 +359,7 @@ bool SDinit(uint8_t pin)
       File dir = SD.open("/");
       printDirectory(dir, 0);
       dir.close();
-    
+
       return true;
     }
   }
@@ -316,7 +367,7 @@ bool SDinit(uint8_t pin)
   {
     Serial.println(F("Card not present"));
     display.println(F("no card"));
-      display.display();
+    display.display();
     SDstate = SD_NOTPRESENT;
     return false;
   }
@@ -347,14 +398,16 @@ void SDmanager(void)
         else //SD is initialized and ready: check for pending events
         {
 
-          //todo: check the database, send to server if any pending events
-          eventDBInit(); //open the event database 
-
-
-
-
           
-          eventDBclose();           
+          eventDBgetpending();
+          if (eventDBpackage.pending)
+          {
+            sendToServer(&eventDBpackage,false); //send to server, do not save again
+            if (eventDBpackage.pending == false) //if sent out successfully, delete this entry from the database (sendout sets pending = false)
+            {
+              eventDBdeleteentry(eventDBentrytosend);
+            }
+          }
         }
         return;
       }

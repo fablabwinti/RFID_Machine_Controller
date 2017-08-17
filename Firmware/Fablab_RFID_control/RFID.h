@@ -80,7 +80,7 @@ boolean writeRFIDdata(MFRC522::MIFARE_Key *key, uint8_t block, uint8_t* RFIDbloc
 
 void authenticationFail(void)
 {
-  //todo: add display error, add alarm error
+  //todo: add display error
   Serial.println(F("ACCESS DENIED!"));
   playDenied();
 }
@@ -88,7 +88,7 @@ void authenticationFail(void)
 
 void authenticationSuccess(void)
 {
-  //todo: add display error, add alarm error
+  //todo: add display error
   Serial.println(F("AUTHENTICATED, ACCESS GRANTED"));
   playLogin();
   releaseMachine();
@@ -112,8 +112,9 @@ void verifyRFIDdata(byte *uidbuffer, byte uidsize) {
 
   Serial.println(uid, DEC);
 
-  uint16_t dbentryno = userDBfindentry(uid);
-
+  uint16_t dbentryno = userDBfindentry(uid); //find the uid in the database, read the user entry into 'userentry' struct
+  
+  
   //todo: need to add a verification here, the functuion must be implemented in database.h first (check if user's time is already valid and not yet expired)
   
   
@@ -124,10 +125,10 @@ void verifyRFIDdata(byte *uidbuffer, byte uidsize) {
       //if machine is running, check if the user is logging out:
       if(currentuser == dbentryno)
       {
-        playLogout();
-        //todo: send the entry to the server here
+        playLogout();        
         lockMachine();
         currentuser = 0; //user logged out
+        addEventToQueue(4, userentry.tagid , String(userentry.name) + " logout"); //event 4 = tag_logout, no need to read userentry from DB, it was read above in the findentry function
       }
       else
       {
@@ -140,9 +141,10 @@ void verifyRFIDdata(byte *uidbuffer, byte uidsize) {
       //if not running, set the current user and release machine:
       currentuser = dbentryno;
       authenticationSuccess();
+      addEventToQueue(3, userentry.tagid, String(userentry.name) + " login"); //event 3 = tag_login, no need to read userentry from DB, it was read above in the findentry function
     }
   }
-  else
+  else //user not authorized for this machine
   {
     //debug: add the entry
    // char n1[16] = {0};

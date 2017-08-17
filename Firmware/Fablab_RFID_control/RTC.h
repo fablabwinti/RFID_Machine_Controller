@@ -110,11 +110,16 @@ void syncRTC(uint32_t epochtime)
 
 }
 
+//read current time from RTC and return it as a UNIX timestamp
 time_t getRtcTimestamp(void)
 {
-  RtcDateTime RTCtime = RTC.GetDateTime();
-  //Serial.println(RTCtime.Epoch32Time());
-  return RTCtime.Epoch32Time();
+  if (RTCTimeValid)
+  {
+    RtcDateTime RTCtime = RTC.GetDateTime();
+    //Serial.println(RTCtime.Epoch32Time());
+    return RTCtime.Epoch32Time();
+  }
+  else return 0;
 }
 
 
@@ -147,6 +152,7 @@ void RTCinit(void)
     display.println(F("Failed"));
     display.display();
     RTCTimeValid = false;
+    //todo: send out error message to server, RTC battery may be dead
   }
   Serial.print(F("Local time is "));
   String timenow = getTimeString();
@@ -180,24 +186,50 @@ String getTimeString()
     sprintf(temparr, "%02u", second()); //need a fixed length, easiest using sprintf
     String secondstr = String(temparr);
 
-    datetime = String(year()) + "-" + monthstr + "-" + daystr + "T" + hourstr + ":" + minutestr + ":" + secondstr +".000Z";
+    datetime = String(year()) + "-" + monthstr + "-" + daystr + "T" + hourstr + ":" + minutestr + ":" + secondstr + ".000Z";
   }
   else datetime = "2014-03-14T03:14:15.927Z";
 
   return datetime;
 }
 
+String convertToTimesting(time_t timestamp)
+{
+  Serial.print("converting ");
+  Serial.println(timestamp);
+  String datetime;
+  RtcDateTime RTCtime;
+  if(timestamp < 1394766855) timestamp = 1394766855; //add a dummy time so server accepts it (pi day 2014)
+  RTCtime.InitWithEpoch32Time(timestamp);
+  char temparr[5];
+  sprintf(temparr, "%02u", RTCtime.Month()); //need a fixed length, easiest using sprintf
+  String monthstr = String(temparr);
+  sprintf(temparr, "%02u", RTCtime.Day()); //need a fixed length, easiest using sprintf
+  String daystr = String(temparr);
+  sprintf(temparr, "%02u", RTCtime.Hour()); //need a fixed length, easiest using sprintf
+  String hourstr = String(temparr);
+  sprintf(temparr, "%02u", RTCtime.Minute()); //need a fixed length, easiest using sprintf
+  String minutestr = String(temparr);
+  sprintf(temparr, "%02u", RTCtime.Second()); //need a fixed length, easiest using sprintf
+  String secondstr = String(temparr);
+
+  datetime = String(RTCtime.Year()) + "-" + monthstr + "-" + daystr + " " + hourstr + ":" + minutestr + ":" + secondstr;
+
+//format: "2017-06-08 22:24:15"
+  return datetime;
+}
+
 
 /*
- * to parse a datestring into local time format, the time library can be used, but first, the string has to be parsed into integers, something like this:
- * int commaIndex = myString.indexOf(',');
-//  Search for the next comma just after the first
-int secondCommaIndex = myString.indexOf(',', commaIndex + 1);
-Then you could use that index to create a substring using the String class's substring() method. This returns a new String beginning at a particular starting index, and ending just before a second index (Or the end of a file if none is given). So you would type something akin to:
+   to parse a datestring into local time format, the time library can be used, but first, the string has to be parsed into integers, something like this:
+   int commaIndex = myString.indexOf(',');
+  //  Search for the next comma just after the first
+  int secondCommaIndex = myString.indexOf(',', commaIndex + 1);
+  Then you could use that index to create a substring using the String class's substring() method. This returns a new String beginning at a particular starting index, and ending just before a second index (Or the end of a file if none is given). So you would type something akin to:
 
-String firstValue = myString.substring(0, commaIndex);
-String secondValue = myString.substring(commaIndex + 1, secondCommaIndex);
-String thirdValue = myString.substring(secondCommaIndex + 1); // To the end of the string
+  String firstValue = myString.substring(0, commaIndex);
+  String secondValue = myString.substring(commaIndex + 1, secondCommaIndex);
+  String thirdValue = myString.substring(secondCommaIndex + 1); // To the end of the string
 
 
- */
+*/

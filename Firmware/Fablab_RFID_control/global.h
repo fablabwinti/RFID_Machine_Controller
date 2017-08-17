@@ -36,7 +36,7 @@
 */
 
 
-//function prototypes (todo: need to clean up the depedency mess!)
+//function prototypes (todo: need to clean up the head file depedency mess!)
 void wifiAddAP(String name, String password);
 time_t getRtcTimestamp(void);
 
@@ -84,7 +84,7 @@ struct sendoutpackage {
   uint32_t timestamp;  // time of event
   uint8_t event;     //event to send (0 = controller_start, 1 = controller_ok, 2 = controller_error, 3 = tag_login,4 = tag_logout)
   int16_t tid;         //tag id (set to -1 if not a tag event)
-  char remarks[40]; //string for any remarks for the log
+  char remarks[41]; //string for any remarks for the log (limited to 40 chars to not waste a lot of ram in the buffer, must be of constant size for database)
   //note the machine id is read from the config, it does not to be saved in the payload but is added during parsing of the payload
 };
 
@@ -101,7 +101,9 @@ struct userAuth {
 uint16_t currentuser = 0; //database entry of current user
 
 sendoutpackage datatosend[SERVERPACKETS]; //buffer for packages to send out
-uint8_t sendoutindex; //index of current package to be sent from buffer
+
+//function prototypes (todo: need to clean up the head file depedency mess!)
+bool eventDBaddentry(sendoutpackage* evententry);
 
 void WriteConfig() {
   uint8_t i;
@@ -308,6 +310,50 @@ void printConfig(void) {
   //  Serial.println(config.APIkey);
 }
 
-//todo: add function to generate a log event (if the buffer is full, write the new event to the SD card, also if WIFI is not available)
-//todo: add function to generate an error event
+//function to generate a log event from data passed to function, if the queue is full, write the new event to the SD card. remarks must be smaller than 40 chars or it gets truncated
+void addEventToQueue(uint8_t logevent, int16_t tagID, String remarkstr)
+{
+  sendoutpackage tempevent; //create a temporary data struct
+
+  //fill in the data, add current time for timestamp
+  tempevent.pending = true;
+  tempevent.timestamp = getRtcTimestamp(); //get current timestamp from the RTC (returns 0 if RTC time is invalid due to hardware fault)
+  Serial.println(tempevent.timestamp);
+  tempevent.event = logevent; //event to send (0 = controller_start, 1 = controller_ok, 2 = controller_error, 3 = tag_login,4 = tag_logout)
+  tempevent.tid = tagID;
+  remarkstr.toCharArray(tempevent.remarks, 41); //copy the string
+
+  //find an available spot in the queue
+  uint8_t i;
+  bool bufferfull = true;
+  for (i = 0; i < SERVERPACKETS; i++)
+  {
+    if (datatosend[i].pending == false)
+    {
+      bufferfull = false; //available space found
+      break;
+    }
+  }
+  if (!bufferfull)
+  {
+    datatosend[i] = tempevent; //copy the struct to the queue
+  }
+  else //if buffer is full, save the event to the SD card database
+  {
+    eventDBaddentry(&tempevent);
+  }
+}
+
+//create log event without tagid
+void addEventToQueue(uint8_t logevent, String remarkstr)
+{
+  addEventToQueue(logevent, 0, remarkstr); //if no tid provided, tid is set zero (and not sent out)
+}
+
+
+//function to generate an error event, errorstr must be smaller than 40 chars or it gets truncated
+void createErrorEvent(String errorstr)
+{
+  addEventToQueue(2, errorstr); //event  2 = controller_error
+}
 

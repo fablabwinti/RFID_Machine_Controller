@@ -120,9 +120,9 @@ void timeManager(bool forceupdate)
         {
           timevalidation = temptime - NTPtime; //should be zero or one if we got the same time twice
         }
-        else timevalidation = 2; //time we got is invalid for sure.
+        else timevalidation = 10; //time we got is invalid for sure.
         errorcounter++;
-      } while ((roundtripdelay <= 0 || roundtripdelay > 2000) && timevalidation > 1 && errorcounter < 8);
+      } while ((roundtripdelay <= 0 || roundtripdelay > 2000) && timevalidation > 5 && errorcounter < 8);  //allows time inaccuracies up to 5 seconds
 
       if (errorcounter < 8) {
         localTimeValid = true;

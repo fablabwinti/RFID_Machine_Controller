@@ -8,8 +8,8 @@ unsigned long serverUpdateTime = 0;  // used to control when data is sent out (m
 
 
 
-//send all pending events to the server
-void sendToServer(sendoutpackage* datastruct) {
+//send all pending events to the server, save to SD card in case 'saveiffail' = true
+void sendToServer(sendoutpackage* datastruct, bool saveiffail) {
   // checks if we can already send more data. if we can, check if data needs to be sent.
   // then format the data and send it out through the ether
 
@@ -30,7 +30,7 @@ void sendToServer(sendoutpackage* datastruct) {
         needupdate = 1;
         DynamicJsonBuffer jsonBuffer(256); //crate a buffer for one event
         JsonObject& event = jsonBuffer.createObject();
-        // event["timestamp"] = datastruct.timestamp; //todo: server does not accept unix timestamp...
+        event["timestamp"] = convertToTimesting(datastruct->timestamp);
         event["mid"] = 3; //todo: read this from config
         event["event"] = datastruct->event;
         if (datatosend[i].tid > 0)
@@ -56,7 +56,8 @@ void sendToServer(sendoutpackage* datastruct) {
         connectfailcounter++;
         if (connectfailcounter > 10)
         {
-          //todo: write this event to the database and remove pending flag
+          if (saveiffail)
+            eventDBaddentry(datastruct); //transfer this event over to the SD card database (pending flag is removed there so it will not be sent from queue)
         }
         return;
       }
@@ -83,17 +84,15 @@ void sendToServer(sendoutpackage* datastruct) {
       String line = client.readStringUntil('\r');
       Serial.println(line);
       if (line.indexOf("200 OK") != -1) {
-
         datastruct->pending = 0;  // reset flag after sending
-
         Serial.println(F("Serverupdate OK"));
       }
       else
       {
         Serial.println(F("Serverupdate ERROR"));
-        //todo: add an error event to the pending message list here, add the 'line' as a comment
-        //todo: write this event to the database and remove pending flag
-
+        createErrorEvent(line); //server error, send out parts of the received error code
+        if (saveiffail)
+          eventDBaddentry(datastruct); //transfer this event over to the SD card database (pending flag is removed there so it will not be sent from queue)
         LED_blink_once(20);
       }
 
@@ -103,9 +102,11 @@ void sendToServer(sendoutpackage* datastruct) {
       client.stop();
     }
   }
-
-
-
+  else //no wifi available, log the event to SD card database for later transfer
+  {
+    if (saveiffail)
+      eventDBaddentry(datastruct); //transfer this event over to the SD card database (pending flag is removed there so it will not be sent from queue)
+  }
 }
 
 //send pending events to the server (they are automatically transferred to the SD card database if sending fails)
@@ -116,7 +117,7 @@ void sendPendingEvents(void)
   {
     if (datatosend[i].pending)  // if sendout flag is set
     {
-      sendToServer(&datatosend[i]);
+      sendToServer(&datatosend[i], true); //send the data
       return; //return, do the others later (to not block login events for too long)
     }
   }
