@@ -84,35 +84,41 @@ extern "C" {
 
 /*  TODO
  * *******
-   -add RTC support -> DONE
-   -add OLED support -> basic functionality: DONE
-   -add RFID support -> basic functionality: DONE
-   -use fastled instead of neopixel
-   -add buzzer support -> DONE
-   -clean out unused stuff -> DONE
-   -add user database -> DONE
-   -maybe: add sleep functions to save power -> still need to check the RFID module like every 100ms -> DONE
-   -create log file structure
-   -read log files on bootup, transfer flagged events to server and unflag them
-   -add timezone and automatic daylightsaving adjustment (for europe, us has different DST rules) -> DONE
-   -add timezone to EEPROM and make selectable on webconfig
+
+  -create a config section for all compile time config stuff 
+  -create log file structure
   -add time control for access
   -switch to async web server (more stable)
   -webpage: add machine info, add button for firmware update
-  -webpage: timezone
-  -add firmware update password to eeprom
-  -make web-page access restricted by password
-  -add SSL to webpage
-  -put server address into eeprom, make it configurable on webpage
+  -add SSL to all server traffic
+
   -add a #define for password to access the RFID cards first sector
   -add a #define for the key stored in the first sector (same key for all cards), adds security to make cards impossible to be copied (easily) as access to this sector is restricted
   -need a solid way to handle the master key, independant of timer (in case no time is available from RTC or NTP to unlock the machine)
   -program a cache function that writes log entries to the SD card. one log file per month or something and one file for 'unsent messages' or better: create a database on the sd card for entries, add a flag and clear it if the entry was sent out succesfully.
-  -parse incoming json string
-  -json input and output functions for database
   -IMPORTANT BUGFIX: in case RTC fails, the controller has to display a huge warning! also, update has to be forced more frequently!
+  -make the access to webpage and update more tamper-proof (like only allow it in accesspoint mode, only at bootup is not helping, the module can easily be crashed by flooding http commands)  -> this is something for later, in the beginning we may need frequent bugfixes... it is password protected at least
 
+  IN PROGRESS:
+  -make all webpage traffic websocket based (is currently partially HTTP based which is less secure as passwords and stuff get sent through the URL and will be stored in browser history)
+  -put server address into eeprom, make it configurable on webpage
 
+  DONE:
+   -add buzzer support -> DONE
+   -clean out unused stuff -> DONE
+   -add user database -> DONE
+   -maybe: add sleep functions to save power -> still need to check the RFID module like every 100ms -> DONE
+   -parse incoming json string
+   -json input and output functions for database
+   -make web-page access restricted by password
+   -add firmware update password to eeprom -> NO, it can only be changed in the code
+   -read log files on bootup, transfer flagged events to server and unflag them
+   -add RTC support -> DONE
+   -add OLED support -> basic functionality: DONE
+   -add RFID support -> basic functionality: DONE
+   -use fastled instead of neopixel
+   -add timezone and automatic daylightsaving adjustment (for europe, us has different DST rules) -> DONE
+   -add timezone to EEPROM and make selectable on webconfig -NO, must be set in code before compiling
 */
 
 
@@ -144,7 +150,7 @@ void setup() {
   SPI.begin();
   displayinit(); //show bootup screen
   RTCinit(); //init the local time from RTC
-  // LEDinit();
+  // LEDinit(); //intialize WS2812 fastled library (comment this line if using Serial debugging output)
   SDmanager();  // initialize SD card if present
   SDwriteLogfile("Boot");
   initRFID();
@@ -158,16 +164,16 @@ void setup() {
   display.display();
 
   server.on("/", HTTP_GET, []() {
-    if (!handleFileRead("/index.htm")) server.send(404, "text/plain", "FileNotFound");
+    if (!server.authenticate(webpage_username, webpage_password))
+      return server.requestAuthentication();
+    if (!handleHTTPRequest("/index.htm")) server.send(404, "text/plain", "FileNotFound");
   });
   server.onNotFound([]() { // handle page not found: check if file or path is available on SPIFFS
-    if (!handleFileRead(server.uri()))
+    if (!handleHTTPRequest(server.uri()))
       server.send(404, "text/plain", "FileNotFound");
   });
 
-  const char* update_path = "/firmware";
-  const char* update_username = "admin";
-  const char* update_password = "admin";
+
   httpUpdater.setup(&server, update_path, update_username, update_password);
   server.begin();  // start webserver  todo: only need webserver in server mode, not in client mode so could just start it there... may save some ram and make system more stable?
   webSocket.begin(); //todo: check if this can lead to memory leaks if called multiple times
@@ -176,7 +182,7 @@ void setup() {
   Serial.print("Free heap:");
   Serial.println(ESP.getFreeHeap(), DEC);
   Serial.print("EEPROM USED:");
-  Serial.println(EE_RESERVED_ADDR, DEC);
+  Serial.println(EE_END, DEC);
 
   display.println(F("setup done"));
   display.display();
@@ -234,13 +240,13 @@ void loop() {
   if (millis() - testtimestamp > 30000)
   {
     /*
-    //generate some random event data
-    testtimestamp = millis();
-    datatosend[0].pending = 1;
-    datatosend[0].timestamp = getRtcTimestamp();  // time of event
-    datatosend[0].event = random(4);     //event to send (0 = controller_start, 1 = controller_ok, 2 = controller_error, 3 = tag_login,4 = tag_logout)
-    datatosend[0].tid = random(5);         //tag id (set to -1 if not a tag event)
-    strncpy(datatosend[0].remarks, "testing testing 1234. is this on?", sizeof(datatosend[0].remarks)); ; //string for any remarks for the log
-*/
+      //generate some random event data
+      testtimestamp = millis();
+      datatosend[0].pending = 1;
+      datatosend[0].timestamp = getRtcTimestamp();  // time of event
+      datatosend[0].event = random(4);     //event to send (0 = controller_start, 1 = controller_ok, 2 = controller_error, 3 = tag_login,4 = tag_logout)
+      datatosend[0].tid = random(5);         //tag id (set to -1 if not a tag event)
+      strncpy(datatosend[0].remarks, "testing testing 1234. is this on?", sizeof(datatosend[0].remarks)); ; //string for any remarks for the log
+    */
   }
 }

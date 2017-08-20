@@ -18,68 +18,11 @@ String getContentType(String filename) {
 }
 
 
-bool handleFileRead(String path) {
+bool handleHTTPRequest(String path) {
 
-  if (server.args() > 0 )  // Save Settings
+  if (server.args() > 0 )  //form submit stuff (not used anymore)
   {
-    uint8_t updateconfig = 1;
-    uint8_t i;
-    String newSSID;
-    String newWifiPass;
-    uint8_t addWifi = 0;
 
-    for (i = 0; i < server.args(); i++ ) {
-      Serial.println(server.argName(i));
-
-      //Wifi configuration:
-      if (server.argName(i) == "SSID") newSSID = urldecode(server.arg(i));
-      if (server.argName(i) == "PASS") {
-        newWifiPass = urldecode(server.arg(i));
-        addWifi = 1; //config is updated in the add function
-      }
-      //Cayenne Setup:
-      if (server.argName(i) == "CA_USER")  config.CayenneUser = server.arg(i);
-      if (server.argName(i) == "CA_PASS")  config.CayennePass = server.arg(i);
-      if (server.argName(i) == "CA_ID")  config.CayenneID = server.arg(i);
-
-      if (server.argName(i) == "DHCPuse") {
-        Serial.println(server.arg(i));
-        if (server.arg(i) == "on") {
-          config.useDHCP = true;
-          Serial.println(F("using DHCP"));
-        }
-        else {
-          config.useDHCP = false;
-          Serial.println(F("NOT using DHCP"));
-        }
-      }
-      if (server.argName(i) == "IP") {
-        String address = server.arg(i);
-        IPAddress ip;
-        ip.fromString(address);
-        config.IP = ip;
-      }
-      if (server.argName(i) == "MASK") {
-        String address = server.arg(i);
-        IPAddress ip;
-        ip.fromString(address);
-        config.Netmask = ip;
-      }
-      if (server.argName(i) == "GATE")  {
-        String address = server.arg(i);
-        IPAddress ip;
-        ip.fromString(address);
-        config.Gateway = ip;
-      }
-    }
-
-    if (addWifi)
-    {
-      wifiAddAP(newSSID, newWifiPass);
-    }
-    else if (updateconfig > 0) {
-      WriteConfig();
-    }
   }
 
   Serial.println("handleFileRead: " + path);
@@ -144,7 +87,6 @@ void webSocketEvent(uint8_t num, WStype_t type, uint8_t * payload, size_t lenght
     case WStype_DISCONNECTED:
       Serial.println("Disconnected!");
       websocket_connected--;
-      //memset(availablePixels,0,sizeof(availablePixels)); //clear known pixels so it updates on next client connection
       break;
     case WStype_CONNECTED:
       {
@@ -194,11 +136,9 @@ void webSocketEvent(uint8_t num, WStype_t type, uint8_t * payload, size_t lenght
         DHCPsettings += ",GATE" + config.Gateway.toString();
         webSocket.sendTXT(num, DHCPsettings);
 
-        //cayenne setting supdate: CA_USERxxx,CA_PASSxx,CA_IDxx
-        String CAsettings = "CA_USER" + config.CayenneUser + ",CA_PASS" + config.CayennePass + ",CA_ID" + config.CayenneID;
-        webSocket.sendTXT(num, CAsettings);
-
-
+        //node settings
+        String NDsettings = "NDC_MNAME" + config.MachineName + ",NDC_MID" + String(config.mid) + ",NDC_SADD" + config.serverAddress + ",NDC_PORT" + String(config.serverPort);
+        webSocket.sendTXT(num, NDsettings);
 
 
       }
@@ -240,14 +180,14 @@ void webSocketEvent(uint8_t num, WStype_t type, uint8_t * payload, size_t lenght
               Serial.print(")");
               Serial.println((WiFi.encryptionType(i) == ENC_TYPE_NONE) ? " " : "*");
               String ssid = "SSID" + WiFi.SSID(i);
-              webSocket.sendTXT(num,ssid); 
+              webSocket.sendTXT(num, ssid);
             }
           }
           Serial.println("");
           // clean up ram
           WiFi.scanDelete();
         }
-        else   if (text == "resetwifi") { //delete all known wifi's
+        else if (text == "resetwifi") { //delete all known wifi's
           for (i = 0; i < MULTIWIFIS ; i++)
           {
             config.ssid[i] = " ";
@@ -257,7 +197,102 @@ void webSocketEvent(uint8_t num, WStype_t type, uint8_t * payload, size_t lenght
           String SSIDs = "network"; //send empty networks string
           webSocket.sendTXT(num, SSIDs);
         }
-   
+        else if (text.indexOf("SSID") != -1) //add a new wifi connection (sent as JSON, containing SSID and PASS, example {"SSID": "xxx", "PASS": "xxx"}
+        {
+          //parse the json text
+          DynamicJsonBuffer jsonBuffer(150); //crate a buffer
+          JsonObject& wifidata = jsonBuffer.parseObject(text);
+          if (wifidata.success())
+          {
+            if (wifidata.containsKey("SSID") && wifidata.containsKey("PASS"))
+            {
+              String newSSID = wifidata["SSID"];
+              String newWifiPass = wifidata["PASS"];
+              Serial.print(F("Received new wifi credentials: "));
+              Serial.println(newSSID + " " + newWifiPass);
+              wifiAddAP(newSSID, newWifiPass); //adds accesspoint to the config and saves config
+            }
+          }
+          else
+            Serial.println(F("wifiadd json parsing failed"));
+        }
+        else if (text.indexOf("DHCP") != -1) //IP & DHCP settings (sent as JSON, containing IP, MASK, GATE and DHCP example {"IP": "192.168.1.55", "MASK": "255.255.255.0","GATE": "192.168.1.1","DHCP": "off"} (DHCP can also be "on")
+        {
+          //parse the json text
+          DynamicJsonBuffer jsonBuffer(150); //crate a buffer
+          JsonObject& ipsettings = jsonBuffer.parseObject(text);
+          if (ipsettings.success())
+          {
+            if (ipsettings.containsKey("IP"))
+            {
+              config.IP.fromString(ipsettings["IP"].asString());
+            }
+            if (ipsettings.containsKey("MASK"))
+            {
+              config.Netmask.fromString(ipsettings["MASK"].asString());
+            }
+            if (ipsettings.containsKey("GATE"))
+            {
+              config.Gateway.fromString(ipsettings["GATE"].asString());
+            }
+            if (ipsettings.containsKey("DHCP"))
+            {
+              String onoff = ipsettings["DHCP"];
+              if (onoff.indexOf("on"))
+              {
+                config.useDHCP = true;
+                Serial.println(F("using DHCP"));
+              }
+              else
+              {
+                config.useDHCP = false;
+                Serial.println(F("NOT using DHCP"));
+              }
+
+            }
+            WriteConfig();
+          }
+          else
+            Serial.println(F("ipsettings json parsing failed"));
+
+        }
+        else if (text.indexOf("NDC") != -1) //node settings as a json string,
+        {
+
+
+          //node settings
+          String NDsettings = "NDC_MNAME" + config.MachineName + ",NDC_MID" + String(config.mid) + ",NDC_SADD" + config.serverAddress + ",NDC_PORT" + String(config.serverPort);
+          webSocket.sendTXT(num, NDsettings);
+          //parse the json text
+          DynamicJsonBuffer jsonBuffer(150); //crate a buffer
+          JsonObject& nodesettings = jsonBuffer.parseObject(text);
+          if (nodesettings.success())
+          {
+            if (nodesettings.containsKey("NDC_MNAME"))
+            {
+              config.MachineName = nodesettings["NDC_MNAME"].asString();
+            }
+            if (nodesettings.containsKey("NDC_MID"))
+            {
+              config.mid = nodesettings["NDC_MID"];
+            }
+            if (nodesettings.containsKey("NDC_SADD"))
+            {
+              config.serverAddress = nodesettings["NDC_SADD"].asString();
+            }
+            if (nodesettings.containsKey("NDC_PORT"))
+            {
+              config.serverPort = nodesettings["NDC_PORT"];
+            }
+            WriteConfig();
+          }
+          else
+            Serial.println(F("nodesettings json parsing failed"));
+
+
+        }
+
+
       }
       break;
 

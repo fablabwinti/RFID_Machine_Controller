@@ -1,9 +1,4 @@
 
-//todo: read this stuff from the config
-const char* server_addr = "192.168.1.25";
-uint16_t port = 3000;
-const char* server_URI = "/machines/2/tags"; //todo: add real uri
-const char* server_postURI = "/logs"; //todo: add real uri
 unsigned long serverUpdateTime = 0;  // used to control when data is sent out (must not do it faster than every x seconds)
 
 
@@ -31,7 +26,7 @@ void sendToServer(sendoutpackage* datastruct, bool saveiffail) {
         DynamicJsonBuffer jsonBuffer(256); //crate a buffer for one event
         JsonObject& event = jsonBuffer.createObject();
         event["timestamp"] = convertToTimesting(datastruct->timestamp);
-        event["mid"] = 3; //todo: read this from config
+        event["mid"] = config.mid;
         event["event"] = datastruct->event;
         if (datatosend[i].tid > 0)
         {
@@ -48,8 +43,9 @@ void sendToServer(sendoutpackage* datastruct, bool saveiffail) {
       Serial.println("Sendoutdata: ");
 
       Serial.println(payload);
-
-      if (!client.connect(server_addr, port)) {
+      char serveradd[32];
+      config.serverAddress.toCharArray(serveradd, 32);
+      if (!client.connect(serveradd, config.serverPort)) {
         Serial.println(F("Server connect failed"));
         LED_blink_once(20);
         //if this fails multiple times, write data to SD database
@@ -63,9 +59,9 @@ void sendToServer(sendoutpackage* datastruct, bool saveiffail) {
       }
 
       connectfailcounter = 0;
-
+      //send POST to '/logs'
       client.print(String("POST /logs HTTP/1.1\r\n") +
-                   "Host: http://" + server_addr + "/\r\n" +
+                   "Host: http://" + config.serverAddress + "/\r\n" +
                    "Connection: close\r\n" +
                    "Content-Type: application/json\r\n" +
                    "Content-Length: " + String(payload.length()) +
@@ -135,23 +131,26 @@ void UpdateDBfromServer(void) {
     timetoupdateDB = millis();
     retries--;
     Serial.print("connecting to ");
-    Serial.print(server_addr);
+    Serial.print(config.serverAddress);
     Serial.print(":");
-    Serial.println(port);
+    Serial.println(config.serverPort);
 
     // Use WiFiClient class to create TCP connections
     WiFiClient client;
-    if (!client.connect(server_addr, port)) {
+    char serveradd[32];
+    config.serverAddress.toCharArray(serveradd, 32);
+    if (!client.connect(serveradd, config.serverPort)) {
       Serial.println("connection failed");
       return;
     }
 
+    String server_URI = "/machines/" + String(config.mid) + "/tags";
     Serial.print("Requesting URI: ");
     Serial.println(server_URI);
 
     // This will send the request to the server
     client.print(String("GET ") + server_URI + " HTTP/1.1\r\n" +
-                 "Host: " + server_addr + "\r\n" +
+                 "Host: " + config.serverAddress + "\r\n" +
                  "Connection: close\r\n\r\n");
     unsigned long timeout = millis();
     while (client.available() == 0) {
@@ -184,7 +183,7 @@ void UpdateDBfromServer(void) {
     {
       delay(1); //wait for more data and make way for background activity if needed
       DynamicJsonBuffer jsonBuffer(512); //crate a buffer for 10 database entries (todo: could optimize ram usage if necessary by making this buffer smaller)
-      str = "["; //add initial array bracket
+      str = "["; //add initial array bracket 
       for (uint8_t i = 0; i < 10; i++)
       {
         str += client.readStringUntil('}');

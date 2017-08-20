@@ -5,6 +5,12 @@
 
   For details about the memory inside the RFID chips check the datasheet: http://cache.nxp.com/documents/data_sheet/MF1S50YYX_V1.pdf
 
+  note: access key bits must be set to 0 0 0 or 0 0 1 (use key A only, key A required to read anything) 001 is the factory default, so they do not have to be changed (key B cannot be used as it is readable with key A, see datasheet of MF1S5009)
+
+note on sectors and blocks: the card is accessed with block numbers. each block contains 16 bytes of data. every fourth block is a 'trailer' block containing access data for the three blocks
+below it. block 3 is the trailer block for sector 0, block 7 is the trailer block for sector 1 and so on.
+to change the access key (and access bits) of sector 1 which is used to (slightly) increase authentication rewrite key A in sector 7. 
+  
  * */
 //Pin definitions
 #define RST_PIN         255        //RST not connected, use soft reset
@@ -12,7 +18,7 @@
 
 MFRC522 mfrc522(SS_PIN, RST_PIN);   // Create MFRC522 instance
 
-//authenticate and read one block (16bytes+2bytes) of the RFID card (blockbuffer needs to be at least 18 bytes)
+//authenticate and read one block (16bytes) of the RFID card (blockbuffer needs to be at least 18 bytes)
 //make sure the commands PICC_IsNewCardPresent() and PICC_ReadCardSerial() were executed before calling this function
 //this function is called by verifyRFIDdata()
 boolean getRFIDdata(MFRC522::MIFARE_Key *key, uint8_t block, uint8_t* RFIDblockbuffer)
@@ -20,11 +26,6 @@ boolean getRFIDdata(MFRC522::MIFARE_Key *key, uint8_t block, uint8_t* RFIDblockb
   boolean result = false;
   MFRC522::StatusCode status;
 
-  // http://arduino.stackexchange.com/a/14316   -> BUT: if these two commands are executed twice before authentication, it fails with a timeout (commands are executed during card detect already)
-  //    if ( ! mfrc522.PICC_IsNewCardPresent())
-  //        return false;
-  //    if ( ! mfrc522.PICC_ReadCardSerial())
-  //        return false;
   // Serial.println(F("Authenticating using key A..."));
   status = mfrc522.PCD_Authenticate(MFRC522::PICC_CMD_MF_AUTH_KEY_A, block, key, &(mfrc522.uid));
   if (status != MFRC522::STATUS_OK) {
@@ -34,7 +35,7 @@ boolean getRFIDdata(MFRC522::MIFARE_Key *key, uint8_t block, uint8_t* RFIDblockb
   }
 
   // Read block
-  byte byteCount = 18; //get 18 bytes of data
+  byte byteCount = 16; //get 18 bytes of data
   status = mfrc522.MIFARE_Read(block, RFIDblockbuffer, &byteCount);
   if (status != MFRC522::STATUS_OK) {
     Serial.print(F("MIFARE_Read() failed: "));
@@ -182,17 +183,23 @@ void checkRFID(void)
 
   // Prepare key - all keys are set to FFFFFFFFFFFFh at chip delivery from the factory.
   for (byte i = 0; i < 6; i++) key.keyByte[i] = 0xFF;  //todo: could set the key in the config, make it changeable on the webpage or something
+  
+  *((uint32_t*)key.keyByte) = RFID_SECTORKEY;   //access key for sector 1
+  uint8_t databuffer[18]; //16byte databuffer for secret key stored in sector 1
+  uint32_t needtomatch[4] = RFID_SECRETKEY; //16byte databuffer for secret key stored in sector 1
+
+  len = 18; //need to read 18 bytes (did not investigate what the two additional bytes are, maybe a CRC?)
+  //read block 1 (16 data bytes)
+//  block = 1;
+//  getRFIDdata(&key, block, databuffer);
 
 
-  byte namebuffer[36];
-
-
-  len = 18; //need to read 18 bytes (did not investigate what the two additional bytes are, maybe a CRC)
+  len = 18; //need to read 18 bytes (did not investigate what the two additional bytes are, maybe a CRC?)
   //read block 1 and block 2 (16 data bytes each)
   block = 1;
-  getRFIDdata(&key, block, namebuffer);
+  getRFIDdata(&key, 1, (uint8_t*)databuffer);
   block = 2;
-  getRFIDdata(&key, block, &namebuffer[18]);
+  getRFIDdata(&key, block, &databuffer[18]);
   //note: reading of two blocks takes about 15ms
 
   verifyRFIDdata(mfrc522.uid.uidByte, mfrc522.uid.size); //todo: add name verification?

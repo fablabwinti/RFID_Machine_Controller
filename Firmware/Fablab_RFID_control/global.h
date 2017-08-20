@@ -9,12 +9,15 @@
 #define DEFAULTSTRINGLENGTH 32 //strings stored in eeprom have this length by default (31 chars + termination)
 #define SERVERCREDENTIALSTRINGLENGTH 55 //string length for server credentials (Cayenne credentials are up to 50 chars long)
 #define MULTIWIFIS 5 //number of wifi credentials to store for wifi multi
+#define RFID_SECTORKEY  0x000000000000 //secret access key for first datasector (must be entered upon compiling, never commit to github, not even compiled file)
+#define RFID_SECRETKEY  {0x00000000, 0x00000000, 0x00000000, 0x00000000} //16byte (4x32bit) secret key stored in first sector for additional security (can not be copied) key must be inserted before compiling (and never commited to GIThub)
 
 //EEPROM definitions
 #define EEPROMSIZE 1024
-#define EE_SSID_ADDR 8                                              //base address for SSID strings
-#define EE_WIFIPASS_ADDR EE_SSID_ADDR+(MULTIWIFIS*DEFAULTSTRINGLENGTH)         //base address for wifi passwords
-#define EE_NEXTWIFI_ADDR EE_WIFIPASS_ADDR+(MULTIWIFIS*DEFAULTSTRINGLENGTH)         //address for next wifi credentials to (over)write (wifi multi)
+#define EE_START 8  //staring address of data (first 8 bytes can be used as identifiers and versioning)
+#define EE_SSID_ADDR  EE_START                                      //base address for wifi passwords
+#define EE_WIFIPASS_ADDR EE_SSID_ADDR+(MULTIWIFIS*DEFAULTSTRINGLENGTH)     //base address for wifi passwords
+#define EE_NEXTWIFI_ADDR EE_WIFIPASS_ADDR+(MULTIWIFIS*DEFAULTSTRINGLENGTH)    //address for next wifi credentials to (over)write (wifi multi)
 #define EE_DEVICENAME_ADDR EE_NEXTWIFI_ADDR+SERVERCREDENTIALSTRINGLENGTH //address for device name (accesspoint name, default: RFIDnode-xx)
 #define EE_DEVICEPASS_ADDR EE_DEVICENAME_ADDR+DEFAULTSTRINGLENGTH   //address for device passworkd (accesspoint passworkd, default: 12345678)
 #define EE_NTP_ADDR EE_DEVICEPASS_ADDR+DEFAULTSTRINGLENGTH          //address for NTP server name string
@@ -25,14 +28,15 @@
 #define EE_TIMEZONE_ADDR EE_DHCP_ADDR+4                             //address for timezone, signed uint8_t (currently not used)
 #define EE_MID_ADDR EE_TIMEZONE_ADDR+1                              //address for machine ID, uint8_t
 #define EE_MACHINENAME_ADDR EE_MID_ADDR+1                           //address for machine name, string
-#define EE_SERVERIP_ADDR EE_MACHINENAME_ADDR+DEFAULTSTRINGLENGTH    //address for server IP address, uint32_t
+#define EE_SERVERIP_ADDR EE_MACHINENAME_ADDR+DEFAULTSTRINGLENGTH    //address for server IP address, 32byte string (string can be an ip like "192.168.1.1")
 #define EE_SERVERPORT_ADDR EE_SERVERIP_ADDR+4                       //address for server port, uint16_t
-#define EE_RESERVED_ADDR EE_SERVERPORT_ADDR+2                       //address reserved
+#define EE_END EE_SERVERPORT_ADDR+2                       //address reserved
 
 //additional config stuff needed:
 /*
   currently none
-
+  todo: make the config use fixed string lengths as char arrays, read and write the full struct in one go making it a lot more flexible!
+  can use mystring.toCharArray(config.thisstring, mytring.length()+1); to copy a string to char array and String mystring = String(config.thisstring) to convert it back
 */
 
 
@@ -47,9 +51,18 @@ ESP8266HTTPUpdateServer httpUpdater; //http firmware update
 //AsyncWebServer server(80);  // The Webserver
 //AsyncWebSocket ws("/ws");
 
-
 WebSocketsServer webSocket = WebSocketsServer(81);
 WiFiClient espClient;
+
+//configuration for webupdate of firmware
+const char* update_path = "/firmware";
+const char* update_username = "admin";
+const char* update_password = "admin";
+//password for the config webpage access 
+const char* webpage_username = "admin";
+const char* webpage_password = "admin";
+
+
 // WiFiClientSecure SSLclient; //secure connections
 // uint8_t* SSLspacebloackreservation;
 uint8_t watchdog;      // counter for watchdog
@@ -66,9 +79,10 @@ struct NodeConfig {
   String ssid[MULTIWIFIS];           // 31 bytes maximum
   String wifipass[MULTIWIFIS];       // 31 bytes maximum
   uint8_t nextmultiwifitowrite; //next space in array to write
-  String CayenneUser;         // 50 bytes
-  String CayennePass;         // 50 bytes
-  String CayenneID;         // 50 bytes
+  String MachineName;         //31 bytes
+  uint8_t mid;                 //machine ID
+  String serverAddress;         //server address tring (can be an IP)
+  uint32_t serverPort;         //port of server
   String DeviceName;     // 31 bytes maximum, name for access point
   String DevicePW;       // 31 bytes maximum, password for access point
   String ntpServerName;  // 31 bytes maximum
@@ -77,6 +91,10 @@ struct NodeConfig {
   IPAddress Gateway;
   bool useDHCP;
 } config;
+
+
+
+
 
 // Server Payload
 struct sendoutpackage {
@@ -124,27 +142,17 @@ void WriteConfig() {
   WriteStringToEEPROM(EE_DEVICENAME_ADDR, config.DeviceName, DEFAULTSTRINGLENGTH);
   WriteStringToEEPROM(EE_DEVICEPASS_ADDR, config.DevicePW, DEFAULTSTRINGLENGTH);
 
-
-  EEPROM.write(EE_NETMASK_ADDR, config.Netmask[0]);
-  EEPROM.write(EE_NETMASK_ADDR + 1, config.Netmask[1]);
-  EEPROM.write(EE_NETMASK_ADDR + 2, config.Netmask[2]);
-  EEPROM.write(EE_NETMASK_ADDR + 3, config.Netmask[3]);
-  EEPROM.write(EE_GATEWAY_ADDR, config.Gateway[0]);
-  EEPROM.write(EE_GATEWAY_ADDR + 1, config.Gateway[1]);
-  EEPROM.write(EE_GATEWAY_ADDR + 2, config.Gateway[2]);
-  EEPROM.write(EE_GATEWAY_ADDR + 3, config.Gateway[3]);
-  EEPROM.write(EE_IP_ADDR, config.IP[0]);
-  EEPROM.write(EE_IP_ADDR + 1, config.IP[1]);
-  EEPROM.write(EE_IP_ADDR + 2, config.IP[2]);
-  EEPROM.write(EE_IP_ADDR + 3, config.IP[3]);
+  EEPROMWriteByteArray(EE_NETMASK_ADDR, &config.Netmask[0], 4);
+  EEPROMWriteByteArray(EE_GATEWAY_ADDR, &config.Gateway[0], 4);
+  EEPROMWriteByteArray(EE_IP_ADDR, &config.IP[0], 4);
   EEPROM.write(EE_DHCP_ADDR, config.useDHCP);
 
 
-  WriteStringToEEPROM(EE_DEVICENAME_ADDR, config.DeviceName, DEFAULTSTRINGLENGTH);
-#define EE_MACHINENAME_ADDR EE_MID_ADDR+1                           //address for machine name, string
-#define EE_SERVERIP_ADDR EE_MACHINENAME_ADDR+DEFAULTSTRINGLENGTH    //address for server IP address, uint32_t
-#define EE_SERVERPORT_ADDR EE_SERVERIP_ADDR+4                       //address for server port, uint16_t
-#define EE_RESERVED_ADDR EE_SERVERPORT_ADDR+2                       //address reserved
+  EEPROM.write(EE_MID_ADDR, config.mid);
+  WriteStringToEEPROM(EE_MACHINENAME_ADDR, config.MachineName, DEFAULTSTRINGLENGTH);
+
+  WriteStringToEEPROM(EE_SERVERIP_ADDR, config.serverAddress, DEFAULTSTRINGLENGTH);
+  EEPROMWriteByteArray(EE_SERVERPORT_ADDR, (uint8_t*)config.serverPort, 2); //uint16_t
 
   EEPROM.commit();
   EEPROM.end();
@@ -180,11 +188,12 @@ void writeDefaultConfig(void) {
   WiFi.softAPmacAddress(mac);
   String macID = String(mac[WL_MAC_ADDR_LENGTH - 2], HEX);
   macID.toUpperCase();
-  config.DeviceName = "RFIDnode-" + macID;
+  config.DeviceName = "RFIDnode-" + macID; //todo: update this to machine name once it is known
   config.DevicePW = "12345678";
-  config.CayenneUser = "";
-  config.CayennePass = "";
-  config.CayenneID = "";
+  config.MachineName = "NoName";
+  config.mid = 255;
+  config.serverAddress = " ";
+  config.serverPort = 3000;
 
   WriteConfig();
   Serial.println(F("Standard config applied"));
@@ -207,20 +216,16 @@ void ReadConfig() {
     config.DeviceName = ReadStringFromEEPROM(EE_DEVICENAME_ADDR);
     config.DevicePW = ReadStringFromEEPROM(EE_DEVICEPASS_ADDR);
 
-    config.Netmask[0] = EEPROM.read(EE_NETMASK_ADDR);
-    config.Netmask[1] = EEPROM.read(EE_NETMASK_ADDR + 1);
-    config.Netmask[2] = EEPROM.read(EE_NETMASK_ADDR + 2);
-    config.Netmask[3] = EEPROM.read(EE_NETMASK_ADDR + 3);
-    config.Gateway[0] = EEPROM.read(EE_GATEWAY_ADDR);
-    config.Gateway[1] = EEPROM.read(EE_GATEWAY_ADDR + 1);
-    config.Gateway[2] = EEPROM.read(EE_GATEWAY_ADDR + 2);
-    config.Gateway[3] = EEPROM.read(EE_GATEWAY_ADDR + 3);
-    config.IP[0] = EEPROM.read(EE_IP_ADDR);
-    config.IP[1] = EEPROM.read(EE_IP_ADDR + 1);
-    config.IP[2] = EEPROM.read(EE_IP_ADDR + 2);
-    config.IP[3] = EEPROM.read(EE_IP_ADDR + 3);
+    EEPROMReadByteArray(EE_NETMASK_ADDR, &config.Netmask[0], 4);
+    EEPROMReadByteArray(EE_GATEWAY_ADDR, &config.Gateway[0], 4);
+    EEPROMReadByteArray(EE_IP_ADDR, &config.IP[0], 4);
     config.useDHCP = EEPROM.read(EE_DHCP_ADDR);
 
+    config.mid = EEPROM.read(EE_MID_ADDR);
+    config.MachineName = ReadStringFromEEPROM(EE_MACHINENAME_ADDR);
+
+    config.serverAddress = ReadStringFromEEPROM(EE_SERVERIP_ADDR);
+    EEPROMReadByteArray(EE_SERVERPORT_ADDR, (uint8_t*)config.serverPort, 2); //uint16_t
 
   } else {
     Serial.println(F("Configurarion NOT FOUND!"));
