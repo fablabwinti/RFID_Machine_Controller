@@ -63,7 +63,7 @@ extern "C" {
 
 #include "global.h"
 #include "database.h"
-#include "webpage.h"
+
 #include "display.h"
 #include "RTC.h" //real time clock and other time management
 #include "NTP.h" //network time protocol management
@@ -74,6 +74,7 @@ extern "C" {
 #include "ServerRequests.h"
 #include "output.h"
 #include "RFID.h"
+#include "webpage.h"
 
 
 
@@ -98,6 +99,7 @@ extern "C" {
   -program a cache function that writes log entries to the SD card. one log file per month or something and one file for 'unsent messages' or better: create a database on the sd card for entries, add a flag and clear it if the entry was sent out succesfully.
   -IMPORTANT BUGFIX: in case RTC fails, the controller has to display a huge warning! also, update has to be forced more frequently!
   -make the access to webpage and update more tamper-proof (like only allow it in accesspoint mode, only at bootup is not helping, the module can easily be crashed by flooding http commands)  -> this is something for later, in the beginning we may need frequent bugfixes... it is password protected at least
+  -add more websocket messages throughout the code, especially in the webpage & config section
 
   IN PROGRESS:
   -make all webpage traffic websocket based (is currently partially HTTP based which is less secure as passwords and stuff get sent through the URL and will be stored in browser history)
@@ -134,7 +136,6 @@ void setup() {
   //SOFTWARE INIT
   //*****************
 
-
   watchdog = 0;  // initialize watchdog counter (used in ticker interrupt)
   localTimeValid = false;  // set true once the time is set from NTP server
   ReadConfig();  // read configuration from eeprom, apply default config if invalid
@@ -164,6 +165,7 @@ void setup() {
   display.display();
 
   server.on("/", HTTP_GET, []() {
+    www_connected = 1;
     if (!server.authenticate(webpage_username, webpage_password))
       return server.requestAuthentication();
     if (!handleHTTPRequest("/index.htm")) server.send(404, "text/plain", "FileNotFound");

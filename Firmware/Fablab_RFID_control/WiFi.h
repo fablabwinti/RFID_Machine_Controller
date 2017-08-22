@@ -65,15 +65,19 @@ void wifiAddAP(String name, String password)
 {
   uint8_t success = 1;
   uint8_t i;
+  Serial.println(name + " " + password);
   for (i = 0; i < MULTIWIFIS ; i++)
   {
     if (config.ssid[i] == name) //already known,maybe an updated password?
     {
-      success = 0;
+
       if (config.wifipass[i] != password) //updated password
       {
         config.wifipass[i] = password;
-        WriteConfig();
+      }
+      else
+      {
+        success = 0;
       }
     }
   }
@@ -84,6 +88,7 @@ void wifiAddAP(String name, String password)
     config.wifipass[config.nextmultiwifitowrite] = password;
     config.nextmultiwifitowrite = (config.nextmultiwifitowrite + 1) % MULTIWIFIS;
     WriteConfig();
+    Serial.println(F("wifi saved"));
   }
 }
 
@@ -119,7 +124,7 @@ void wifiCheckConnection()
     if (wifiConnected == 0) //if we were not connected before, setup services
     {
       wifiConnected = 1;
-      LED_blink_once(170); //blink in blue upon connection      
+      LED_blink_once(170); //blink in blue upon connection
       timeManager(true); //force an NTP time update
       String logstring = getTimeString();
       logstring += "\tConnected to WIFI";
@@ -127,19 +132,19 @@ void wifiCheckConnection()
       Serial.print(" IP = ");
       Serial.println(WiFi.localIP());
       //SDwriteLogfile(logstring);
-  
+
     }
 
   }
   else if (APactive == 0) {
     wifiConnected = 0;
-    
+
     //try to reconnect every 2 seconds if AP is not active
     if (millis() - wifiwatchdog > 2000)
     {
       LED_blink_once(10); //blink in orange when not connected
       wifiConnectFailCounter++;
-        Serial.println(F("(re)connecting wifi"));
+      Serial.println(F("(re)connecting wifi"));
       wifiwatchdog = millis();
       switch (wifiMulti.run()) {
         case WL_CONNECTED:

@@ -138,6 +138,7 @@ void webSocketEvent(uint8_t num, WStype_t type, uint8_t * payload, size_t lenght
 
         //node settings
         String NDsettings = "NDC_MNAME" + config.MachineName + ",NDC_MID" + String(config.mid) + ",NDC_SADD" + config.serverAddress + ",NDC_PORT" + String(config.serverPort);
+        Serial.println(NDsettings);
         webSocket.sendTXT(num, NDsettings);
 
 
@@ -157,14 +158,14 @@ void webSocketEvent(uint8_t num, WStype_t type, uint8_t * payload, size_t lenght
         String text = String((char *) &payload[0]);
 
         if (text.substring(0, 4) == "scan") { //oder: if(text.indexOf("TEXT") >=0)  oder if(text.substring(0,4) == "text")
-          //String xVal = (text.substring(4, text.length()));
-          //  WLED_program = xVal.toInt();
+                  
           //scan avalable networks and sent the SSIDs to the webpage
-          Serial.println("scanning for wifi");
+          //Serial.println("scanning for wifi");
           int n = WiFi.scanNetworks();
-          Serial.println("scan done");
+          //Serial.println("scan done");
+          WS_print(F("scan done\r\n"));
           if (n == 0)
-            Serial.println("no networks found");
+              WS_print(F("no networks found\r\n"));
           else
           {
             Serial.print(n);
@@ -194,6 +195,8 @@ void webSocketEvent(uint8_t num, WStype_t type, uint8_t * payload, size_t lenght
           }
           config.nextmultiwifitowrite = 0;
           WriteConfig();
+          WS_print(F("Wifi Removed\r\n"));
+          WS_print(F("Config written\r\n"));
           String SSIDs = "network"; //send empty networks string
           webSocket.sendTXT(num, SSIDs);
         }
@@ -241,16 +244,17 @@ void webSocketEvent(uint8_t num, WStype_t type, uint8_t * payload, size_t lenght
               if (onoff.indexOf("on"))
               {
                 config.useDHCP = true;
-                Serial.println(F("using DHCP"));
+                WS_print(F("using DHCP\r\n"));
               }
               else
               {
                 config.useDHCP = false;
-                Serial.println(F("NOT using DHCP"));
+                WS_print(F("NOT using DHCP\r\n"));
               }
 
             }
             WriteConfig();
+            WS_print(F("Config written\r\n"));
           }
           else
             Serial.println(F("ipsettings json parsing failed"));
@@ -258,14 +262,11 @@ void webSocketEvent(uint8_t num, WStype_t type, uint8_t * payload, size_t lenght
         }
         else if (text.indexOf("NDC") != -1) //node settings as a json string,
         {
-
-
           //node settings
-          String NDsettings = "NDC_MNAME" + config.MachineName + ",NDC_MID" + String(config.mid) + ",NDC_SADD" + config.serverAddress + ",NDC_PORT" + String(config.serverPort);
-          webSocket.sendTXT(num, NDsettings);
           //parse the json text
           DynamicJsonBuffer jsonBuffer(150); //crate a buffer
           JsonObject& nodesettings = jsonBuffer.parseObject(text);
+          nodesettings.prettyPrintTo(Serial); //debug!!!
           if (nodesettings.success())
           {
             if (nodesettings.containsKey("NDC_MNAME"))
@@ -285,6 +286,7 @@ void webSocketEvent(uint8_t num, WStype_t type, uint8_t * payload, size_t lenght
               config.serverPort = nodesettings["NDC_PORT"];
             }
             WriteConfig();
+            WS_print(F("Config written\r\n"));
           }
           else
             Serial.println(F("nodesettings json parsing failed"));

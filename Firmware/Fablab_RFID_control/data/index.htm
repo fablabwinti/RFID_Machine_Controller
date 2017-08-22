@@ -1,21 +1,23 @@
 <!DOCTYPE html>
 <html>
-<!-- Fablab RFID controller Configuration WebApp by Damian Schneider -->
+<!--Fablab RFID controller Configuration WebApp by Damian Schneider-->
 
 <head>
-    <title>RFID Machine Access - Configuration</title>
-    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title> RFID Machine Access - Configuration
+    </title>
+    <meta name="viewport" content="width=device-width, initial-scale=1">
     <meta name="apple-mobile-web-app-capable" content="yes">
     <!--preload the spinner image-->
     <link rel="prefetch" href="images/ajax-loader.gif">
     <link rel="stylesheet" href="jquery.mobile-1.4.5.min.css">
-    <script src="jquery.js"></script>
-    <script>
-    $(document).bind('mobileinit', function() {
-        $.mobile.changePage.defaults.changeHash = false;
-        $.mobile.hashListeningEnabled = false;
-        $.mobile.pushStateEnabled = false;
-    });
+    <script src="jquery.js">
+    < / script><script> $(document)
+    .bind('mobileinit',
+        function() {
+            $.mobile.changePage.defaults.changeHash = false;
+            $.mobile.hashListeningEnabled = false;
+            $.mobile.pushStateEnabled = false;
+        });
     </script>
     <script>
     var ipValue;
@@ -29,7 +31,7 @@
         var minutes = "0" + date.getMinutes();
         var seconds = "0" + date.getSeconds();
         return hours + ':' + minutes.substr(-2) + ':' + seconds.substr(-2);
-    }
+    };
 
     function scanWiFi() {
         var toSend = "scan";
@@ -42,40 +44,108 @@
         connection.send(toSend);
     };
 
-    
-    /*
+    function scanMachine() {
+        //try to connect to the server, if there is an error, show message
 
-        function submitForm(callerform) {
-            todo: make this work!
-            console.log(callerform.length);
-            console.log(callerform.name);
-            console.log(callerform.id);
-            var data = $(callerform.id).serialize();
-            console.log(data);
-            //console.log(callerform.attr('action'));
-            $.ajax({
-                type: 'post',
-                //url: callerform.attr('action'),
-                data: callerform.serialize(),
-                success: function() {
-                    alert('form was submitted');
-                }
+        var URL = "http://" + document.getElementById('Saddr').value + ":" + document.getElementById('Sport').value + "/machines";
+       
+        $.mobile.loading("show");
+            $.getJSON(URL, function(data) {
+                console.log(data);
+                alert("funktioniert!")
+                //TODO: 
+            })
+		.error(function() {
+            alert("Can not connect to Database Server. Is the server address and port correct? You can enter the data Manually if you want.");
+            document.getElementById("manualmachine").style.display = "inherit";
             });
 
+        console.log("machine scan done");
+        $.mobile.loading("hide");
+        //var URL = "http://192.168.1.25:3000/machines";
+
+        /*var request = new XMLHttpRequest();
+          request.onreadystatechange = function() {
+            if (this.readyState == 4 && this.status == 200) {
+                alert(this.responseText);
+            console.log(this.status);    
+            console.log(this.readyState);
+            }
+            else
+            {
+            console.log("got invalid response");	
+                 console.log(this.status);    
+            console.log(this.readyState);
+            }
+        };
+
+        try {
+            request.open("GET", URL, true);
+            request.send();            
+        } catch (error) {
+        	console.log(error);
+            alert("Can not connect to Database Server. Is the server address and port correct?");
         }
-    */
+        if (false) {
+           
+            var defaultExists = document.getElementById("Machineoption");
+
+            if (defaultExists) {
+                $('#Machineoption').remove();
+            }
+
+            var itemexists = document.getElementById(evt.data.substring(4, evt.data.length));
+
+            if (itemexists == null) {
+                console.log("adding SSID");
+                var option = document.createElement("option");
+                option.text = evt.data.substring(4, evt.data.length);
+                option.id = evt.data.substring(4, evt.data.length);
+                option.value = evt.data.substring(4, evt.data.length);
+                //var select = document.getElementById("selectSSID");
+                //select.appendChild(option);
+
+                $("#selectSSID").append(option);
+                $("#selectSSID").selectmenu('refresh');
+            }
+            
+            
+        }
+*/
+
+    };
+
+
+
+    function submitWifi() {
+        var obj = new Object();
+        obj.SSID = document.getElementById('selectSSID').value;
+        obj.PASS = document.getElementById('wifipass').value;
+        console.log(JSON.stringify(obj));
+        connection.send(JSON.stringify(obj));
+        return false; //prevent form being posted (we use websocket)
+    };
+
+
+    function submitConfig() {
+        var obj = new Object();
+        obj.NDC_MNAME = document.getElementById('Mname').value;
+        obj.NDC_MID = document.getElementById('Mid').value;
+        obj.NDC_SADD = document.getElementById('Saddr').value;
+        obj.NDC_PORT = document.getElementById('Sport').value;
+        console.log(JSON.stringify(obj));
+        connection.send(JSON.stringify(obj));
+        return false; //prevent form being posted (we use websocket)
+    };
+
 
     function DHCPcheckboxfun() {
-
         if (document.getElementById("DHCPuse").value == "on") {
-
             document.getElementById("DHCPinputs").style.display = "none";
         } else {
             document.getElementById("DHCPinputs").style.display = "inherit";
         }
     };
-    </script>
-    <script>
     </script>
 </head>
 
@@ -89,13 +159,13 @@
             <div data-role="content" style="text-align:center">
                 <h3 id="connstate">Wifi state: </h3>
             </div>
-            <div data-role="collapsible">
+            <div data-role="collapsible" data-collapsed="false">
                 <h4>Setup WiFi Connection:</h4>
                 <div data-role="fieldcontain" style="text-align:center">
                     <h5 id="knownSSIDs">Known connections:</h5>
                 </div>
                 <a data-role="button" id="wifiscan" data-icon="search" onclick="scanWiFi()">Scan available networks</a>
-                <form action="#" name="setconnection" id="wifiform">
+                <form action="" method="post" id="wifiform" onsubmit="return submitWifi()">
                     <div data-role="fieldcontain">
                         <label for="selectSSID">SSID:</label>
                         <select name="SSID" id="selectSSID" data-mini="true" inline="true">
@@ -112,13 +182,13 @@
                     <p>
                         <input type="button" data-icon="refresh" name="submit" value="test" onclick="submitForm(this.form);">
                     </p> -->
-                    <input type="submit" value="Save" data-icon="refresh">
+                    <input type="submit" value="Save to Controller" data-icon="refresh">
                 </form>
                 <BR>
                 <div data-role="collapsible">
                     <h4>Advanced WiFi Settings</h4>
                     <h4>DHCP settings</h4>
-                    <form action="" method="get">
+                    <form action="" method="post">
                         <div data-role="fieldcontain">
                             <label for="DHCPuse">Use DHCP </label>
                             <select onchange="DHCPcheckboxfun()" name="DHCPuse" id="DHCPuse" data-role="slider">
@@ -138,7 +208,7 @@
                             </div>
                             <BR>
                             <div data-role="fieldcontain">
-                                <input type="submit" value="Save" id="DHCPsubmit" data-icon="refresh">
+                                <input type="submit" value="Save to Controller" id="DHCPsubmit" data-icon="refresh">
                             </div>
                         </div>
                     </form>
@@ -150,52 +220,62 @@
             </div>
             <BR>
             <BR>
-            <div data-role="collapsible">
-                <h4>Cayenne Setup</h4>
-                <form action="" method="get" onSubmit="captureForm()">
+            <div data-role="collapsible" data-collapsed="true">
+                <h4>Controller Config</h4>
+                <form action="" method="post" id="NDConfig" onsubmit="return submitConfig()">
                     <div data-role="fieldcontain">
                         <div data-role="fieldcontain">
-                            <label for="Cuser">MQTT Username</label>
-                            <input id="Cuser" name="CA_USER" required maxlength="50">
+                            <label for="Saddr">Server Address</label>
+                            <input type="text" id="Saddr" required maxlength="30">
                         </div>
                         <div data-role="fieldcontain">
-                            <label for="Cpass">MQTT Password</label>
-                            <input id="Cpass" name="CA_PASS" required maxlength="50">
-                        </div>
-                        <div data-role="fieldcontain">
-                            <label for="CID">Client ID</label>
-                            <input id="CID" name="CA_ID" required maxlength="50">
+                            <label for="Sport">Server Port</label>
+                            <input type="text" id="Sport" required pattern="\d*" maxlength="6">
                         </div>
                         <BR>
-                        <input type="submit" value="Save" id="Csubmit" data-icon="refresh">
+                        <div data-role="fieldcontain">
+                            <a data-role="button" id="machinescan" data-icon="search" onclick="scanMachine()">Get machines from database</a>
+                        </div>
+                        <div data-role="fieldcontain" id="automachine">
+                            <label for="selectMachine">Machine Name</label>
+                            <select name="Mname" id="selectMachine" data-mini="true" inline="true">
+                                <option id="Machineoption" value="1">Please scan first</option>
+                            </select>
+                        </div>
+                        <div data-role="fieldcontain" id="manualmachine">
+                            <div data-role="fieldcontain">
+                                <label for="Saddr">Machine Name</label>
+                                <input type="text" id="Mnamem" required maxlength="30">
+                            </div>
+                            <div data-role="fieldcontain">
+                                <label for="MID">Machine ID</label>
+                                <input type="text" id="MID" required pattern="\d*" maxlength="3">
+                            </div>
+                        </div>
+                        <BR>
+                        <input type="submit" value="Save to Controller" data-icon="refresh">
                     </div>
                 </form>
             </div>
-        </div>
-    </div>
-    
-            <div>
-                <BR>
-                <BR>
-                <label for="msg">Incoming Data:</label>
-                <div data-role="fieldcontain">
-                    <textarea rows="20" data-autogrow="false" id="msg"></textarea>
-                </div>
+            <BR>
+            <BR>
+            <label for="msg">Message from Controller:</label>
+            <div data-role="fieldcontain">
+                <textarea rows="20" data-autogrow="false" id="msg"></textarea>
             </div>
         </div>
     </div>
+    </div>
     <script>
     function wsconnect(localIP) {
-
         ipValue = localIP;
 
         connection = new WebSocket(ipValue);
 
-        connection.onerror = function(event) {
-                console.log("Websocket Error! Need Websocket support for this page to work")
-            }
-            /*incoming websocket message handling*/
+        connection.onerror = function(event) { console.log("Websocket Error! Need Websocket support for this page to work") }
+        /*incoming websocket message handling*/
         connection.onmessage = function(evt) {
+            evt.data = evt.data.replace(/[^\x20-\x7E]+/g, ''); //remove invalid characters
             console.log(evt.data);
             if (evt.data.substring(0, 4) == "SSID") { /*SSID update string: 'SSIDxxxxxxx,PASSxxxxxxx'*/
                 /*fill in the forms from the ESP*/
@@ -225,19 +305,19 @@
                 document.getElementById('DHCPip').value = evt.data.substring(evt.data.indexOf(",IP") + 3, evt.data.indexOf(",SUB"));
                 document.getElementById('DHCPmask').value = evt.data.substring(evt.data.indexOf(",SUB") + 4, evt.data.indexOf(",GATE"));
                 document.getElementById('DHCPgate').value = evt.data.substring(evt.data.indexOf(",GATE") + 5, evt.data.length);
-                setTimeout(function() {
-                    $(document.getElementById('DHCPuse')).slider("refresh");
-                }, 1000);
+                setTimeout(function() { $(document.getElementById('DHCPuse')).slider("refresh"); }, 1000);
                 DHCPcheckboxfun(); /*update DHCP settings */
 
-            } else if (evt.data.substring(0, 7) == "CA_USER") { /*Cayenne setting update string: 'CA_USERxxx,CA_PASSxx,CA_IDxx'*/
-                document.getElementById('Cuser').value = evt.data.substring(evt.data.indexOf("CA_USER") + 7, evt.data.indexOf(",CA_PASS"));
-                document.getElementById('Cpass').value = evt.data.substring(evt.data.indexOf(",CA_PASS") + 8, evt.data.indexOf(",CA_ID"));
-                document.getElementById('CID').value = evt.data.substring(evt.data.indexOf(",CA_ID") + 6, evt.data.length);
+            } else if (evt.data.substring(0, 9) == "NDC_MNAME") { /*Node config update string: 'NDC_MNAMExx,NDC_MIDxx,NDC_SADDxx,NDC_PORTxx'*/
+                document.getElementById('Mname').value = evt.data.substring(evt.data.indexOf("NDC_MNAME") + 9, evt.data.indexOf(",NDC_MID"));
+                document.getElementById('Mid').value = evt.data.substring(evt.data.indexOf(",NDC_MID") + 8, evt.data.indexOf(",NDC_SADD"));
+                document.getElementById('Saddr').value = evt.data.substring(evt.data.indexOf(",NDC_SADD") + 9, evt.data.indexOf(",NDC_PORT"));
+                document.getElementById('Sport').value = evt.data.substring(evt.data.indexOf(",NDC_PORT") + 9, evt.data.length);
 
             } else if (evt.data.substring(0, 4) == "WiFi") { /*Wifi connection status update*/
                 if (evt.data.substring(4, 6) == "OK") {
-                    document.getElementById("connstate").innerHTML = "Connected to " + evt.data.substring(6, evt.data.indexOf(",IP")) + " with IP address " + evt.data.substring(evt.data.indexOf(",IP") + 3, evt.data.length);
+                    document.getElementById("connstate").innerHTML =
+                        "Connected to " + evt.data.substring(6, evt.data.indexOf(",IP")) + " with IP address " + evt.data.substring(evt.data.indexOf(",IP") + 3, evt.data.length);
                     document.getElementById("connstate").style.color = "limegreen";
                 } else {
                     document.getElementById("connstate").innerHTML = "Wifi DISCONNECTED";
@@ -249,9 +329,8 @@
                 document.getElementById("knownSSIDs").innerHTML = "Known connections:" + networks;
 
             } else if (evt.data.substring(0, 3) == "msg") {
-
                 document.getElementById('msg').value += evt.data.substring(3, evt.data.length);
-                document.getElementById('msg').scrollTop = document.getElementById('msg').scrollHeight 
+                document.getElementById('msg').scrollTop = document.getElementById('msg').scrollHeight
             }
 
             /*todo: could use a slider to control the brighness of the LED and/or the color*/
@@ -259,8 +338,15 @@
     };
 
     $(document).ready(function() {
-        wsconnect(urltext);
+        try {
+            wsconnect(urltext);
+        } catch (er) {
+            alert("No WebSocket Connection possible")
+        }
         $(document.getElementById('DHCPuse')).slider("refresh");
+        //hide MID control at beginning
+        document.getElementById("automachine").style.display = "none";
+        document.getElementById("manualmachine").style.display = "none";
     });
     /*close the websocket connection when page is left or refreshed*/
     window.onbeforeunload = function() {

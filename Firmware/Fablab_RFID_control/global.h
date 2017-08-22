@@ -29,7 +29,7 @@
 #define EE_MID_ADDR EE_TIMEZONE_ADDR+1                              //address for machine ID, uint8_t
 #define EE_MACHINENAME_ADDR EE_MID_ADDR+1                           //address for machine name, string
 #define EE_SERVERIP_ADDR EE_MACHINENAME_ADDR+DEFAULTSTRINGLENGTH    //address for server IP address, 32byte string (string can be an ip like "192.168.1.1")
-#define EE_SERVERPORT_ADDR EE_SERVERIP_ADDR+4                       //address for server port, uint16_t
+#define EE_SERVERPORT_ADDR EE_SERVERIP_ADDR+DEFAULTSTRINGLENGTH     //address for server port, uint16_t
 #define EE_END EE_SERVERPORT_ADDR+2                       //address reserved
 
 //additional config stuff needed:
@@ -58,7 +58,7 @@ WiFiClient espClient;
 const char* update_path = "/firmware";
 const char* update_username = "admin";
 const char* update_password = "admin";
-//password for the config webpage access 
+//password for the config webpage access
 const char* webpage_username = "admin";
 const char* webpage_password = "admin";
 
@@ -74,6 +74,7 @@ bool machineLocked = true;
 uint32_t userStarttime; //timestamp at start of machine use
 
 uint8_t websocket_connected = 0;
+uint8_t www_connected = 0; //set to 1 if a user connects to http port, suppresses any server connections
 
 struct NodeConfig {
   String ssid[MULTIWIFIS];           // 31 bytes maximum
@@ -82,7 +83,7 @@ struct NodeConfig {
   String MachineName;         //31 bytes
   uint8_t mid;                 //machine ID
   String serverAddress;         //server address tring (can be an IP)
-  uint32_t serverPort;         //port of server
+  uint16_t serverPort;         //port of server
   String DeviceName;     // 31 bytes maximum, name for access point
   String DevicePW;       // 31 bytes maximum, password for access point
   String ntpServerName;  // 31 bytes maximum
@@ -142,17 +143,27 @@ void WriteConfig() {
   WriteStringToEEPROM(EE_DEVICENAME_ADDR, config.DeviceName, DEFAULTSTRINGLENGTH);
   WriteStringToEEPROM(EE_DEVICEPASS_ADDR, config.DevicePW, DEFAULTSTRINGLENGTH);
 
-  EEPROMWriteByteArray(EE_NETMASK_ADDR, &config.Netmask[0], 4);
-  EEPROMWriteByteArray(EE_GATEWAY_ADDR, &config.Gateway[0], 4);
-  EEPROMWriteByteArray(EE_IP_ADDR, &config.IP[0], 4);
+
+  //note: need to write the IP byte by byte as direct access to the array is not possible (IPaddress is a class)
+  EEPROM.write(EE_NETMASK_ADDR, config.Netmask[0]);
+  EEPROM.write(EE_NETMASK_ADDR + 1, config.Netmask[1]);
+  EEPROM.write(EE_NETMASK_ADDR + 2, config.Netmask[2]);
+  EEPROM.write(EE_NETMASK_ADDR + 3, config.Netmask[3]);
+  EEPROM.write(EE_GATEWAY_ADDR, config.Gateway[0]);
+  EEPROM.write(EE_GATEWAY_ADDR + 1, config.Gateway[1]);
+  EEPROM.write(EE_GATEWAY_ADDR + 2, config.Gateway[2]);
+  EEPROM.write(EE_GATEWAY_ADDR + 3, config.Gateway[3]);
+  EEPROM.write(EE_IP_ADDR, config.IP[0]);
+  EEPROM.write(EE_IP_ADDR + 1, config.IP[1]);
+  EEPROM.write(EE_IP_ADDR + 2, config.IP[2]);
+  EEPROM.write(EE_IP_ADDR + 3, config.IP[3]);
   EEPROM.write(EE_DHCP_ADDR, config.useDHCP);
 
 
   EEPROM.write(EE_MID_ADDR, config.mid);
   WriteStringToEEPROM(EE_MACHINENAME_ADDR, config.MachineName, DEFAULTSTRINGLENGTH);
-
   WriteStringToEEPROM(EE_SERVERIP_ADDR, config.serverAddress, DEFAULTSTRINGLENGTH);
-  EEPROMWriteByteArray(EE_SERVERPORT_ADDR, (uint8_t*)config.serverPort, 2); //uint16_t
+  EEPROMWriteByteArray(EE_SERVERPORT_ADDR, (uint8_t*)&config.serverPort, 2); //uint16_t
 
   EEPROM.commit();
   EEPROM.end();
@@ -216,16 +227,26 @@ void ReadConfig() {
     config.DeviceName = ReadStringFromEEPROM(EE_DEVICENAME_ADDR);
     config.DevicePW = ReadStringFromEEPROM(EE_DEVICEPASS_ADDR);
 
-    EEPROMReadByteArray(EE_NETMASK_ADDR, &config.Netmask[0], 4);
-    EEPROMReadByteArray(EE_GATEWAY_ADDR, &config.Gateway[0], 4);
-    EEPROMReadByteArray(EE_IP_ADDR, &config.IP[0], 4);
+    //note: need to read the IPs byte by byte as direct access to the array is not possible (IPaddress is a class)
+    config.Netmask[0] = EEPROM.read(EE_NETMASK_ADDR);
+    config.Netmask[1] = EEPROM.read(EE_NETMASK_ADDR + 1);
+    config.Netmask[2] = EEPROM.read(EE_NETMASK_ADDR + 2);
+    config.Netmask[3] = EEPROM.read(EE_NETMASK_ADDR + 3);
+    config.Gateway[0] = EEPROM.read(EE_GATEWAY_ADDR);
+    config.Gateway[1] = EEPROM.read(EE_GATEWAY_ADDR + 1);
+    config.Gateway[2] = EEPROM.read(EE_GATEWAY_ADDR + 2);
+    config.Gateway[3] = EEPROM.read(EE_GATEWAY_ADDR + 3);
+    config.IP[0] = EEPROM.read(EE_IP_ADDR);
+    config.IP[1] = EEPROM.read(EE_IP_ADDR + 1);
+    config.IP[2] = EEPROM.read(EE_IP_ADDR + 2);
+    config.IP[3] = EEPROM.read(EE_IP_ADDR + 3);
     config.useDHCP = EEPROM.read(EE_DHCP_ADDR);
 
     config.mid = EEPROM.read(EE_MID_ADDR);
     config.MachineName = ReadStringFromEEPROM(EE_MACHINENAME_ADDR);
 
     config.serverAddress = ReadStringFromEEPROM(EE_SERVERIP_ADDR);
-    EEPROMReadByteArray(EE_SERVERPORT_ADDR, (uint8_t*)config.serverPort, 2); //uint16_t
+    EEPROMReadByteArray(EE_SERVERPORT_ADDR, (uint8_t*)&config.serverPort, 2); //uint16_t
 
   } else {
     Serial.println(F("Configurarion NOT FOUND!"));
