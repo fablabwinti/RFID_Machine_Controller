@@ -48,70 +48,48 @@
         //try to connect to the server, if there is an error, show message
 
         var URL = "http://" + document.getElementById('Saddr').value + ":" + document.getElementById('Sport').value + "/machines";
-       
+
         $.mobile.loading("show");
-            $.getJSON(URL, function(data) {
+        $.getJSON(URL, function(data) {
                 console.log(data);
-                alert("funktioniert!")
-                //TODO: 
+
+                for (var i in data) {
+                    var machinetxt = data[i].mid + ": " + data[i].name;
+                    console.log(machinetxt);
+
+                    var defaultExists = document.getElementById("Machineoption");
+
+                    if (defaultExists) {
+                        $('#Machineoption').remove();
+                    }
+
+                    var itemexists = document.getElementById(data[i].name);
+
+                    if (itemexists == null) {
+                        console.log("adding Machineoption");
+                        var option = document.createElement("option");
+                        option.text = machinetxt;
+                        option.id = data[i].name;
+                        option.value = JSON.stringify(data[i]);
+                        console.log(option.value);
+                        /*var select = document.getElementById("selectSSID");*/
+                        /*select.appendChild(option);*/
+
+                        $("#selectMachine").append(option);
+
+                    }
+                }
+                $("#selectMachine").selectmenu('refresh');
+                document.getElementById("manualmachine").style.display = "none";
+                document.getElementById("automachine").style.display = "inherit";
+                //TODO: parse the data, upate the dropdown
             })
-		.error(function() {
-            alert("Can not connect to Database Server. Is the server address and port correct? You can enter the data Manually if you want.");
-            document.getElementById("manualmachine").style.display = "inherit";
+            .error(function() {
+                alert("Can not connect to Database Server. Is the server address and port correct? You can now enter the data Manually or try again.");
+                document.getElementById("manualmachine").style.display = "inherit";
             });
 
-        console.log("machine scan done");
         $.mobile.loading("hide");
-        //var URL = "http://192.168.1.25:3000/machines";
-
-        /*var request = new XMLHttpRequest();
-          request.onreadystatechange = function() {
-            if (this.readyState == 4 && this.status == 200) {
-                alert(this.responseText);
-            console.log(this.status);    
-            console.log(this.readyState);
-            }
-            else
-            {
-            console.log("got invalid response");	
-                 console.log(this.status);    
-            console.log(this.readyState);
-            }
-        };
-
-        try {
-            request.open("GET", URL, true);
-            request.send();            
-        } catch (error) {
-        	console.log(error);
-            alert("Can not connect to Database Server. Is the server address and port correct?");
-        }
-        if (false) {
-           
-            var defaultExists = document.getElementById("Machineoption");
-
-            if (defaultExists) {
-                $('#Machineoption').remove();
-            }
-
-            var itemexists = document.getElementById(evt.data.substring(4, evt.data.length));
-
-            if (itemexists == null) {
-                console.log("adding SSID");
-                var option = document.createElement("option");
-                option.text = evt.data.substring(4, evt.data.length);
-                option.id = evt.data.substring(4, evt.data.length);
-                option.value = evt.data.substring(4, evt.data.length);
-                //var select = document.getElementById("selectSSID");
-                //select.appendChild(option);
-
-                $("#selectSSID").append(option);
-                $("#selectSSID").selectmenu('refresh');
-            }
-            
-            
-        }
-*/
 
     };
 
@@ -129,8 +107,17 @@
 
     function submitConfig() {
         var obj = new Object();
-        obj.NDC_MNAME = document.getElementById('Mname').value;
-        obj.NDC_MID = document.getElementById('Mid').value;
+        var serverfailed = document.getElementById("Machineoption"); //if default option is still there, server scan failed
+        if (serverfailed) { //get manual values
+            obj.NDC_MNAME = document.getElementById('Mname').value;
+            obj.NDC_MID = document.getElementById('Mid').value;
+        } else //read from option string
+        {
+        	var machineselect = JSON.parse(document.getElementById('selectMachine').value);
+        	obj.NDC_MNAME = machineselect.name;
+            obj.NDC_MID = machineselect.mid;        	
+        }
+
         obj.NDC_SADD = document.getElementById('Saddr').value;
         obj.NDC_PORT = document.getElementById('Sport').value;
         console.log(JSON.stringify(obj));
@@ -243,13 +230,13 @@
                             </select>
                         </div>
                         <div data-role="fieldcontain" id="manualmachine">
-                            <div data-role="fieldcontain">
-                                <label for="Saddr">Machine Name</label>
-                                <input type="text" id="Mnamem" required maxlength="30">
+                                                    <div data-role="fieldcontain">
+                                <label for="MID">Machine ID</label>
+                                <input type="text" id="Mid" value="0" required pattern="\d*" maxlength="3">
                             </div>
                             <div data-role="fieldcontain">
-                                <label for="MID">Machine ID</label>
-                                <input type="text" id="MID" required pattern="\d*" maxlength="3">
+                                <label for="Saddr">Machine Name</label>
+                                <input type="text" id="Mname" value="0" required maxlength="30">
                             </div>
                         </div>
                         <BR>
