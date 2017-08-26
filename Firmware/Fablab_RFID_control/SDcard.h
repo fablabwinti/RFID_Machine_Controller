@@ -52,22 +52,22 @@ EDB eventdatabase(&eventDBwriter, &eventDBreader); //create the event database
 void eventDBInit(void)
 {
   if (SD.exists(db_events)) {
-    Serial.println(F("SD database file exists")); //!!!
+    //Serial.println(F("SD database file exists")); //!!!
     eventDBfile = SD.open(db_events, FILE_WRITE); //open file for reading and writing
 
     if (eventDBfile) {
-      Serial.print(F("Opening eventDB table... "));
+      //Serial.print(F("Opening eventDB table... "));
       EDB_Status result = eventdatabase.open(0);
       if (result == EDB_OK) {
-        Serial.println("DONE");
+       // Serial.println("DONE");
         return;
       } else {
-        Serial.println(F("ERROR"));
-        Serial.print(F("Did not find eventDB in the file "));
-        Serial.println(String(db_events));
-        Serial.print(F("Creating new table... "));
+        //Serial.println(F("ERROR"));
+       // Serial.print(F("Did not find eventDB in the file "));
+       // Serial.println(String(db_events));
+      //  Serial.print(F("Creating new table... "));
         eventdatabase.create(0, EVENTB_TABLE_SIZE, (unsigned int)sizeof(eventDBpackage));
-        Serial.println("DONE");
+        //Serial.println("DONE");
         return;
       }
     } else {
@@ -146,21 +146,21 @@ bool eventDBaddentry(sendoutpackage* evententry)
 //read a pending event from the database (if any) into the eventDBpackage (can only be called from within this file)
 void eventDBgetpending(void)
 {
-  Serial.println(F("Checking pending events on DB"));
+  //Serial.println(F("Checking pending events on DB"));
   if (!eventDBfile) //database file not open, so open the database
   {
     eventDBInit();
   }
   eventDBpackage.pending = false; //reset pending (use it to check in calling function to check if data was even read)
   uint16_t i;
-  Serial.print(F("number of event DB entries: "));
-  Serial.println(eventdatabase.count());
+ // Serial.print(F("number of event DB entries: "));
+  //Serial.println(eventdatabase.count());
   for (i = eventdatabase.count(); i > 0; i--) //start scanning from the end (deleting end entries is faster), also, zero index is not used in EDB
   {
     EDB_Status result = eventdatabase.readRec(i, EDB_REC eventDBpackage); //eventDBpackage is passed as a pointer
     if (result == EDB_OK)
     {
-      Serial.println(F("read entry from EventDB"));
+      //Serial.println(F("read entry from EventDB"));
       eventDBentrytosend = i;
       break; //end the for loop now
     }
@@ -356,10 +356,11 @@ bool SDinit(uint8_t pin)
       Serial.println(F("SD card initialized."));
       display.println(F("OK"));
       display.display();
+      /*
       File dir = SD.open("/");
       printDirectory(dir, 0);
       dir.close();
-
+*/
       return true;
     }
   }

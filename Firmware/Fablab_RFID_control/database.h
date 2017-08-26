@@ -5,7 +5,8 @@
 */
 
 
-#define USERDB_TABLE_SIZE 102400 //100kb database, can hold over 2000 user entries
+#define MAXUSERSINDB 2000
+#define USERDB_TABLE_SIZE 102400 //100kb database, can hold over 2000 user entries  todo: calculate this from MAXUSERSINDB
 
 const char* db_users = "/db/users.db";
 const char* db_users2 = "/db/users2.db"; //backup table, used during server upates to not corrupt the user database in case there is a problem during the update
@@ -58,8 +59,16 @@ void userDBInit(const char* databasepath)
       Serial.print(F("Opening current table... "));
       EDB_Status result = userdatabase.open(0);
       if (result == EDB_OK) {
-        Serial.println("DONE");
-        return;
+        
+        if (userdatabase.count() > MAXUSERSINDB)
+        {
+          Serial.println("error: too many users");
+        }
+        else
+        {
+          Serial.println("DONE");
+          return;
+        }
       }
       else {
         Serial.println(F("ERROR"));
@@ -74,7 +83,7 @@ void userDBInit(const char* databasepath)
       Serial.println("Could not open file " + String(databasepath));
       //delete the corrupt file
       SPIFFS.remove(databasepath);
-      //create and open new file now 
+      //create and open new file now
     }
   }
 
@@ -131,8 +140,8 @@ uint16_t userDBfindentry(uint32_t RFIDuid)
 }
 
 /*
-void userDBdeleteentry(uint32_t RFIDuid) //obsolete
-{
+  void userDBdeleteentry(uint32_t RFIDuid) //obsolete
+  {
   Serial.print(F("Deleting entry... "));
   //go through all database entries, delete if found
   uint16_t entryno = userDBfindentry(RFIDuid);
@@ -142,7 +151,7 @@ void userDBdeleteentry(uint32_t RFIDuid) //obsolete
   }
 
   Serial.println(F("DONE"));
-}
+  }
 */
 //add an etry to the secondary userDB
 bool userDBaddentry(uint16_t tid, uint32_t RFuid, uint32_t validfrom, uint32_t validuntil, const char* username) //obsolete
@@ -212,5 +221,11 @@ void updateCleanup(bool successful)
   {
     userDBInit(db_users);
   }
+}
+
+//delete the user database (used when resetting to defaults)
+void userDBpurge(void)
+{
+  userDBerase(db_users);
 }
 

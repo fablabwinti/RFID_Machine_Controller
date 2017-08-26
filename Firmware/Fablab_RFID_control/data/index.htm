@@ -85,7 +85,7 @@
                 //TODO: parse the data, upate the dropdown
             })
             .error(function() {
-                alert("Can not connect to Database Server. Is the server address and port correct? You can now enter the data Manually or try again.");
+                alert("Can not connect to Database Server. Is the RFID-Controller connected to WiFi? Is the server address and port correct? You can now enter the data Manually or try again.");
                 document.getElementById("manualmachine").style.display = "inherit";
             });
 
@@ -104,6 +104,18 @@
         return false; //prevent form being posted (we use websocket)
     };
 
+    function submitAdvancedNet() {
+        var obj = new Object();
+        obj.DHCP = document.getElementById('DHCPuse').value;
+    	obj.IP = document.getElementById('DHCPip').value;
+        obj.MASK = document.getElementById('DHCPmask').value;
+        obj.GATE = document.getElementById('DHCPgate').value;        
+    	
+        console.log(JSON.stringify(obj));
+        connection.send(JSON.stringify(obj));
+        return false; //prevent form being posted (we use websocket)
+    };
+
 
     function submitConfig() {
         var obj = new Object();
@@ -113,9 +125,9 @@
             obj.NDC_MID = document.getElementById('Mid').value;
         } else //read from option string
         {
-        	var machineselect = JSON.parse(document.getElementById('selectMachine').value);
-        	obj.NDC_MNAME = machineselect.name;
-            obj.NDC_MID = machineselect.mid;        	
+            var machineselect = JSON.parse(document.getElementById('selectMachine').value);
+            obj.NDC_MNAME = machineselect.name;
+            obj.NDC_MID = machineselect.mid;
         }
 
         obj.NDC_SADD = document.getElementById('Saddr').value;
@@ -123,6 +135,15 @@
         console.log(JSON.stringify(obj));
         connection.send(JSON.stringify(obj));
         return false; //prevent form being posted (we use websocket)
+    };
+
+    function updateFirmware() {
+        var toSend = "upgradeFW";
+        connection.send(toSend);       
+    };
+    function updateSpiffs() {
+        var toSend = "upgradeSPIFFS";
+        connection.send(toSend);       
     };
 
 
@@ -140,7 +161,8 @@
     <!-- /mainpage -->
     <div data-role="page" id="mainpage" data-theme="a">
         <div data-role="header" data-position="fixed">
-            <h1>Control Center</h1>
+            <h1>RFID Control Center</h1>
+             <a href="#update" data-icon="gear" data-transition="slide" class="ui-btn-right">Update</a>
         </div>
         <div data-role="content" data-theme="a">
             <div data-role="content" style="text-align:center">
@@ -175,7 +197,7 @@
                 <div data-role="collapsible">
                     <h4>Advanced WiFi Settings</h4>
                     <h4>DHCP settings</h4>
-                    <form action="" method="post">
+                    <form action="" method="post" id="dhcpform" onsubmit="return submitAdvancedNet()">
                         <div data-role="fieldcontain">
                             <label for="DHCPuse">Use DHCP </label>
                             <select onchange="DHCPcheckboxfun()" name="DHCPuse" id="DHCPuse" data-role="slider">
@@ -230,7 +252,7 @@
                             </select>
                         </div>
                         <div data-role="fieldcontain" id="manualmachine">
-                                                    <div data-role="fieldcontain">
+                            <div data-role="fieldcontain">
                                 <label for="MID">Machine ID</label>
                                 <input type="text" id="Mid" value="0" required pattern="\d*" maxlength="3">
                             </div>
@@ -252,6 +274,26 @@
             </div>
         </div>
     </div>
+      <!-- /firmware update page -->
+    <div data-role="page" id="update" data-theme="a">
+        <div data-role="header" data-position="fixed">
+            <h1>RFID Control Center: Firmware update</h1>
+            <a href="index.htm" data-icon="arrow-l" data-rel="back" class="ui-btn-left">Back</a>
+        </div>
+        <div data-role="content">
+          		<div>      
+                    <a data-role="button" id="FWbtn" onclick="updateFirmware()">Update Firmware from server</a>
+                  
+                </div>
+                 <h5>downloads the file http://serveraddress/RFIDfirmware/firmware.bin to the controller. Update will take about 30 seconds, controller reboots when done</h5>
+                 
+        </div>
+        <div data-role="content">
+          		<div>      
+                    <a data-role="button" id="SPbtn" onclick="updateSpiffs()">Update SPIFFS from server</a>
+                </div>
+                 <h5>downloads the file http://serveraddress/RFIDfirmware/spiffs.bin to the controller. Update will take about 1 minute, controller reboots when done</h5>                
+        </div>
     </div>
     <script>
     function wsconnect(localIP) {
@@ -300,7 +342,7 @@
                 document.getElementById('Mid').value = evt.data.substring(evt.data.indexOf(",NDC_MID") + 8, evt.data.indexOf(",NDC_SADD"));
                 document.getElementById('Saddr').value = evt.data.substring(evt.data.indexOf(",NDC_SADD") + 9, evt.data.indexOf(",NDC_PORT"));
                 document.getElementById('Sport').value = evt.data.substring(evt.data.indexOf(",NDC_PORT") + 9, evt.data.length);
-
+ 				$.mobile.loading("hide"); //data is sent last, if received, hide loader
             } else if (evt.data.substring(0, 4) == "WiFi") { /*Wifi connection status update*/
                 if (evt.data.substring(4, 6) == "OK") {
                     document.getElementById("connstate").innerHTML =
@@ -330,6 +372,7 @@
         } catch (er) {
             alert("No WebSocket Connection possible")
         }
+          $.mobile.loading("show");
         $(document.getElementById('DHCPuse')).slider("refresh");
         //hide MID control at beginning
         document.getElementById("automachine").style.display = "none";

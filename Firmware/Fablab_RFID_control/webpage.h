@@ -158,18 +158,18 @@ void webSocketEvent(uint8_t num, WStype_t type, uint8_t * payload, size_t lenght
         String text = String((char *) &payload[0]);
 
         if (text.substring(0, 4) == "scan") { //oder: if(text.indexOf("TEXT") >=0)  oder if(text.substring(0,4) == "text")
-                  
+
           //scan avalable networks and sent the SSIDs to the webpage
           //Serial.println("scanning for wifi");
           int n = WiFi.scanNetworks();
           //Serial.println("scan done");
-          WS_print(F("scan done\r\n"));
+          WS_print(F("WiFi scan done\r\n"));
           if (n == 0)
-              WS_print(F("no networks found\r\n"));
+            WS_print(F("No networks found\r\n"));
           else
           {
-            Serial.print(n);
-            Serial.println(" networks found");
+            WS_print(String(n));
+            WS_print(" networks found\r\n");
             for (int i = 0; i < n; ++i)
             {
               // Print SSID and RSSI for each network found
@@ -195,11 +195,47 @@ void webSocketEvent(uint8_t num, WStype_t type, uint8_t * payload, size_t lenght
           }
           config.nextmultiwifitowrite = 0;
           WriteConfig();
-          WS_print(F("Wifi Removed\r\n"));
-          WS_print(F("Config written\r\n"));
+          WS_print(F("All known WiFi connections deleted\r\n"));
           String SSIDs = "network"; //send empty networks string
           webSocket.sendTXT(num, SSIDs);
         }
+        else if (text == "upgradeFW") { //download new firmware file from server
+          WS_print(F("Upgrading Firmware... "));
+          t_httpUpdate_return ret = ESPhttpUpdate.update("http://" + config.serverAddress + "/RFIDfirmware/firmware.bin");
+          switch (ret) {
+            case HTTP_UPDATE_FAILED:
+              WS_print(F("HTTP_UPDATE_FAILD Error : " ));
+              WS_print(ESPhttpUpdate.getLastErrorString());
+              WS_print(F("\r\n"));
+              Serial.printf("HTTP_UPDATE_FAILED Error (%d): %s", ESPhttpUpdate.getLastError(), ESPhttpUpdate.getLastErrorString().c_str());
+              break;
+            case HTTP_UPDATE_NO_UPDATES:
+              WS_print(F("HTTP_UPDATE_NO_UPDATES\r\n"));
+              break;
+            case HTTP_UPDATE_OK:
+              WS_print(F("OK\r\n"));
+              Serial.println(F("HTTP_UPDATE_OK"));
+              break;
+          }
+        }
+        else if (text == "upgradeSPIFFS") { //download new firmware file from server
+          WS_print(F("Upgrading SPIFFS... "));
+          t_httpUpdate_return ret = ESPhttpUpdate.updateSpiffs("http://" + config.serverAddress + "/RFIDfirmware/spiffs.bin");
+          switch (ret) {
+            case HTTP_UPDATE_FAILED:
+              WS_print(F("HTTP_UPDATE_FAILD Error : " ));
+              WS_print(ESPhttpUpdate.getLastErrorString());
+              WS_print(F("\r\n"));
+              break;
+            case HTTP_UPDATE_OK:
+              WS_print(F("OK\r\n"));
+              Serial.println(F("HTTP_UPDATE_OK"));
+              delay(100);
+              ESP.restart();  // reboot
+              break;
+          }
+        }
+
         else if (text.indexOf("SSID") != -1) //add a new wifi connection (sent as JSON, containing SSID and PASS, example {"SSID": "xxx", "PASS": "xxx"}
         {
           //parse the json text
@@ -213,7 +249,10 @@ void webSocketEvent(uint8_t num, WStype_t type, uint8_t * payload, size_t lenght
               String newWifiPass = wifidata["PASS"];
               Serial.print(F("Received new wifi credentials: "));
               Serial.println(newSSID + " " + newWifiPass);
+              WS_print(F("Received new wifi credentials: "));
+              WS_print(newSSID + " " + newWifiPass + "\r\n");
               wifiAddAP(newSSID, newWifiPass); //adds accesspoint to the config and saves config
+              WS_print(F("Config saved, reboot to connect to Wifi\r\n"));
             }
           }
           else
@@ -250,11 +289,18 @@ void webSocketEvent(uint8_t num, WStype_t type, uint8_t * payload, size_t lenght
               {
                 config.useDHCP = false;
                 WS_print(F("NOT using DHCP\r\n"));
+                WS_print(F("IP = "));
+                WS_print(ipsettings["IP"].asString());
+                WS_print(F("\r\nNetmask = "));
+                WS_print(ipsettings["MASK"].asString());
+                WS_print(F("\r\nGateway = "));
+                WS_print(ipsettings["GATE"].asString());
+                WS_print(F("\r\n"));
               }
 
             }
             WriteConfig();
-            WS_print(F("Config written\r\n"));
+            WS_print(F("Advanced WiFi Settings saved\r\n"));
           }
           else
             Serial.println(F("ipsettings json parsing failed"));
@@ -272,6 +318,7 @@ void webSocketEvent(uint8_t num, WStype_t type, uint8_t * payload, size_t lenght
             if (nodesettings.containsKey("NDC_MNAME"))
             {
               config.MachineName = nodesettings["NDC_MNAME"].asString();
+              config.DeviceName = config.MachineName; //also set accesspoint name
             }
             if (nodesettings.containsKey("NDC_MID"))
             {
@@ -286,7 +333,7 @@ void webSocketEvent(uint8_t num, WStype_t type, uint8_t * payload, size_t lenght
               config.serverPort = nodesettings["NDC_PORT"];
             }
             WriteConfig();
-            WS_print(F("Config written\r\n"));
+            WS_print(F("Server and Machine Settings saved\r\n"));
           }
           else
             Serial.println(F("nodesettings json parsing failed"));

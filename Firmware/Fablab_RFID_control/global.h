@@ -8,12 +8,12 @@
 #define SERVERMININTERVAL 1000  // minimum interval (in ms) between server sendouts (where a pending event is sent)
 #define DEFAULTSTRINGLENGTH 32 //strings stored in eeprom have this length by default (31 chars + termination)
 #define SERVERCREDENTIALSTRINGLENGTH 55 //string length for server credentials (Cayenne credentials are up to 50 chars long)
-#define MULTIWIFIS 5 //number of wifi credentials to store for wifi multi
+#define MULTIWIFIS 2 //number of wifi credentials to store for wifi multi (uses lots of ram in the config)
 #define RFID_SECTORKEY  0x000000000000 //secret access key for first datasector (must be entered upon compiling, never commit to github, not even compiled file)
 #define RFID_SECRETKEY  {0x00000000, 0x00000000, 0x00000000, 0x00000000} //16byte (4x32bit) secret key stored in first sector for additional security (can not be copied) key must be inserted before compiling (and never commited to GIThub)
 
 //EEPROM definitions
-#define EEPROMSIZE 1024
+#define EEPROMSIZE 768
 #define EE_START 8  //staring address of data (first 8 bytes can be used as identifiers and versioning)
 #define EE_SSID_ADDR  EE_START                                      //base address for wifi passwords
 #define EE_WIFIPASS_ADDR EE_SSID_ADDR+(MULTIWIFIS*DEFAULTSTRINGLENGTH)     //base address for wifi passwords
@@ -40,12 +40,16 @@
 */
 
 
-//function prototypes (todo: need to clean up the head file depedency mess!)
+//function prototypes (todo: need to clean up the header file depedency mess!)
 void wifiAddAP(String name, String password);
 time_t getRtcTimestamp(void);
+void userDBpurge(void);
+bool handleHTTPRequest(String path);
+void webSocketEvent(uint8_t num, WStype_t type, uint8_t * payload, size_t lenght);
 
 
 // global variables
+Adafruit_SSD1306 display(0); //do not use reset pin
 ESP8266WebServer server(80);  // The Webserver
 ESP8266HTTPUpdateServer httpUpdater; //http firmware update
 //AsyncWebServer server(80);  // The Webserver
@@ -74,7 +78,7 @@ bool machineLocked = true;
 uint32_t userStarttime; //timestamp at start of machine use
 
 uint8_t websocket_connected = 0;
-uint8_t www_connected = 0; //set to 1 if a user connects to http port, suppresses any server connections
+bool webserver_active = false; //set true if webserver is started
 
 struct NodeConfig {
   String ssid[MULTIWIFIS];           // 31 bytes maximum
@@ -203,7 +207,7 @@ void writeDefaultConfig(void) {
   config.DevicePW = "12345678";
   config.MachineName = "NoName";
   config.mid = 255;
-  config.serverAddress = " ";
+  config.serverAddress = "";
   config.serverPort = 3000;
 
   WriteConfig();
@@ -255,7 +259,43 @@ void ReadConfig() {
   EEPROM.end();
 }
 
+//start webserver to serve config page
+void WebServerinit(void)
+{
 
+    webserver_active = true;
+    display.clearDisplay();
+    display.setCursor(0, 0);
+    display.println(F("Starting Webserver"));
+    if (WiFi.status() == WL_CONNECTED)
+    {
+      display.print(F("IP: "));
+      display.println(WiFi.localIP());
+    }
+    else
+    {
+      display.println(F("WIFI DISCONNECTED"));
+    }
+    display.println(F("Reboot when done"));
+    display.display();
+
+    server.on("/", HTTP_GET, []() {
+      if (!server.authenticate(webpage_username, webpage_password))
+        return server.requestAuthentication();
+      if (!handleHTTPRequest("/index.htm")) server.send(404, "text/plain", "FileNotFound");
+    });
+    server.onNotFound([]() { // handle page not found: check if file or path is available on SPIFFS
+      if (!handleHTTPRequest(server.uri()))
+        server.send(404, "text/plain", "FileNotFound");
+    });
+
+
+    httpUpdater.setup(&server, update_path, update_username, update_password);
+    server.begin();  // start webserver  todo: only need webserver in server mode, not in client mode so could just start it there... may save some ram and make system more stable?
+    webSocket.begin(); //todo: check if this can lead to memory leaks if called multiple times
+    webSocket.onEvent(webSocketEvent);
+  
+}
 
 void checkButtonState(void) {
   static uint8_t buttonstate = 0; //set to 1 if button is pressed
@@ -284,16 +324,28 @@ void checkButtonState(void) {
   digitalWrite(SD_CSN_PIN, HIGH);
   if (buttonstate == 1)
   {
+    if (webserver_active == false)
+    {
+      WebServerinit();
+    }
     if (millis() - buttontimestamp > 2000 && APactive < 2)
     {
       APactive = 1;  // activate accesspoint
       Serial.println(F("accesspoint triggered"));
+      display.println(F("Accesspoint Started:"));
+      display.println(config.DeviceName);
+      display.print(F("Pass: "));
+      display.println(config.DevicePW);
+      display.println(F("Go to 192.168.4.1"));
+      display.display();
     }
     if (millis() - buttontimestamp > 8000) {
       writeDefaultConfig();  //"reset to factory defaults"
+      userDBpurge(); //also delete the user database
       uint32_t waittimestamp = millis();
       // LED_rainbow();
       //TODO: print something on the display!
+      display.println(F("RESETTING CONFIG"));
       while (millis() - waittimestamp < 3000)
       {
         updateLED();

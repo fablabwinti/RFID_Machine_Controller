@@ -83,8 +83,9 @@ int NTP_gettime(uint32_t* t)
     //Serial.println(highWord << 16 | lowWord);
     // combine the four bytes (two words) into a long integer
     // this is NTP time (seconds since Jan 1 1900)
-    *t = secsSince1900; //initialize time with epoch
-    Serial.println(F(" OK"));
+    *t = secsSince1900; //initialize time 
+    Serial.print(F(" OK: "));
+    Serial.println(secsSince1900-2208988800UL); //print in unix time
 
   }
   else {
@@ -116,13 +117,13 @@ void timeManager(bool forceupdate)
         roundtripdelay = NTP_gettime(&NTPtime); //get NTP time
         delay(100);
         roundtripdelay += NTP_gettime(&temptime); //get another timestamp to validate
-        if (NTPtime > 1456051511) //true if we got a valid timestamp
+        if (NTPtime > 3712665708) //true if we got a valid timestamp
         {
           timevalidation = temptime - NTPtime; //should be zero or one if we got the same time twice
-        }
+        }        
         else timevalidation = 10; //time we got is invalid for sure.
         errorcounter++;
-      } while ((roundtripdelay <= 0 || roundtripdelay > 2000) && timevalidation > 5 && errorcounter < 8);  //allows time inaccuracies up to 5 seconds
+      } while ((roundtripdelay <= 0 || roundtripdelay > 2000) && (timevalidation > 5) && (errorcounter < 8));  //allows time inaccuracies up to 5 seconds (can be made much more accurate but it is a lot slower)
 
       if (errorcounter < 8) {
         localTimeValid = true;

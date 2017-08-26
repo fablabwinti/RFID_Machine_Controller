@@ -13,7 +13,7 @@ void sendToServer(sendoutpackage* datastruct, bool saveiffail) {
   static uint8_t connectfailcounter = 0;
   static bool serverhealthy = 1; //set to false if server connection fails multiple times, request time is then decreased to not hinder the usage of the controller by blocking login/logout events
 
-  if (WiFi.status() == WL_CONNECTED && www_connected == 0) {
+  if (WiFi.status() == WL_CONNECTED) {
       if (millis() - serverUpdateTime > SERVERMININTERVAL)  // do not send data more often than SERVERMININTERVAL to ease on server traffic (all pending data is sent in one call)
       {
         serverUpdateTime = millis();
@@ -127,7 +127,7 @@ void UpdateDBfromServer(void) {
 
   long tick = millis();
   //try to update 10 times in interals of 10 seconds
-  if (refreshUserDB && WiFi.status() == WL_CONNECTED  && millis() - timetoupdateDB > 10000 && retries > 0 && www_connected == 0) {
+  if (refreshUserDB && WiFi.status() == WL_CONNECTED  && millis() - timetoupdateDB > 10000 && retries > 0) {
     Serial.println(F("Updating user database..."));
     timetoupdateDB = millis();
     retries--;

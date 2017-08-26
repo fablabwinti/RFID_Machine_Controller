@@ -5,6 +5,26 @@
          the local time can never assumed to be valid, always use the RTC for any time functions. to get the local time, including timezone and DST offsets
          use the updatelocaltimefromRTC function first.
 
+BUG: the rtc can fail to sync to NTP server... unknown why (date returned and date set are not equal, also the date is pi day so it seems RTCTimeValid == false)
+Connected to:
+SSID: IUY-12651
+IP: 192.168.1.158
+Checking pending events on DB
+SD database file exists
+Opening eventDB table... DONE
+number of event DB entries: 19
+read entry from EventDB
+converting 0
+Sendoutdata: 
+{"timestamp":"2014-03-14 03:14:15","mid":3,"event":2,"remarks":"error Event Test at Bootup"}
+Server connect failed
+Updating user database...
+connecting to 192.168.1.25:3000
+connection failed
+NTP Sync  OK
+NTP Sync  OK
+Synchronizing RTC with NTP... RTC set: 2009 85 165 37.165:85
+2014-03-14T03:14:15.927Z  Connected to WIFI IP = 192.168.1.158
 
 
 */
@@ -166,6 +186,7 @@ void RTCinit(void)
 }
 
 //returns date and time string of current local time, "2014-03-14T03:14:15.927Z" if no time is available (pi day 2014, founding date of FablabWinti)
+//get time string for logging and debug
 String getTimeString()
 {
   String datetime;
@@ -193,6 +214,7 @@ String getTimeString()
   return datetime;
 }
 
+//convert a timestamp to a time string
 String convertToTimesting(time_t timestamp)
 {
   Serial.print("converting ");

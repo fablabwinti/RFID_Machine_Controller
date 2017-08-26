@@ -42,11 +42,15 @@ extern "C" {
 #include <FastLED.h>
 #include <TimeLib.h>  //Time library https://github.com/PaulStoffregen/Time
 #include "RtcDS3231.h" //RTC library: https://github.com/Makuna/Rtc
+#include <Adafruit_SSD1306.h> //oled display library
 #include <ESP8266WiFi.h>
 #include <ESP8266WiFiMulti.h>
 #include <WiFiClient.h>
 #include <ESP8266WebServer.h>
-#include <ESP8266HTTPUpdateServer.h>
+#include <ESP8266HTTPUpdateServer.h> //todo: remove this, replaced by http update
+#include <ESP8266HTTPClient.h>
+#include <ESP8266httpUpdate.h>
+
 //#include <ESPAsyncTCP.h>
 //#include <ESPAsyncWebServer.h>
 #include <EEPROM.h>
@@ -86,24 +90,26 @@ extern "C" {
 /*  TODO
  * *******
 
-  -create a config section for all compile time config stuff 
+  -create a config section for all compile time config stuff
   -create log file structure
   -add time control for access
-  -switch to async web server (more stable)
-  -webpage: add machine info, add button for firmware update
+  -switch to async web server (more stable) -> not for now
+  -add possibility to update spiffs through webpage
+  -webpage: add machine info, add button for firmware update, add button for spiffs update
   -add SSL to all server traffic
-
-  -add a #define for password to access the RFID cards first sector
-  -add a #define for the key stored in the first sector (same key for all cards), adds security to make cards impossible to be copied (easily) as access to this sector is restricted
+  -add SD card viewer to webpage
+  --
+  -add a config key for password to access the RFID cards first sector
+  -add a config variable for the key stored in the first sector (same key for all cards), adds security to make cards impossible to be copied (easily) as access to this sector is restricted
   -need a solid way to handle the master key, independant of timer (in case no time is available from RTC or NTP to unlock the machine)
   -program a cache function that writes log entries to the SD card. one log file per month or something and one file for 'unsent messages' or better: create a database on the sd card for entries, add a flag and clear it if the entry was sent out succesfully.
   -IMPORTANT BUGFIX: in case RTC fails, the controller has to display a huge warning! also, update has to be forced more frequently!
   -make the access to webpage and update more tamper-proof (like only allow it in accesspoint mode, only at bootup is not helping, the module can easily be crashed by flooding http commands)  -> this is something for later, in the beginning we may need frequent bugfixes... it is password protected at least
-  -add more websocket messages throughout the code, especially in the webpage & config section
+  -optimize ram usage of local config (currently it is fully copied to ram and always kept there using over 512bytes of ram)
 
   IN PROGRESS:
-  -make all webpage traffic websocket based (is currently partially HTTP based which is less secure as passwords and stuff get sent through the URL and will be stored in browser history)
-  -put server address into eeprom, make it configurable on webpage
+
+
 
   DONE:
    -add buzzer support -> DONE
@@ -120,13 +126,17 @@ extern "C" {
    -add RFID support -> basic functionality: DONE
    -use fastled instead of neopixel
    -add timezone and automatic daylightsaving adjustment (for europe, us has different DST rules) -> DONE
-   -add timezone to EEPROM and make selectable on webconfig -NO, must be set in code before compiling
+   -add timezone to EEPROM and make selectable on webconfig -> NO, must be set in code before compiling
+   -put server address into eeprom, make it configurable on webpage
+   -fix webpage bug: when sending DHCP settings the page does reload -> done
+   -make all webpage traffic websocket based (is currently partially HTTP based which is less secure as passwords and stuff get sent through the URL and will be stored in browser history)
+   -add more websocket messages throughout the code, especially in the webpage & config section
 */
 
 
 void setup() {
   delay(200);  // wait for power to stabilize
-  Serial.begin(115200);
+  Serial.begin(115200); //comment the led init below if using serial
   Serial.println(F("\r\n\r\n***********************************"));  // todo: add actual build info here
   Serial.println(F("** Fablab Winti RFID CONTROL **"));  // todo: add actual build info here
   Serial.println(F("*******************************"));  // todo: add actual build info here
@@ -151,40 +161,19 @@ void setup() {
   SPI.begin();
   displayinit(); //show bootup screen
   RTCinit(); //init the local time from RTC
-  // LEDinit(); //intialize WS2812 fastled library (comment this line if using Serial debugging output)
+  //LEDinit(); //intialize WS2812 fastled library (comment this line if using Serial debugging output)
   SDmanager();  // initialize SD card if present
   SDwriteLogfile("Boot");
   initRFID();
   playBeep(); //init the beeper by playing a short sound
   initOutput(); //initialize output pin
 
-  //*****************
-  //NETWORK INIT
-  //*****************
-  display.println(F("Webserver init"));
-  display.display();
-
-  server.on("/", HTTP_GET, []() {
-    www_connected = 1;
-    if (!server.authenticate(webpage_username, webpage_password))
-      return server.requestAuthentication();
-    if (!handleHTTPRequest("/index.htm")) server.send(404, "text/plain", "FileNotFound");
-  });
-  server.onNotFound([]() { // handle page not found: check if file or path is available on SPIFFS
-    if (!handleHTTPRequest(server.uri()))
-      server.send(404, "text/plain", "FileNotFound");
-  });
-
-
-  httpUpdater.setup(&server, update_path, update_username, update_password);
-  server.begin();  // start webserver  todo: only need webserver in server mode, not in client mode so could just start it there... may save some ram and make system more stable?
-  webSocket.begin(); //todo: check if this can lead to memory leaks if called multiple times
-  webSocket.onEvent(webSocketEvent);
-
-  Serial.print("Free heap:");
-  Serial.println(ESP.getFreeHeap(), DEC);
-  Serial.print("EEPROM USED:");
-  Serial.println(EE_END, DEC);
+  /*
+    Serial.print(F("Free heap:"));
+    Serial.println(ESP.getFreeHeap(), DEC);
+    Serial.print(F("EEPROM USED:"));
+    Serial.println(EE_END, DEC);
+  */
 
   display.println(F("setup done"));
   display.display();
@@ -220,35 +209,32 @@ void loop() {
   yield();  // run background processes
   watchdog = 0;  // kick the watchdog
 
-  checkRFID();
-  displayUpdate();
-  wifiCheckConnection();
-  sendPendingEvents();  // send data out (if available)
-  updateLED();  // update LED output
-  checkButtonState();  // check GPIO0 button state
-  timeManager(false); // check the local time
-  SDmanager();  // check SD card
-
-  if (machineLocked) //do not handle any server requests when machine is being used (prevents crashes)
+  if (webserver_active == false)
+  {
+    checkRFID();
+    displayUpdate();
+    sendPendingEvents();  // send data out (if available)
+    timeManager(false); // check the local time
+    SDmanager();  // check SD card
+    
+    if (machineLocked) //do not update database while user is logged in
+    {
+      UpdateDBfromServer(); //update the user database if necessary
+    }
+  }
+  else //serve the config webpage (reboot to deactivate)
   {
     server.handleClient(); //handles http connections and webpage requests
     webSocket.loop();   // handles websocket requests
-    UpdateDBfromServer(); //update the user database if necessary
-
   }
+
+  wifiCheckConnection();
+  updateLED();  // update LED output
+  checkButtonState();  // check GPIO0 button state
+
+
+
 
   delay(180); //automatically adds some sleep mode, saving power, not necessary to manually put it to sleep (only works if connected to network)
 
-  if (millis() - testtimestamp > 30000)
-  {
-    /*
-      //generate some random event data
-      testtimestamp = millis();
-      datatosend[0].pending = 1;
-      datatosend[0].timestamp = getRtcTimestamp();  // time of event
-      datatosend[0].event = random(4);     //event to send (0 = controller_start, 1 = controller_ok, 2 = controller_error, 3 = tag_login,4 = tag_logout)
-      datatosend[0].tid = random(5);         //tag id (set to -1 if not a tag event)
-      strncpy(datatosend[0].remarks, "testing testing 1234. is this on?", sizeof(datatosend[0].remarks)); ; //string for any remarks for the log
-    */
-  }
 }
