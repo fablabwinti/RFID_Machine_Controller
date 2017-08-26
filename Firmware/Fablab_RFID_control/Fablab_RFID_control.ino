@@ -47,7 +47,6 @@ extern "C" {
 #include <ESP8266WiFiMulti.h>
 #include <WiFiClient.h>
 #include <ESP8266WebServer.h>
-#include <ESP8266HTTPUpdateServer.h> //todo: remove this, replaced by http update
 #include <ESP8266HTTPClient.h>
 #include <ESP8266httpUpdate.h>
 
@@ -95,7 +94,7 @@ extern "C" {
   -add time control for access
   -switch to async web server (more stable) -> not for now
   -add possibility to update spiffs through webpage
-  -webpage: add machine info, add button for firmware update, add button for spiffs update
+  
   -add SSL to all server traffic
   -add SD card viewer to webpage
   --
@@ -104,7 +103,7 @@ extern "C" {
   -need a solid way to handle the master key, independant of timer (in case no time is available from RTC or NTP to unlock the machine)
   -program a cache function that writes log entries to the SD card. one log file per month or something and one file for 'unsent messages' or better: create a database on the sd card for entries, add a flag and clear it if the entry was sent out succesfully.
   -IMPORTANT BUGFIX: in case RTC fails, the controller has to display a huge warning! also, update has to be forced more frequently!
-  -make the access to webpage and update more tamper-proof (like only allow it in accesspoint mode, only at bootup is not helping, the module can easily be crashed by flooding http commands)  -> this is something for later, in the beginning we may need frequent bugfixes... it is password protected at least
+  
   -optimize ram usage of local config (currently it is fully copied to ram and always kept there using over 512bytes of ram)
 
   IN PROGRESS:
@@ -131,6 +130,8 @@ extern "C" {
    -fix webpage bug: when sending DHCP settings the page does reload -> done
    -make all webpage traffic websocket based (is currently partially HTTP based which is less secure as passwords and stuff get sent through the URL and will be stored in browser history)
    -add more websocket messages throughout the code, especially in the webpage & config section
+   -make the access to webpage and update more tamper-proof (like only allow it in accesspoint mode, only at bootup is not helping, the module can easily be crashed by flooding http commands)  -> need to press button to start webserver
+   -webpage: add button for firmware update, add button for spiffs update
 */
 
 

@@ -51,17 +51,12 @@ void webSocketEvent(uint8_t num, WStype_t type, uint8_t * payload, size_t lenght
 // global variables
 Adafruit_SSD1306 display(0); //do not use reset pin
 ESP8266WebServer server(80);  // The Webserver
-ESP8266HTTPUpdateServer httpUpdater; //http firmware update
 //AsyncWebServer server(80);  // The Webserver
 //AsyncWebSocket ws("/ws");
 
 WebSocketsServer webSocket = WebSocketsServer(81);
 WiFiClient espClient;
 
-//configuration for webupdate of firmware
-const char* update_path = "/firmware";
-const char* update_username = "admin";
-const char* update_password = "admin";
 //password for the config webpage access
 const char* webpage_username = "admin";
 const char* webpage_password = "admin";
@@ -289,8 +284,7 @@ void WebServerinit(void)
         server.send(404, "text/plain", "FileNotFound");
     });
 
-
-    httpUpdater.setup(&server, update_path, update_username, update_password);
+    
     server.begin();  // start webserver  todo: only need webserver in server mode, not in client mode so could just start it there... may save some ram and make system more stable?
     webSocket.begin(); //todo: check if this can lead to memory leaks if called multiple times
     webSocket.onEvent(webSocketEvent);
