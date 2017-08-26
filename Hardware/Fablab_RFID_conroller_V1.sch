@@ -12281,6 +12281,8 @@ even if SD-card is not used</text>
 have the supply 
 reversed, use solder
 jumpers to switch</text>
+<text x="332.74" y="81.28" size="1.778" layer="92">Errata:
+Replace D2 with 10k resistor!</text>
 </plain>
 <instances>
 <instance part="GPIO0" gate="G$1" x="167.64" y="93.98" rot="R180"/>
