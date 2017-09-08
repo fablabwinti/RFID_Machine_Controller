@@ -12283,6 +12283,8 @@ reversed, use solder
 jumpers to switch</text>
 <text x="332.74" y="81.28" size="1.778" layer="92">Errata:
 Replace D2 with 10k resistor!</text>
+<text x="226.06" y="236.22" size="1.778" layer="92">Errata:
+Missing connection-&gt; use jumperwire</text>
 </plain>
 <instances>
 <instance part="GPIO0" gate="G$1" x="167.64" y="93.98" rot="R180"/>
@@ -12478,10 +12480,6 @@ Replace D2 with 10k resistor!</text>
 <wire x1="365.76" y1="55.88" x2="365.76" y2="68.58" width="0.1524" layer="91"/>
 <wire x1="365.76" y1="68.58" x2="355.6" y2="68.58" width="0.1524" layer="91"/>
 <junction x="355.6" y="68.58"/>
-</segment>
-<segment>
-<wire x1="266.7" y1="236.22" x2="266.7" y2="238.76" width="0.1524" layer="91"/>
-<pinref part="P+6" gate="1" pin="+5V"/>
 </segment>
 <segment>
 <wire x1="83.82" y1="210.82" x2="83.82" y2="205.74" width="0.1524" layer="91"/>

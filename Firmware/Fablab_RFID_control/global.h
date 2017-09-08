@@ -4,11 +4,10 @@
 #define SD_CSN_PIN 0
 #define SERVERPACKETS 8        // number of server sendout packets (=buffer)
 
-#define USE_SERIALINPUT  // uncomment to acvate serial input commands (see ackpayloads.h)
-#define SERVERMININTERVAL 1000  // minimum interval (in ms) between server sendouts (where a pending event is sent)
+
 #define DEFAULTSTRINGLENGTH 32 //strings stored in eeprom have this length by default (31 chars + termination)
 #define SERVERCREDENTIALSTRINGLENGTH 55 //string length for server credentials (Cayenne credentials are up to 50 chars long)
-#define MULTIWIFIS 2 //number of wifi credentials to store for wifi multi (uses lots of ram in the config)
+
 #define RFID_SECTORKEY  0x000000000000 //secret access key for first datasector (must be entered upon compiling, never commit to github, not even compiled file)
 #define RFID_SECRETKEY  {0x00000000, 0x00000000, 0x00000000, 0x00000000} //16byte (4x32bit) secret key stored in first sector for additional security (can not be copied) key must be inserted before compiling (and never commited to GIThub)
 
@@ -260,6 +259,7 @@ void WebServerinit(void)
 
     webserver_active = true;
     display.clearDisplay();
+     display.setFont();//default tiny font
     display.setCursor(0, 0);
     display.println(F("Starting Webserver"));
     if (WiFi.status() == WL_CONNECTED)
@@ -416,7 +416,7 @@ void addEventToQueue(uint8_t logevent, int16_t tagID, String remarkstr)
   }
 }
 
-//create log event without tagid
+//create log event without tagid (logevent: 0 = controller_start, 1 = controller_ok, 2 = controller_error, 3 = tag_login,4 = tag_logout)
 void addEventToQueue(uint8_t logevent, String remarkstr)
 {
   addEventToQueue(logevent, 0, remarkstr); //if no tid provided, tid is set zero (and not sent out)

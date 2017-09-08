@@ -1,3 +1,5 @@
+//digital output for relay and optocoupler
+
 #define OUTPUTPIN 15 //GPIO15
 
 //user verified, release the machine for use

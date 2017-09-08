@@ -21,7 +21,7 @@
 #define SD_REMOVED 4
 #define SD_ACESSFAILED 5
 
-#define EVENTB_TABLE_SIZE 102400 //100kb database, can hold over 2000 user entries
+#define EVENTDB_TABLE_SIZE 102400 //event database table size (on SD card) to store unsent events
 
 //function prototypes (todo: need to clean up the head file depedency mess!)
 void sendToServer(sendoutpackage* datastruct, bool save);
@@ -66,7 +66,7 @@ void eventDBInit(void)
        // Serial.print(F("Did not find eventDB in the file "));
        // Serial.println(String(db_events));
       //  Serial.print(F("Creating new table... "));
-        eventdatabase.create(0, EVENTB_TABLE_SIZE, (unsigned int)sizeof(eventDBpackage));
+        eventdatabase.create(0, EVENTDB_TABLE_SIZE, (unsigned int)sizeof(eventDBpackage));
         //Serial.println("DONE");
         return;
       }
@@ -80,7 +80,7 @@ void eventDBInit(void)
   Serial.print(F("Creating event database... "));
   // create table at with starting address 0
   eventDBfile = SD.open(db_events, FILE_WRITE); //create file, overwrite if it exists (w+)
-  eventdatabase.create(0, EVENTB_TABLE_SIZE, (unsigned int)sizeof(eventDBpackage));
+  eventdatabase.create(0, EVENTDB_TABLE_SIZE, (unsigned int)sizeof(eventDBpackage));
   Serial.println(F("DONE"));
 
 }

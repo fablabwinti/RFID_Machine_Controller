@@ -172,7 +172,7 @@ void RTCinit(void)
     display.println(F("Failed"));
     display.display();
     RTCTimeValid = false;
-    //todo: send out error message to server, RTC battery may be dead
+    createErrorEvent("RTC Error (battery empty?)");
   }
   Serial.print(F("Local time is "));
   String timenow = getTimeString();

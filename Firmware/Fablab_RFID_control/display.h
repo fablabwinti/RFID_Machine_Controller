@@ -151,8 +151,8 @@ void displayUpdate(void) {
 void showCloudDownload(void)
 {
   display.clearDisplay();
-  display.drawBitmap(46, 15, DBdl, 32, 32, 1);
-  display.setCursor(5, 0);
+  display.drawBitmap(46, 20, DBdl, 32, 32, 1);
+  display.setCursor(12, 0);
   display.println(F("Updating Database"));
   display.display();
 }

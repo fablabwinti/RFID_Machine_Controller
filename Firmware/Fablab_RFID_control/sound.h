@@ -1,4 +1,4 @@
-
+//beeping sounds for piezo sounder
 
 //output pin
 #define SOUNDPIN 3 //GPIO3 = RX pin

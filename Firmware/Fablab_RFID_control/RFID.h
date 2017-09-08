@@ -188,23 +188,18 @@ void checkRFID(void)
   uint8_t databuffer[18]; //16byte databuffer for secret key stored in sector 1
   uint32_t needtomatch[4] = RFID_SECRETKEY; //16byte databuffer for secret key stored in sector 1
 
-  len = 18; //need to read 18 bytes (did not investigate what the two additional bytes are, maybe a CRC?)
-  //read block 1 (16 data bytes)
-//  block = 1;
-//  getRFIDdata(&key, block, databuffer);
 
-
-  len = 18; //need to read 18 bytes (did not investigate what the two additional bytes are, maybe a CRC?)
+//  len = 18; //need to read 18 bytes (did not investigate what the two additional bytes are, maybe a CRC?)
   //read block 1 and block 2 (16 data bytes each)
-  block = 1;
-  getRFIDdata(&key, 1, (uint8_t*)databuffer);
-  block = 2;
-  getRFIDdata(&key, block, &databuffer[18]);
+//  block = 1;
+//  getRFIDdata(&key, 1, (uint8_t*)databuffer);
+//  block = 2;
+//  getRFIDdata(&key, block, (uint8_t*)databuffer);
   //note: reading of two blocks takes about 15ms
 
   verifyRFIDdata(mfrc522.uid.uidByte, mfrc522.uid.size); //todo: add name verification?
 
-  mfrc522.PICC_HaltA();       // Halt PICC
+ mfrc522.PICC_HaltA();       // Halt PICC  //todo: moved this from below to make function return if no new card is detected
   mfrc522.PCD_StopCrypto1();  // Stop encryption on PCD
 
   //Serial.print(F("Name: "));
@@ -213,8 +208,6 @@ void checkRFID(void)
   //  Serial.write(namebuffer[i]);
   //}
   // Serial.println("");
-
-
 
 }
 

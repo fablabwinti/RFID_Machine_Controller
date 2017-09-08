@@ -1,4 +1,7 @@
 /*
+ Tested on Arduino 1.6.8 using ESP8266 Arduino version 2.3.0  (https://github.com/esp8266/Arduino/releases)
+ Not working with arduino 1.8.4, nor with ESP8266 Version 2.4.0-rc1
+ 
   Note on data structure
 
   -the configuration of the node resides in eeprom. this includes:
@@ -26,9 +29,11 @@
 
  * */
 
-#define TIMEZONE 1 //GMT +1  adjust to your timezone if needed
+//set these compile time parameters to fit your needs 
 
-
+#define TIMEZONE 1 //GMT +1  adjust to your timezone if needed, can be negative
+#define SERVERMININTERVAL 1000  // minimum interval (in ms) between server sendouts (where a pending event is sent) default: 1000
+#define MULTIWIFIS 2 //number of wifi credentials to store for wifi multi (uses lots of ram in the config!) default: 2
 
 extern "C" {
 #include "user_interface.h" //for light sleep stuff
@@ -89,10 +94,10 @@ extern "C" {
 /*  TODO
  * *******
 
-  -create a config section for all compile time config stuff
+  -create a config section for all compile time config stuff (started putting it on beginning of this file, complete?)
   -create log file structure
   -add time control for access
-  -switch to async web server (more stable) -> not for now
+
   -add possibility to update spiffs through webpage
   
   -add SSL to all server traffic
@@ -103,9 +108,9 @@ extern "C" {
   -need a solid way to handle the master key, independant of timer (in case no time is available from RTC or NTP to unlock the machine)
   -program a cache function that writes log entries to the SD card. one log file per month or something and one file for 'unsent messages' or better: create a database on the sd card for entries, add a flag and clear it if the entry was sent out succesfully.
   -IMPORTANT BUGFIX: in case RTC fails, the controller has to display a huge warning! also, update has to be forced more frequently!
-  
   -optimize ram usage of local config (currently it is fully copied to ram and always kept there using over 512bytes of ram)
-
+  
+  -switch to async web server (more stable) -> not for now
   IN PROGRESS:
 
 
@@ -119,7 +124,7 @@ extern "C" {
    -json input and output functions for database
    -make web-page access restricted by password
    -add firmware update password to eeprom -> NO, it can only be changed in the code
-   -read log files on bootup, transfer flagged events to server and unflag them
+   -read log files on bootup, transfer flagged events to server and unflag them -> DONE
    -add RTC support -> DONE
    -add OLED support -> basic functionality: DONE
    -add RFID support -> basic functionality: DONE
@@ -137,7 +142,7 @@ extern "C" {
 
 void setup() {
   delay(200);  // wait for power to stabilize
-  Serial.begin(115200); //comment the led init below if using serial
+  //Serial.begin(115200); //comment the led init below if using serial
   Serial.println(F("\r\n\r\n***********************************"));  // todo: add actual build info here
   Serial.println(F("** Fablab Winti RFID CONTROL **"));  // todo: add actual build info here
   Serial.println(F("*******************************"));  // todo: add actual build info here
@@ -149,6 +154,7 @@ void setup() {
 
   watchdog = 0;  // initialize watchdog counter (used in ticker interrupt)
   localTimeValid = false;  // set true once the time is set from NTP server
+  //writeDefaultConfig(); 
   ReadConfig();  // read configuration from eeprom, apply default config if invalid
   // printConfig(); //debug function
   SPIFFS.begin(); //init local file system
@@ -162,7 +168,9 @@ void setup() {
   SPI.begin();
   displayinit(); //show bootup screen
   RTCinit(); //init the local time from RTC
-  //LEDinit(); //intialize WS2812 fastled library (comment this line if using Serial debugging output)
+  LEDinit(); //intialize WS2812 fastled library (comment this line if using Serial debugging output)
+  Serial.println("SD init");
+  delay(100);
   SDmanager();  // initialize SD card if present
   SDwriteLogfile("Boot");
   initRFID();
@@ -194,8 +202,8 @@ void setup() {
 
   //print full user database:
   //userDBprintout();
-  createErrorEvent("error Event Test at Bootup");
-
+  
+  addEventToQueue(0, "" ); //send 'controller start' event
 }
 /*
   void sleepcallback()

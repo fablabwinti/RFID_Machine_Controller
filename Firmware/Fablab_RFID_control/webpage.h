@@ -1,4 +1,4 @@
-
+//handling functions for configuration webpage residing in SPIFFS
 
 String getContentType(String filename) {
   if (server.hasArg("download")) return "application/octet-stream";
@@ -200,7 +200,8 @@ void webSocketEvent(uint8_t num, WStype_t type, uint8_t * payload, size_t lenght
           webSocket.sendTXT(num, SSIDs);
         }
         else if (text == "upgradeFW") { //download new firmware file from server
-          WS_print(F("Upgrading Firmware... "));
+          display.println(F("Upgrading Firmware... "));
+          display.display();
           t_httpUpdate_return ret = ESPhttpUpdate.update("http://" + config.serverAddress + "/RFIDfirmware/firmware.bin");
           switch (ret) {
             case HTTP_UPDATE_FAILED:
@@ -219,7 +220,8 @@ void webSocketEvent(uint8_t num, WStype_t type, uint8_t * payload, size_t lenght
           }
         }
         else if (text == "upgradeSPIFFS") { //download new firmware file from server
-          WS_print(F("Upgrading SPIFFS... "));
+          display.println(F("Updating SPIFFS... "));
+          display.display();
           t_httpUpdate_return ret = ESPhttpUpdate.updateSpiffs("http://" + config.serverAddress + "/RFIDfirmware/spiffs.bin");
           switch (ret) {
             case HTTP_UPDATE_FAILED:

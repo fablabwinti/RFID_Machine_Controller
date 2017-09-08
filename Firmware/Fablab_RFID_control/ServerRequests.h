@@ -185,9 +185,9 @@ void UpdateDBfromServer(void) {
     while (client.available() > 0)
     {
       delay(1); //wait for more data and make way for background activity if needed
-      DynamicJsonBuffer jsonBuffer(512); //crate a buffer for 10 database entries (todo: could optimize ram usage if necessary by making this buffer smaller)
+      DynamicJsonBuffer jsonBuffer(512); //crate a buffer for 5 database entries (todo: could optimize ram usage if necessary by making this buffer smaller)
       str = "["; //add initial array bracket
-      for (uint8_t i = 0; i < 10; i++)
+      for (uint8_t i = 0; i < 5; i++)
       {
         str += client.readStringUntil('}');
         str = str + "}"; //insert discarded closing bracket
@@ -195,35 +195,42 @@ void UpdateDBfromServer(void) {
       client.read(); //discard ','
       str += "]";  //add terminating array bracket
       //Serial.println(str);
+      delay(1); //run background functions
       JsonArray& root = jsonBuffer.parseArray(str); //parse the array
       if (!root.success()) {
         Serial.println("JSON parsing failed!");
         client.stop();
         {
           updateCleanup(false); //cleanup the database, unsuccessful update
+          
           return; //parsing failed for some reason (incomplete stream?)
         }
       }
 
-      //  root.prettyPrintTo(Serial);
+      root.prettyPrintTo(Serial);
       Serial.print(".");
+
+      delay(1); //run background functions
 
       for (int i = 0; i < root.size(); i++)
       {
+        //TODO: check if fields exist and only add them if they actually do (prevents crashes!)
         uint16_t tid = root[i]["tid"];
         uint32_t uid = root[i]["uid"];
-        const char* owner = root[i]["owner"];
-        uint32_t start = root[i]["start"];
-        uint32_t end = root[i]["end"];
+        const char* name = root[i]["name"];
+        uint32_t start = 0; //root[i]["start"]; //todo: implement this properly
+        uint32_t end = 0; //root[i]["end"];
 
-        /*
+        
           Serial.println(tid);
-          Serial.println(root[i]["owner"].asString());
+          Serial.println(root[i]["name"].asString());
           Serial.println(uid);
           Serial.println(start);
           Serial.println(end);
-        */
-        if (userDBaddentry(tid, uid, start, end, owner) == false)
+
+          delay(100);
+        
+        if (userDBaddentry(tid, uid, start, end, name) == false)
         {
           updateCleanup(false); //cleanup the database, unsuccessful update
           return;

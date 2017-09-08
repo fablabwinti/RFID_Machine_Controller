@@ -1,6 +1,6 @@
 #define PIXEL_PIN 1 //GPIO1 = TX pin
-#define LED_DEFAULTBRIGTHNESS 140
-#define LED_MAXBRIGHTNESS 250  // maximum brightness value for LED (except for 'LED_blink_once' function)
+#define LED_DEFAULTBRIGTHNESS 80
+#define LED_MAXBRIGHTNESS 180  // maximum brightness value for LED (except for 'LED_blink_once' function)
 #define LEDUPDATETIME 50  //led update time in ms (not updated faster than this but can be slower when function is not called that often)
 
 #define COLOR_ORDER GRB

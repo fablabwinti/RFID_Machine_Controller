@@ -156,7 +156,7 @@ uint16_t userDBfindentry(uint32_t RFIDuid)
 //add an etry to the secondary userDB
 bool userDBaddentry(uint16_t tid, uint32_t RFuid, uint32_t validfrom, uint32_t validuntil, const char* username) //obsolete
 {
-  //Serial.print(F("Appending userDB entry... "));
+  Serial.print(F("Appending userDB entry... "));
 
   userentry.tagid = tid;
   userentry.uid = RFuid;
