@@ -339,11 +339,102 @@ void webSocketEvent(uint8_t num, WStype_t type, uint8_t * payload, size_t lenght
           }
           else
             Serial.println(F("nodesettings json parsing failed"));
-
-
         }
+        else if (text.indexOf("RFIDKEY") != -1) //RFID card codes
+        {
+          //RFID access settings
+          DynamicJsonBuffer jsonBuffer(80); //crate a buffer
+          JsonObject& RFIDcodes = jsonBuffer.parseObject(text);
+          RFIDcodes.prettyPrintTo(Serial); //debug!!!
+          if (RFIDcodes.success())
+          {
+            if (RFIDcodes.containsKey("RFIDKEY"))
+            {
+              //note: RFIDKEY is provided as a hex string with the leading 0x (string is 14 characters long, representing the 6 byte code, examlple: '0xDEADBEEF1234')
+              //need to extract the bytes from the string
+              char hexbyte[3]; //char string for one byte of hex code (plus termination)
+              hexbyte[2] = 0; //null termination of char string
+              String hexnumber = RFIDcodes["RFIDKEY"].asString();
+              Serial.print("got key: (LSB first) ");
+              for (i = 0; i < 6; i++)
+              {
+                //copy two chars to the buffer
+                hexbyte[0] = hexnumber.charAt(12 - 2 * i);
+                hexbyte[1] = hexnumber.charAt(13 - 2 * i);
+                //convert the buffer into a integer number
+                config.RFIDkey[i] = (uint8_t)strtol(hexbyte, 0, 16);
+                Serial.print(config.RFIDkey[i], HEX);
+                Serial.print(" ");
+              }
+            }
+            if (RFIDcodes.containsKey("RFIDCODE"))
+            {
+              String code = RFIDcodes["RFIDCODE"].asString();
+              config.RFIDcode[15] = 'X'; //debug only
 
+              Serial.println(" ");
+              Serial.print(F("got code: "));
+              for (i = 0; i < 16; i++)
+              {
+                config.RFIDcode[i] = code.charAt(i);
+                Serial.write(config.RFIDcode[i]);
+              }
+              Serial.println(" ");
+            }
+            WriteConfig();
+            WS_print(F("RFID codes saved\r\n"));
+          }
+          else
+            Serial.println(F("RFID code json parsing failed"));
+        }
+        else if (text.indexOf("APIKEY") != -1) //node settings as a json string,
+        {
+          //API access settings
+          //parse the json text
+          DynamicJsonBuffer jsonBuffer(150); //crate a buffer
+          JsonObject& apiconfig = jsonBuffer.parseObject(text);
+          apiconfig.prettyPrintTo(Serial); //debug!!!
+          if (apiconfig.success())
+          {
+            if (apiconfig.containsKey("APIKEY"))
+            {
+              config.APIkey = apiconfig["APIKEY"].asString();
+            }
+            if (apiconfig.containsKey("APIUSER"))
+            {
+              config.APIuser = apiconfig["APIUSER"].asString();
+            }
 
+            WriteConfig();
+            WS_print(F("API Settings saved\r\n"));
+          }
+          else
+            Serial.println(F("api settings json parsing failed"));
+        }
+        else if (text.indexOf("WEBUSER") != -1) //node settings as a json string,
+        {
+          //API access settings
+          //parse the json text
+          DynamicJsonBuffer jsonBuffer(150); //crate a buffer
+          JsonObject& webaccess = jsonBuffer.parseObject(text);
+          webaccess.prettyPrintTo(Serial); //debug!!!
+          if (webaccess.success())
+          {
+            if (webaccess.containsKey("WEBUSER"))
+            {
+              config.webUser = webaccess["WEBUSER"].asString();
+            }
+            if (webaccess.containsKey("WEBPASS"))
+            {
+              config.webPW = webaccess["WEBPASS"].asString();
+            }
+
+            WriteConfig();
+            WS_print(F("Page access Settings saved\r\n"));
+          }
+          else
+            Serial.println(F("webaccess settings json parsing failed"));
+        }
       }
       break;
 

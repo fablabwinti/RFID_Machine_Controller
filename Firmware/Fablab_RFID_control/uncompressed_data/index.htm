@@ -389,7 +389,22 @@
                     <input type="submit" value="Save to Controller" data-icon="refresh">
                 </div>
             </form>
-    	</div>    	
+    	</div> 
+		<BR>
+		<div data-role="collapsible" data-collapsed="false">
+                <h4>Admin RFID</h4>                             
+            <form action="" method="post" id="APIConfig" onsubmit="return submitUID()">
+             <h5>This 32bit UID has unlimited access and works even after a full config reset.</h5> 
+                <div data-role="fieldcontain">
+                    <div data-role="fieldcontain">
+                        <label for="RFIDadmin">RFID UID</label>
+                        <input type="text" id="RFIDadmin" required maxlength="10" pattern="\d*"> 
+                    </div>
+                    <BR>
+                    <input type="submit" value="Save to Controller" data-icon="refresh">
+                </div>
+            </form>
+    	</div>     	   	
        </div>
 	</div>
     <script>

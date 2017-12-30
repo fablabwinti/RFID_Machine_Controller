@@ -1,16 +1,16 @@
 /*
- Tested on Arduino 1.6.8 using ESP8266 Arduino version 2.3.0  (https://github.com/esp8266/Arduino/releases)
- Not working with arduino 1.8.4, nor with ESP8266 Version 2.4.0-rc1
- 
+  Tested on Arduino 1.6.8 using ESP8266 Arduino version 2.3.0  (https://github.com/esp8266/Arduino/releases)
+  Not working with arduino 1.8.4, nor with ESP8266 Version 2.4.0-rc1
+
   Note on data structure
 
   -the configuration of the node resides in eeprom. this includes:
     -wifi configuration
     -machine ID, machine name, machine pricing
 
-  -the SPIFF file system contains (in a database file)
+  -the SPIFF file system contains 
     -the config web page
-    -user IDs and access control stuff
+    -user IDs and access control stuff (in a database file)
   -logging is done on the SD card:
     -system event log files:
       -booting/rebooting/crash
@@ -29,7 +29,7 @@
 
  * */
 
-//set these compile time parameters to fit your needs 
+//set these compile time parameters to fit your needs
 
 #define TIMEZONE 1 //GMT +1  adjust to your timezone if needed, can be negative
 #define SERVERMININTERVAL 1000  // minimum interval (in ms) between server sendouts (where a pending event is sent) default: 1000
@@ -81,9 +81,9 @@ extern "C" {
 #include "WiFi.h"
 #include "ServerRequests.h"
 #include "output.h"
-#include "RFID.h"
-#include "webpage.h"
 
+#include "webpage.h"
+#include "RFID.h"
 
 
 
@@ -97,9 +97,11 @@ extern "C" {
   -create a config section for all compile time config stuff (started putting it on beginning of this file, complete?)
   -create log file structure
   -add time control for access
+  -though: add admin key (UID) that can be updated on webpage and is not deleted on a factory reset -> admin key always works no matter what.
+    -> also need to add possibility to do factory reset if program is stuck in an infinite reboot loop -> show boot screen longer while flash key is pressed during bootup, allowing the mode to change
 
   -add possibility to update spiffs through webpage
-  
+
   -add SSL to all server traffic
   -add SD card viewer to webpage
   --
@@ -109,7 +111,8 @@ extern "C" {
   -program a cache function that writes log entries to the SD card. one log file per month or something and one file for 'unsent messages' or better: create a database on the sd card for entries, add a flag and clear it if the entry was sent out succesfully.
   -IMPORTANT BUGFIX: in case RTC fails, the controller has to display a huge warning! also, update has to be forced more frequently!
   -optimize ram usage of local config (currently it is fully copied to ram and always kept there using over 512bytes of ram)
-  
+  -add debug outputs to websocket print (see example in verifyRFIDdata() )
+
   -switch to async web server (more stable) -> not for now
   IN PROGRESS:
 
@@ -141,12 +144,19 @@ extern "C" {
 
 
 void setup() {
-  delay(200);  // wait for power to stabilize
-  //Serial.begin(115200); //comment the led init below if using serial
+  delay(400);  // wait for power to stabilize
+  Serial.begin(115200); //comment the led init below if using serial
   Serial.println(F("\r\n\r\n***********************************"));  // todo: add actual build info here
   Serial.println(F("** Fablab Winti RFID CONTROL **"));  // todo: add actual build info here
   Serial.println(F("*******************************"));  // todo: add actual build info here
   Serial.println(F("\r\n\r\n"));  // todo: add actual build info here
+
+  //**********************
+  //FAILSAFE FACTORY RESET
+  //**********************
+  //press flash button immediateley after releasing the reset but not during reset (that will start the bootloader)
+  forceFactoryReset(); //if button is pressed for 2 seconds, a factory reset is execuded
+
 
   //*****************
   //SOFTWARE INIT
@@ -154,7 +164,7 @@ void setup() {
 
   watchdog = 0;  // initialize watchdog counter (used in ticker interrupt)
   localTimeValid = false;  // set true once the time is set from NTP server
-  //writeDefaultConfig(); 
+  //writeDefaultConfig();
   ReadConfig();  // read configuration from eeprom, apply default config if invalid
   // printConfig(); //debug function
   SPIFFS.begin(); //init local file system
@@ -163,12 +173,12 @@ void setup() {
   //*****************
   //HARDWARE INIT
   //*****************
-  ConfigureWifi();  // connect to wifi
+  ConfigureWifi();  //connect to wifi
   Wire.begin(); //I2C, default pins: 4 & 5
   SPI.begin();
   displayinit(); //show bootup screen
   RTCinit(); //init the local time from RTC
-  LEDinit(); //intialize WS2812 fastled library (comment this line if using Serial debugging output)
+  //LEDinit(); //intialize WS2812 fastled library (comment this line if using Serial debugging output)
   Serial.println("SD init");
   delay(100);
   SDmanager();  // initialize SD card if present
@@ -177,12 +187,12 @@ void setup() {
   playBeep(); //init the beeper by playing a short sound
   initOutput(); //initialize output pin
 
-  /*
+  
     Serial.print(F("Free heap:"));
     Serial.println(ESP.getFreeHeap(), DEC);
     Serial.print(F("EEPROM USED:"));
     Serial.println(EE_END, DEC);
-  */
+  
 
   display.println(F("setup done"));
   display.display();
@@ -202,7 +212,7 @@ void setup() {
 
   //print full user database:
   //userDBprintout();
-  
+
   addEventToQueue(0, "" ); //send 'controller start' event
 }
 /*
@@ -218,18 +228,23 @@ void loop() {
   yield();  // run background processes
   watchdog = 0;  // kick the watchdog
 
+  //checkRFID();
+  rfidsecuretest();
+
   if (webserver_active == false)
   {
-    checkRFID();
+
     displayUpdate();
-    sendPendingEvents();  // send data out (if available)
-    timeManager(false); // check the local time
-    SDmanager();  // check SD card
-    
-    if (machineLocked) //do not update database while user is logged in
+
+
+    if (machineLocked) //only run wifi accessing stuff if user is logged in (wifi is not 100% stable or has long timeouts)
     {
       UpdateDBfromServer(); //update the user database if necessary
+      sendPendingEvents(false);  // send data out (if available in RAM, does not check the SD card)
+      timeManager(false); // check the local time
+      SDmanager();  // check SD card (and send locally saved events)
     }
+
   }
   else //serve the config webpage (reboot to deactivate)
   {
@@ -240,8 +255,6 @@ void loop() {
   wifiCheckConnection();
   updateLED();  // update LED output
   checkButtonState();  // check GPIO0 button state
-
-
 
 
   delay(180); //automatically adds some sleep mode, saving power, not necessary to manually put it to sleep (only works if connected to network)

@@ -3,8 +3,8 @@ unsigned long serverUpdateTime = 0;  // used to control when data is sent out (m
 
 
 
-//send all pending events to the server, save to SD card in case 'saveiffail' = true
-void sendToServer(sendoutpackage* datastruct, bool saveiffail) {
+//send all pending events to the server, save to SD card in case 'saveiffail' = true, try to connect up to 10 times if 'enforce' = true (saved to SD immediately if connect fails)
+void sendToServer(sendoutpackage* datastruct, bool saveiffail, bool enforce) {
   // checks if we can already send more data. if we can, check if data needs to be sent.
   // then format the data and send it out through the ether
 
@@ -14,88 +14,90 @@ void sendToServer(sendoutpackage* datastruct, bool saveiffail) {
   static bool serverhealthy = 1; //set to false if server connection fails multiple times, request time is then decreased to not hinder the usage of the controller by blocking login/logout events
 
   if (WiFi.status() == WL_CONNECTED) {
-      if (millis() - serverUpdateTime > SERVERMININTERVAL)  // do not send data more often than SERVERMININTERVAL to ease on server traffic (all pending data is sent in one call)
+    if (millis() - serverUpdateTime > SERVERMININTERVAL)  // do not send data more often than SERVERMININTERVAL to ease on server traffic (all pending data is sent in one call)
+    {
+      serverUpdateTime = millis();
+      uint8_t i;
+      uint8_t needupdate = 0;
+      String payload = "";
+      if (datastruct->pending)  // if sendout flag is set (just double checking)
       {
-        serverUpdateTime = millis();
-        uint8_t i;
-        uint8_t needupdate = 0;
-        String payload = "";
-        if (datastruct->pending)  // if sendout flag is set (just double checking)
+        needupdate = 1;
+        DynamicJsonBuffer jsonBuffer(256); //crate a buffer for one event
+        JsonObject& event = jsonBuffer.createObject();
+        event["timestamp"] = convertToTimesting(datastruct->timestamp);
+        event["mid"] = config.mid;
+        event["event"] = datastruct->event;
+        if (datatosend[i].tid > 0)
         {
-          needupdate = 1;
-          DynamicJsonBuffer jsonBuffer(256); //crate a buffer for one event
-          JsonObject& event = jsonBuffer.createObject();
-          event["timestamp"] = convertToTimesting(datastruct->timestamp);
-          event["mid"] = config.mid;
-          event["event"] = datastruct->event;
-          if (datatosend[i].tid > 0)
-          {
-            event["tid"] = datastruct->tid;
-          }
-          event["remarks"] = datastruct->remarks;
-          event.printTo(payload);
+          event["tid"] = datastruct->tid;
         }
+        event["remarks"] = datastruct->remarks;
+        event.printTo(payload);
+      }
 
 
-        if (needupdate == 0)
-          return;
+      if (needupdate == 0)
+        return;
 
-        Serial.println("Sendoutdata: ");
+      Serial.println("Sendoutdata: ");
 
-        Serial.println(payload);
-        char serveradd[32];
-        config.serverAddress.toCharArray(serveradd, 32);
-        if (!client.connect(serveradd, config.serverPort)) {
-          Serial.println(F("Server connect failed"));
-          LED_blink_once(20);
-          //if this fails multiple times, write data to SD database
-          connectfailcounter++;
-          if (connectfailcounter > 10)
-          {
-            if (saveiffail)
-              eventDBaddentry(datastruct); //transfer this event over to the SD card database (pending flag is removed there so it will not be sent from queue)
-          }
-          return;
-        }
-
-        connectfailcounter = 0;
-        //send POST to '/logs'
-        client.print(String("POST /logs HTTP/1.1\r\n") +
-                     "Host: http://" + config.serverAddress + "/\r\n" +
-                     "Connection: close\r\n" +
-                     "Content-Type: application/json\r\n" +
-                     "Content-Length: " + String(payload.length()) +
-                     "\r\n\r\n");
-
-        client.print(payload);
-
-        int timeout = 0;
-        while (client.available() == 0) {
-          delay(10);
-          if (timeout++ > 200)
-            break;  // wait 2s max
-        }
-        // Read all the lines of the reply from server and print them to Serial
-
-        String line = client.readStringUntil('\r');
-        Serial.println(line);
-        if (line.indexOf("200 OK") != -1) {
-          datastruct->pending = 0;  // reset flag after sending
-          Serial.println(F("Serverupdate OK"));
-        }
-        else
+      Serial.println(payload);
+      char serveradd[32];
+      config.serverAddress.toCharArray(serveradd, 32);
+      while (!client.connect(serveradd, config.serverPort)) { //enforces a connection
+        Serial.println(F("Server connect failed"));
+        LED_blink_once(20);
+        //if this fails multiple times, write data to SD database
+        connectfailcounter++;
+        if (connectfailcounter > 10)
         {
-          Serial.println(F("Serverupdate ERROR"));
-          createErrorEvent(line); //server error, send out parts of the received error code
           if (saveiffail)
             eventDBaddentry(datastruct); //transfer this event over to the SD card database (pending flag is removed there so it will not be sent from queue)
-          LED_blink_once(20);
+
+          return;
         }
+        if (enforce == false) return;
+      }
+
+      connectfailcounter = 0;
+      //send POST to '/logs'
+      client.print(String("POST /logs HTTP/1.1\r\n") +
+                   "Host: http://" + config.serverAddress + "/\r\n" +
+                   "Connection: close\r\n" +
+                   "Content-Type: application/json\r\n" +
+                   "Content-Length: " + String(payload.length()) +
+                   "\r\n\r\n");
+
+      client.print(payload);
+
+      int timeout = 0;
+      while (client.available() == 0) {
+        delay(10);
+        if (timeout++ > 200)
+          break;  // wait 2s max
+      }
+      // Read all the lines of the reply from server and print them to Serial
+
+      String line = client.readStringUntil('\r');
+      Serial.println(line);
+      if (line.indexOf("200 OK") != -1) {
+        datastruct->pending = 0;  // reset flag after sending
+        Serial.println(F("Serverupdate OK"));
+      }
+      else
+      {
+        Serial.println(F("Serverupdate ERROR"));
+        createErrorEvent(line); //server error, send out parts of the received error code
+        if (saveiffail)
+          eventDBaddentry(datastruct); //transfer this event over to the SD card database (pending flag is removed there so it will not be sent from queue)
+        LED_blink_once(20);
+      }
 
 
-        Serial.println();
-        Serial.println(F("closing connection"));
-        client.stop();
+      Serial.println();
+      Serial.println(F("closing connection"));
+      client.stop();
     }
   }
   else //no wifi available, log the event to SD card database for later transfer
@@ -106,14 +108,15 @@ void sendToServer(sendoutpackage* datastruct, bool saveiffail) {
 }
 
 //send pending events to the server (they are automatically transferred to the SD card database if sending fails)
-void sendPendingEvents(void)
+//if 'enforce' = true the data is sent immediately or saved to SD if it fails multiple times, use enforce to make sure data is not lost (used to send login data as no wifi access is allwed after a login)
+void sendPendingEvents(bool enforce)
 {
   uint8_t i;
   for (i = 0; i < SERVERPACKETS; i++)  // go through all possible data structs, there can be multiple events pending
   {
     if (datatosend[i].pending)  // if sendout flag is set
     {
-      sendToServer(&datatosend[i], true); //send the data
+      sendToServer(&datatosend[i], true, enforce); //send the data
       return; //return, do the others later (to not block login events for too long)
     }
   }
@@ -122,12 +125,12 @@ void sendPendingEvents(void)
 //update user database from server
 void UpdateDBfromServer(void) {
 
-  static uint8_t retries = 10; //try to update 10 times, then give up
+  static int8_t retries = 5; //try to update 5 times, then give up
   static uint32_t timetoupdateDB = 0;
 
   long tick = millis();
-  //try to update 10 times in interals of 10 seconds
-  if (refreshUserDB && WiFi.status() == WL_CONNECTED  && millis() - timetoupdateDB > 10000 && retries > 0) {
+  //try to update 5 times in interals of 10 seconds
+  if (refreshUserDB && (WiFi.status() == WL_CONNECTED)  && (millis() - timetoupdateDB > 10000) && (retries > 0)) {
     Serial.println(F("Updating user database..."));
     timetoupdateDB = millis();
     retries--;
@@ -157,7 +160,7 @@ void UpdateDBfromServer(void) {
                  "Connection: close\r\n\r\n");
     unsigned long timeout = millis();
     while (client.available() == 0) {
-      if (millis() - timeout > 5000) {
+      if (millis() - timeout > 4000) {
         Serial.println(">>> Client Timeout !");
         client.stop();
         return;
@@ -167,7 +170,7 @@ void UpdateDBfromServer(void) {
     String str = client.readStringUntil('\r');  //read firs line of response (contains error code)
     Serial.print(str);
     if (str.indexOf("200 OK") != -1) {
-      Serial.println(F("Server response OK"));
+      Serial.println(F(" - Server response OK"));
     }
     else //server response failed (404 or other error)
     {
@@ -202,38 +205,44 @@ void UpdateDBfromServer(void) {
         client.stop();
         {
           updateCleanup(false); //cleanup the database, unsuccessful update
-          
+
           return; //parsing failed for some reason (incomplete stream?)
         }
       }
 
       root.prettyPrintTo(Serial);
-      Serial.print(".");
+      Serial.println(".");
 
       delay(1); //run background functions
 
       for (int i = 0; i < root.size(); i++)
       {
         //TODO: check if fields exist and only add them if they actually do (prevents crashes!)
-        uint16_t tid = root[i]["tid"];
-        uint32_t uid = root[i]["uid"];
-        const char* name = root[i]["name"];
-        uint32_t start = 0; //root[i]["start"]; //todo: implement this properly
-        uint32_t end = 0; //root[i]["end"];
+        Serial.println(" ");
 
-        
+
+        //check if received database entry is fully defined (i.e. all required fields exist)
+        if (root[i]["tid"].success() && root[i]["uid"].success() && root[i]["owner"].success() && root[i]["start"].success() && root[i]["end"].success())
+        {
+          uint16_t tid = root[i]["tid"];
+          uint32_t uid = root[i]["uid"];
+          const char* name = root[i]["owner"];
+          uint32_t start = 0; //root[i]["start"]; //todo: implement this properly
+          uint32_t end = 0; //root[i]["end"];
+
           Serial.println(tid);
-          Serial.println(root[i]["name"].asString());
+          Serial.println(root[i]["owner"].asString());
           Serial.println(uid);
           Serial.println(start);
           Serial.println(end);
 
           delay(100);
-        
-        if (userDBaddentry(tid, uid, start, end, name) == false)
-        {
-          updateCleanup(false); //cleanup the database, unsuccessful update
-          return;
+
+          if (userDBaddentry(tid, uid, start, end, name) == false)
+          {
+            updateCleanup(false); //cleanup the database, unsuccessful update
+            return;
+          }
         }
       }
 
@@ -248,7 +257,7 @@ void UpdateDBfromServer(void) {
   }
   Serial.println("done");
   refreshUserDB = false; //reset if update successful
-  retries = 10; //reset the retries for next time
+  retries = 5; //reset the retries for next time
   updateCleanup(true); //cleanup the database, successful update!
   long tock = millis();
   Serial.print(F("Database update successful, entries received: "));

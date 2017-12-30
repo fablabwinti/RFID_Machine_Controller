@@ -9,10 +9,10 @@
 #define SERVERCREDENTIALSTRINGLENGTH 55 //string length for server credentials (Cayenne credentials are up to 50 chars long)
 
 #define RFID_SECTORKEY  0x000000000000 //secret access key for first datasector (must be entered upon compiling, never commit to github, not even compiled file)
-#define RFID_SECRETKEY  {0x00000000, 0x00000000, 0x00000000, 0x00000000} //16byte (4x32bit) secret key stored in first sector for additional security (can not be copied) key must be inserted before compiling (and never commited to GIThub)
+#define RFID_SECRETKEY  {0x00000000, 0x00000000, 0x00000000, 0x00000000} //16byte (4x32bit) secret key stored in first sector (block 4) for additional security (can not be copied) key must be inserted before compiling (and never commited to GIThub)
 
 //EEPROM definitions
-#define EEPROMSIZE 768
+#define EEPROMSIZE 1024
 #define EE_START 8  //staring address of data (first 8 bytes can be used as identifiers and versioning)
 #define EE_SSID_ADDR  EE_START                                      //base address for wifi passwords
 #define EE_WIFIPASS_ADDR EE_SSID_ADDR+(MULTIWIFIS*DEFAULTSTRINGLENGTH)     //base address for wifi passwords
@@ -29,11 +29,26 @@
 #define EE_MACHINENAME_ADDR EE_MID_ADDR+1                           //address for machine name, string
 #define EE_SERVERIP_ADDR EE_MACHINENAME_ADDR+DEFAULTSTRINGLENGTH    //address for server IP address, 32byte string (string can be an ip like "192.168.1.1")
 #define EE_SERVERPORT_ADDR EE_SERVERIP_ADDR+DEFAULTSTRINGLENGTH     //address for server port, uint16_t
-#define EE_END EE_SERVERPORT_ADDR+2                       //address reserved
+
+#define EE_RFIDKEY_ADDR EE_SERVERPORT_ADDR+2                        //address for access key for RFID data
+#define EE_RFIDCODE_ADDR EE_RFIDKEY_ADDR+6     //address for access code that needs to match on RFID card
+#define EE_ADMINUID_ADDR EE_RFIDCODE_ADDR+16     //address for one admin UID which always has access, once set, even a complete reset will not delete this
+#define EE_WEBPASS_ADDR EE_ADMINUID_ADDR+4     //address for password for config webpage access
+#define EE_WEBUSER_ADDR EE_WEBPASS_ADDR+DEFAULTSTRINGLENGTH     //address for username for config webpage access
+#define EE_SERVERAPIKEY_ADDR EE_WEBUSER_ADDR+DEFAULTSTRINGLENGTH     //address for key for server API access
+#define EE_SERVERAPIUSER_ADDR EE_SERVERAPIKEY_ADDR+DEFAULTSTRINGLENGTH     //address for username for server API access
+
+
+
+#define EE_END EE_SERVERAPIUSER_ADDR+DEFAULTSTRINGLENGTH             //address reserved
 
 //additional config stuff needed:
 /*
-  currently none
+  -webpage login credentials
+  -RFID card sector access codes
+  -RFID card secret confirmation key
+  -three admin UIDs (admins always have access, even after factory reset)
+  -Server API user and key (two strings)
   todo: make the config use fixed string lengths as char arrays, read and write the full struct in one go making it a lot more flexible!
   can use mystring.toCharArray(config.thisstring, mytring.length()+1); to copy a string to char array and String mystring = String(config.thisstring) to convert it back
 */
@@ -56,9 +71,6 @@ ESP8266WebServer server(80);  // The Webserver
 WebSocketsServer webSocket = WebSocketsServer(81);
 WiFiClient espClient;
 
-//password for the config webpage access
-const char* webpage_username = "admin";
-const char* webpage_password = "admin";
 
 
 // WiFiClientSecure SSLclient; //secure connections
@@ -89,6 +101,13 @@ struct NodeConfig {
   IPAddress Netmask;
   IPAddress Gateway;
   bool useDHCP;
+  uint8_t RFIDkey[6]; //access key for RFID data
+  uint8_t RFIDcode[16]; //access code that needs to match on RFID card
+  uint8_t adminUID[4]; //admin UID which always has access, once set, even a complete reset will not delete this
+  String webPW;       // 31 bytes maximum, password for config webpage access
+  String webUser;  // 31 bytes maximum, username for config webpage access
+  String APIkey;       // 31 bytes maximum, key for server API access
+  String APIuser;  // 31 bytes maximum, username for server API access
 } config;
 
 
@@ -163,6 +182,15 @@ void WriteConfig() {
   WriteStringToEEPROM(EE_SERVERIP_ADDR, config.serverAddress, DEFAULTSTRINGLENGTH);
   EEPROMWriteByteArray(EE_SERVERPORT_ADDR, (uint8_t*)&config.serverPort, 2); //uint16_t
 
+  EEPROMWriteByteArray(EE_RFIDKEY_ADDR, (uint8_t*)&config.RFIDkey, 6); //6 bytes
+  EEPROMWriteByteArray(EE_RFIDCODE_ADDR, (uint8_t*)&config.RFIDcode, 16); //16 bytes
+  EEPROMWriteByteArray(EE_ADMINUID_ADDR, (uint8_t*)&config.adminUID, 4); //4 bytes
+
+  WriteStringToEEPROM(EE_WEBPASS_ADDR, config.webPW, DEFAULTSTRINGLENGTH);
+  WriteStringToEEPROM(EE_WEBUSER_ADDR, config.webUser, DEFAULTSTRINGLENGTH);
+  WriteStringToEEPROM(EE_SERVERAPIKEY_ADDR, config.APIkey, DEFAULTSTRINGLENGTH);
+  WriteStringToEEPROM(EE_SERVERAPIUSER_ADDR, config.APIuser, DEFAULTSTRINGLENGTH);
+
   EEPROM.commit();
   EEPROM.end();
 }
@@ -203,6 +231,13 @@ void writeDefaultConfig(void) {
   config.mid = 255;
   config.serverAddress = "";
   config.serverPort = 3000;
+
+  config.webPW = "admin";
+  config.webUser = "admin";
+  config.APIkey = "";
+  config.APIuser = "";
+
+//note: do not overwrite the admin UID nor the access codes for the RFID card so a reset does not require to set them again
 
   WriteConfig();
   Serial.println(F("Standard config applied"));
@@ -246,6 +281,17 @@ void ReadConfig() {
     config.serverAddress = ReadStringFromEEPROM(EE_SERVERIP_ADDR);
     EEPROMReadByteArray(EE_SERVERPORT_ADDR, (uint8_t*)&config.serverPort, 2); //uint16_t
 
+    EEPROMReadByteArray(EE_RFIDKEY_ADDR, (uint8_t*)&config.RFIDkey, 6); //6 bytes
+    EEPROMReadByteArray(EE_RFIDCODE_ADDR, (uint8_t*)&config.RFIDcode, 16); //16 bytes
+    EEPROMReadByteArray(EE_ADMINUID_ADDR, (uint8_t*)&config.adminUID, 4); //4 bytes
+
+
+    config.webPW = ReadStringFromEEPROM(EE_WEBPASS_ADDR);;
+    config.webUser = ReadStringFromEEPROM(EE_WEBUSER_ADDR);;
+    config.APIkey = ReadStringFromEEPROM(EE_SERVERAPIKEY_ADDR);;
+    config.APIuser = ReadStringFromEEPROM(EE_SERVERAPIUSER_ADDR);;
+
+
   } else {
     Serial.println(F("Configurarion NOT FOUND!"));
     writeDefaultConfig();
@@ -257,41 +303,41 @@ void ReadConfig() {
 void WebServerinit(void)
 {
 
-    webserver_active = true;
-    display.clearDisplay();
-     display.setFont();//default tiny font
-    display.setCursor(0, 0);
-    display.println(F("Starting Webserver"));
-    if (WiFi.status() == WL_CONNECTED)
-    {
-      display.print(F("IP: "));
-      display.println(WiFi.localIP());
-    }
-    else
-    {
-      display.println(F("WIFI DISCONNECTED"));
-    }
-    display.println(F("Reboot when done"));
-    display.display();
+  webserver_active = true;
+  display.clearDisplay();
+  display.setFont();//default tiny font
+  display.setCursor(0, 0);
+  display.println(F("Starting Webserver"));
+  if (WiFi.status() == WL_CONNECTED)
+  {
+    display.print(F("IP: "));
+    display.println(WiFi.localIP());
+  }
+  else
+  {
+    display.println(F("WIFI DISCONNECTED"));
+  }
+  display.println(F("Reboot when done"));
+  display.display();
 
-    server.on("/", HTTP_GET, []() {
-      if (!server.authenticate(webpage_username, webpage_password))
-        return server.requestAuthentication();
-      if (!handleHTTPRequest("/index.htm")) server.send(404, "text/plain", "FileNotFound");
-    });
-    server.onNotFound([]() { // handle page not found: check if file or path is available on SPIFFS
-      if (!handleHTTPRequest(server.uri()))
-        server.send(404, "text/plain", "FileNotFound");
-    });
+  server.on("/", HTTP_GET, []() {  
+    if (!server.authenticate(config.webUser.c_str(), config.webPW.c_str()))
+      return server.requestAuthentication();
+    if (!handleHTTPRequest("/index.htm")) server.send(404, "text/plain", "FileNotFound");
+  });
+  server.onNotFound([]() { // handle page not found: check if file or path is available on SPIFFS
+    if (!handleHTTPRequest(server.uri()))
+      server.send(404, "text/plain", "FileNotFound");
+  });
 
-    
-    server.begin();  // start webserver  todo: only need webserver in server mode, not in client mode so could just start it there... may save some ram and make system more stable?
-    webSocket.begin(); //todo: check if this can lead to memory leaks if called multiple times
-    webSocket.onEvent(webSocketEvent);
-  
+
+  server.begin();  // start webserver  todo: only need webserver in server mode, not in client mode so could just start it there... may save some ram and make system more stable?
+  webSocket.begin(); //todo: check if this can lead to memory leaks if called multiple times
+  webSocket.onEvent(webSocketEvent);
+
 }
 
-void checkButtonState(void) {
+bool checkButtonState(void) {
   static uint8_t buttonstate = 0; //set to 1 if button is pressed
   static uint32_t buttontimestamp = 0;
 
@@ -334,25 +380,40 @@ void checkButtonState(void) {
       display.display();
     }
     if (millis() - buttontimestamp > 8000) {
-      writeDefaultConfig();  //"reset to factory defaults"
-      userDBpurge(); //also delete the user database
-      uint32_t waittimestamp = millis();
-      // LED_rainbow();
-      //TODO: print something on the display!
-      display.println(F("RESETTING CONFIG"));
-      while (millis() - waittimestamp < 3000)
-      {
-        updateLED();
-        delay(1);
-      }
-      delay(100);
-      ESP.restart();  // reboot
+      //not used anymore, was used for factory reset here, can do something else, right now it is easter egg.
+      playMarch();
+      delay(200);
     }
   }
 
-  // todo: possibility to add more functions, like change to default radio
-  // channel or something
+  return buttonstate;
 
+}
+
+//call this function at bootup, it does a factory reset if the button is pressed long enough
+void forceFactoryReset(void)
+{
+  uint8_t buttoncounter = 0;
+  // wait for any ongoing SPI transaction to finish:
+  while (SPI1CMD & SPIBUSY) {
+  }
+
+  // now make the pin an input, read it and set it to an output again
+  pinMode(SD_CSN_PIN, INPUT);
+  while (digitalRead(SD_CSN_PIN) == LOW) {
+    delay(50);
+    buttoncounter++;
+    if (buttoncounter > 40) //after 2 seconds, do a factory reset
+    {
+      writeDefaultConfig();  //"reset to factory defaults"
+      userDBpurge(); //also delete the user database
+      playBeep(); //to init the beeper (this function is intended to be run at the very beginning of the setup as a safety measure)
+      delay(100);
+      playMarch();
+      delay(1000);
+      ESP.restart();  // reboot
+    }
+  }
 }
 
 void printConfig(void) {
@@ -381,6 +442,8 @@ void printConfig(void) {
   Serial.println(config.DevicePW);
   //  Serial.println(config.APIkey);
 }
+
+
 
 //function to generate a log event from data passed to function, if the queue is full, write the new event to the SD card. remarks must be smaller than 40 chars or it gets truncated
 void addEventToQueue(uint8_t logevent, int16_t tagID, String remarkstr)

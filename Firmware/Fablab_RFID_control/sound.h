@@ -9,6 +9,7 @@ void playTone(int _pin, int _frequency, int _length){
   analogWrite(_pin, 512);
   delay(_length);
   digitalWrite(SOUNDPIN,LOW);
+  delay(5);
 }
 
 // playTone(3,2000,1000); //play a tone on USART RX pin
@@ -22,7 +23,6 @@ void playLogin(void)
 
 void playLogout(void)
 {
-  
   playTone(SOUNDPIN,1760,150);
   playTone(SOUNDPIN,880,100);
 }
@@ -38,3 +38,30 @@ void playBeep(void)
 {
   playTone(SOUNDPIN,784,100);;
 }
+
+//plays the first notes of the imperial march
+void playMarch(void)
+{
+    playTone(SOUNDPIN,440, 500);
+    playTone(SOUNDPIN,440, 500);
+    playTone(SOUNDPIN,440, 500);
+    playTone(SOUNDPIN,349, 350);
+    playTone(SOUNDPIN,523, 150);
+    playTone(SOUNDPIN,440, 500);
+    playTone(SOUNDPIN,349, 350);
+    playTone(SOUNDPIN,523, 150);
+    playTone(SOUNDPIN,440, 650);
+    delay(250);
+    playTone(SOUNDPIN,659, 500);
+    playTone(SOUNDPIN,659, 500);
+    playTone(SOUNDPIN,659, 500);
+    playTone(SOUNDPIN,698, 350);
+    playTone(SOUNDPIN,523, 150);
+    playTone(SOUNDPIN,415, 500);
+    playTone(SOUNDPIN,349, 350);
+    playTone(SOUNDPIN,523, 150);
+    playTone(SOUNDPIN,440, 650);
+    delay(150);
+    
+}
+

@@ -24,7 +24,7 @@
 #define EVENTDB_TABLE_SIZE 102400 //event database table size (on SD card) to store unsent events
 
 //function prototypes (todo: need to clean up the head file depedency mess!)
-void sendToServer(sendoutpackage* datastruct, bool save);
+void sendToServer(sendoutpackage* datastruct, bool save, bool enforce);
 
 uint8_t SDstate = SD_UNKNOWN;
 int16_t eventDBentrytosend; //index of the event currently being transmitted from the event database (send one by one to have better database control)
@@ -397,13 +397,11 @@ void SDmanager(void)
           Serial.println(F("SDcard Removed"));
         }
         else //SD is initialized and ready: check for pending events
-        {
-
-          
+        {          
           eventDBgetpending();
           if (eventDBpackage.pending)
           {
-            sendToServer(&eventDBpackage,false); //send to server, do not save again
+            sendToServer(&eventDBpackage,false,false); //send to server, do not save again
             if (eventDBpackage.pending == false) //if sent out successfully, delete this entry from the database (sendout sets pending = false)
             {
               eventDBdeleteentry(eventDBentrytosend);

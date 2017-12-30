@@ -106,7 +106,7 @@ void displayUpdate(void) {
       display.print(F("WIFI DISCONNECTED"));
     }
   }
-  else
+  else //machine is unlocked, user is logged in
   {
     //get current users name from database
     userdatabase.readRec(currentuser, EDB_REC userentry); //get the currently loggeed in user entry
