@@ -206,21 +206,24 @@ void programRFIDkeys(void)
   playDenied(); //access is denied
 }
 
-
-void authenticationFail(void)
+//reasons: 0 = unauthorized, 1 = occupied, 2 = invalid tag
+void authenticationFail(uint8_t reason)
 {
-  //todo: add display error
+  displayDenied(reason);
   Serial.println(F("ACCESS DENIED!"));
   playDenied();
+  delay(500); //wait while displaying the reason
 }
 
 
 void authenticationSuccess(void)
 {
-  //todo: add display error
+  displayLogin();
   Serial.println(F("AUTHENTICATED, ACCESS GRANTED"));
   playLogin();
   releaseMachine();
+  sendPendingEvents(true);  // send data out immediately (enforced sendout) (no data is sent while user is logged in)
+  delay(500); //wait while displaying login
 }
 
 
@@ -234,7 +237,7 @@ void verifyRFIDdata() {
 
   if (mfrc522.uid.size < 4)
   {
-    authenticationFail();
+    authenticationFail(2);
     return;
   }
 
@@ -269,7 +272,7 @@ void verifyRFIDdata() {
           WS_println(info);
         }
         addEventToQueue(6, String("uid:") + String(uid) + " code error"); //event 6 = tag_error
-        authenticationFail();
+        authenticationFail(2);
         return;
       }
     }
@@ -282,7 +285,7 @@ void verifyRFIDdata() {
       WS_println(info);
     }
     addEventToQueue(6, String("uid:") + String(uid) + " key error"); //event 6 = tag_error
-    authenticationFail();
+    authenticationFail(2);
     return;
   }
 
@@ -302,6 +305,7 @@ void verifyRFIDdata() {
       if (machineLocked == false)
       {
         //if machine is running, stop and logout
+        displayLogout(); //print logout on the display
         playLogout();
         lockMachine();
         currentuser = 0; //user logged out
@@ -310,10 +314,9 @@ void verifyRFIDdata() {
       else
       {
         //if not running, release machine:
-        currentuser = 0; //user logged out
-        authenticationSuccess();
+        currentuser = 0; //user is admin
         addEventToQueue(4, 0, "Admin login"); //event 4 = tag_login
-        sendPendingEvents(true);  // send data out immediately (enforced sendout) (no data is sent while user is logged in)
+        authenticationSuccess();
       }
     }
     return;
@@ -329,6 +332,7 @@ void verifyRFIDdata() {
     if (dbentryno > 0)
     {
       info += String(F(" User = ")) + String(userentry.name) + String(F("is authorized to use this machine"));
+      displayLogin(); //print login on the display
       playLogin();
     }
     else
@@ -346,7 +350,7 @@ void verifyRFIDdata() {
       //time verification, check if user's time is already valid and not yet expired
       if (userentry.ts_validfrom > RTCtime.Epoch32Time() || userentry.ts_validuntil < RTCtime.Epoch32Time())
       {
-        authenticationFail(); //access is denied, tag not valid yet or expired (entry is be removed on next database sync)
+        authenticationFail(0); //access is denied, tag not valid yet or expired (entry is be removed on next database sync)
         addEventToQueue(6, userentry.tagid, "expired"); //event 6 = tag_error
         Serial.println(F("Tag Accepted but tag time invalid"));
         return;
@@ -358,15 +362,17 @@ void verifyRFIDdata() {
         //if machine is running, check if the user is logging out:
         if (currentuser == dbentryno)
         {
+          displayLogout(); //print logout on the display
           playLogout();
           lockMachine();
           currentuser = 0; //user logged out
           addEventToQueue(5, userentry.tagid , String(userentry.name) + " logout"); //event 5 = tag_logout, no need to read userentry from DB, it was read above in the findentry function
+          delay(800);
         }
         else
         {
           //if running and not current user, play sound
-          authenticationFail();
+          authenticationFail(1);
           addEventToQueue(6, userentry.tagid, "occupied"); //event 6 = tag_error
         }
       }
@@ -374,9 +380,8 @@ void verifyRFIDdata() {
       {
         //if not running, set the current user and release machine:
         currentuser = dbentryno;
-        authenticationSuccess();
         addEventToQueue(4, userentry.tagid, String(userentry.name) + " login"); //event 4 = tag_login, no need to read userentry from DB, it was read above in the findentry function
-        sendPendingEvents(true);  // send data out immediately (enforced sendout) (no data is sent while user is logged in)
+        authenticationSuccess();
       }
     }
     else //user not authorized for this machine
@@ -385,7 +390,7 @@ void verifyRFIDdata() {
       // char n1[16] = {0};
       //char n2[16] = {0};
       //userDBaddentry(uid, n1, n2);
-      authenticationFail(); //access is denied
+      authenticationFail(0); //access is denied
       addEventToQueue(6, String("uid:") + String(uid) + " denied"); //event 6 = tag_error
 
     }

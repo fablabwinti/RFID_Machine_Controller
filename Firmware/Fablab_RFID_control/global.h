@@ -305,7 +305,7 @@ void WebServerinit(void)
 
   webserver_active = true;
   display.clearDisplay();
-  display.setFont();//default tiny font
+  display.setFont();
   display.setCursor(0, 0);
   display.println(F("Starting Webserver"));
   if (WiFi.status() == WL_CONNECTED)

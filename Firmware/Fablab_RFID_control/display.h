@@ -8,6 +8,22 @@
 #include <Fonts/FreeSansBold12pt7b.h>
 #include <Fonts/FreeMonoBold12pt7b.h>
 
+//#include "Fonts/NimbusBold9.h" //small font, still readable but ugly...
+#include "Fonts/DialogPlain5pt.h"
+#include "Fonts/DialogBold5pt.h" //too small, not really readable anymore
+#include "Fonts/DialogBold6pt.h"
+
+#include "Fonts/DialogPlain8pt.h" //sehr klein, aber unleserlich und hässlich
+#include "Fonts/SansSerif8.h"
+#include "Fonts/DialogPlain9.h"
+#include "Fonts/DialogPlain12.h"
+#include "Fonts/DialogBold9.h"
+#include "Fonts/DialogBold10.h"
+#include "Fonts/DialogBold11.h"
+#include "Fonts/DialogBold12.h"
+#include "Fonts/DialogBold20.h"
+#include "Fonts/NimbusBold9.h"
+#include "Fonts/NimbusBold10.h"
 
 
 #if (SSD1306_LCDHEIGHT != 64)
@@ -64,6 +80,15 @@ const unsigned char DBdl [] PROGMEM = {
   0x00, 0x0f, 0xf0, 0x00, 0x00, 0x07, 0xe0, 0x00, 0x00, 0x03, 0xc0, 0x00, 0x00, 0x01, 0x80, 0x00
 };
 
+//print the header: machine name and status icons
+void displayAddHeader(void) {
+  display.setFont();
+  display.setCursor(0, 0);
+  display.print(config.MachineName);
+  //todo: print out the icons here
+  display.drawFastHLine(0, 10, 128, 1); //draw horizontal line
+}
+
 void displayUpdate(void) {
 
   //todo: need to define the display layout
@@ -74,13 +99,19 @@ void displayUpdate(void) {
   //if machine is unused:
   //display the current time, maybe also the date, what else?
   display.clearDisplay();
+  displayAddHeader();
 
   if (machineLocked)
   {
-    display.setFont(&FreeSans9pt7b);
-    display.setCursor(20, 12);
+
 
     char temparr[5];
+    sprintf(temparr, "%02u", day()); //need a fixed length, easiest using sprintf
+    String daystr = String(temparr);
+    sprintf(temparr, "%02u", month()); //need a fixed length, easiest using sprintf
+    String monthstr = String(temparr);
+    sprintf(temparr, "%04u", year()); //need a fixed length, easiest using sprintf
+    String yearstr = String(temparr);
     sprintf(temparr, "%02u", hour()); //need a fixed length, easiest using sprintf
     String hourstr = String(temparr);
     sprintf(temparr, "%02u", minute()); //need a fixed length, easiest using sprintf
@@ -88,14 +119,19 @@ void displayUpdate(void) {
     sprintf(temparr, "%02u", second()); //need a fixed length, easiest using sprintf
     String secondstr = String(temparr);
     String localtimestr = hourstr + ":" + minutestr + ":" + secondstr;
+    String datestr = daystr + "." + monthstr + "." + yearstr;
+
+    display.setFont(&Dialogbold12);
+    display.setCursor(18, 28);
+    display.print(datestr);
+
+    display.setFont(&Dialogbold20);
+    display.setCursor(10, 50);
     display.print(localtimestr);
 
-    display.setFont(&FreeSansBoldOblique12pt7b);
-    display.setCursor(30, 43);
-    display.print("FREI");
-    display.setCursor(0, 62);
-    display.setFont();//default tiny font
 
+    display.setFont();//default tiny font
+    display.setCursor(0, 57);
     if (WiFi.status() == WL_CONNECTED)
     {
       display.print(F("IP: "));
@@ -110,27 +146,27 @@ void displayUpdate(void) {
   {
     String firstname;
     String surname;
-    if(currentuser == 0) //the admin tag is logged in
+    if (currentuser == 0) //the admin tag is logged in
     {
-      firstname = "ADMIN";
+      firstname = "MASTER";
       surname = "";
     }
     else
     {
-    //get current users name from database
-    userdatabase.readRec(currentuser, EDB_REC userentry); //get the currently loggeed in user entry
-    String fullname = String(userentry.name);
-    firstname = splitStringbySeparator(fullname, char(' ')); //split the name string into first name and surname
-    surname = fullname.substring(firstname.length() + 1);
+      //get current users name from database
+      userdatabase.readRec(currentuser, EDB_REC userentry); //get the currently loggeed in user entry
+      String fullname = String(userentry.name);
+      firstname = splitStringbySeparator(fullname, char(' ')); //split the name string into first name and surname
+      surname = fullname.substring(firstname.length() + 1);
     }
-    display.setFont(&FreeSans9pt7b);
-    display.setCursor(0, 12);
-    display.print(firstname);
-    display.setCursor(0, 27);
-    display.print(surname);
+    display.setFont(&Dialogbold9);
+    display.setCursor(0, 24);
+    display.print(String(userentry.name));
+    //display.print(0, 27);
+    //display.print(surname);
+    display.setFont(&Dialogbold20);
+    display.setCursor(10, 48);
 
-    display.setFont(&FreeSansBold12pt7b);
-    display.setCursor(10, 60);
 
     time_t timeinuse = getRtcTimestamp() - userStarttime;
 
@@ -152,11 +188,171 @@ void displayUpdate(void) {
 
   display.display();
 
-  char numberbuffer[6];
-  dtostrf(1234, 6, 2, numberbuffer);
+  // char numberbuffer[6];
+  //dtostrf(1234, 6, 2, numberbuffer);
   //display.print(numberbuffer);
 
 }
+
+void displayLogin(void)
+{
+  display.clearDisplay();
+  displayAddHeader();
+  display.setFont(&Dialogbold20);
+  display.setCursor(35, 50);
+  display.print("Start");
+  //todo: add icon
+  display.display();
+}
+
+void displayLogout(void)
+{
+  display.clearDisplay();
+  displayAddHeader();
+  display.setFont(&Dialogbold20);
+  display.setCursor(35, 50);
+  display.print("Stop");
+  //todo: add icon
+  display.display();
+}
+
+//display access denied (with a reason)
+//reasons: 0 = unauthorized, 1 = occupied, 2 = invalid tag
+void displayDenied(uint8_t reason)
+{
+  display.clearDisplay();
+  displayAddHeader();
+  display.setFont(&Dialogbold12);
+  display.setCursor(25, 46);
+  if (reason == 1)
+  {
+    display.print("besetzt");
+  }
+  else if (reason == 2)
+  {
+    display.print("tag error");
+  }
+  else
+  {
+    display.print("unberechtigt");
+  }
+  //todo: add icon
+  display.display();
+}
+
+
+void fonttest(void)
+{
+  String text = "AabcefskFrown";
+  String numbers = "1234567890";
+
+
+  display.setFont(&SansSerif8); //well readable, braucht viel platz, ca 7 pixel hoch, genau gleich wie dialogplain8!
+  display.clearDisplay();
+  display.setCursor(0, 10);
+  display.print("Laser klein");
+  display.setCursor(0, 30);
+  display.print(text);
+  display.setCursor(0, 60);
+  display.print(numbers);
+  display.display();
+  delay(5000);
+
+
+  //dialogplain 8 ist auch eine gute default schrift.
+  display.setFont(&DialogPlain8); //well readable, braucht viel platz, ca 7 pixel hoch
+  display.clearDisplay();
+  display.setCursor(0, 10);
+  display.print("Laser klein");
+  display.setCursor(0, 30);
+  display.print(text);
+  display.setCursor(0, 60);
+  display.print(numbers);
+  display.display();
+  delay(5000);
+
+  display.setFont(&Dialogplain9); //well readable, braucht viel platz, ca 8 pixel hoch
+  display.clearDisplay();
+  display.setCursor(0, 10);
+  display.print("Wolfgang Lochbihler :) asdfghj");
+  display.setCursor(0, 30);
+  display.print(text);
+  display.setCursor(0, 60);
+  display.print(numbers);
+  display.display();
+  delay(5000);
+
+  display.setFont(&Dialogbold9); //sehr gut lesbar, fett, schöne zahlen, ca 8 pixel hoch -> für allerlei benutzbar
+  display.clearDisplay();
+  display.setCursor(0, 10);
+  display.print("Wolfgang Lochbihler :) asdfghj");
+  display.setCursor(0, 30);
+  display.print(text);
+  display.setCursor(0, 60);
+  display.print(numbers);
+  display.display();
+  delay(5000);
+
+  display.setFont(&Dialogbold10); //
+  display.clearDisplay();
+  display.setCursor(0, 30);
+  display.print(text);
+  display.setCursor(0, 60);
+  display.print(numbers);
+  display.display();
+  delay(5000);
+
+
+  display.setFont(&Dialogbold11); //
+  display.clearDisplay();
+  display.setCursor(0, 30);
+  display.print(text);
+  display.setCursor(0, 60);
+  display.print(numbers);
+  display.display();
+  delay(5000);
+
+
+  display.setFont(&Dialogbold12); //
+  display.clearDisplay();
+  display.setCursor(0, 30);
+  display.print(text);
+  display.setCursor(0, 60);
+  display.print(numbers);
+  display.display();
+  delay(5000);
+
+
+  display.setFont(&Dialogplain12); //schöne schrift, gross
+  display.clearDisplay();
+  display.setCursor(0, 30);
+  display.print(text);
+  display.setCursor(0, 60);
+  display.print(numbers);
+  display.display();
+  delay(5000);
+
+
+  display.setFont(&NimbusBold9); //ok, lesbar, munzig
+  display.clearDisplay();
+  display.setCursor(0, 30);
+  display.print(text);
+  display.setCursor(0, 60);
+  display.print(numbers);
+  display.display();
+  delay(5000);
+
+  display.setFont(&NimbusBold10); //schlechter lesbar als grösse 9!
+  display.clearDisplay();
+  display.setCursor(0, 30);
+  display.print(text);
+  display.setCursor(0, 60);
+  display.print(numbers);
+  display.display();
+  delay(5000);
+
+}
+
 
 void showCloudDownload(void)
 {
@@ -195,6 +391,7 @@ void displayinit(void)
   delay(800);
   display.clearDisplay();
   display.display();
+  display.setFont(&DialogPlain8);
   display.setCursor(0, 0);
 
 }
