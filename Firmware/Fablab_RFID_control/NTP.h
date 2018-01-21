@@ -83,9 +83,9 @@ int NTP_gettime(uint32_t* t)
     //Serial.println(highWord << 16 | lowWord);
     // combine the four bytes (two words) into a long integer
     // this is NTP time (seconds since Jan 1 1900)
-    *t = secsSince1900; //initialize time 
+    *t = secsSince1900-2208988800UL; //return value, time as unix timestamp
     Serial.print(F(" OK: "));
-    Serial.println(secsSince1900-2208988800UL); //print in unix time
+    Serial.println(*t); //print in unix time
 
   }
   else {
@@ -117,7 +117,7 @@ void timeManager(bool forceupdate)
         roundtripdelay = NTP_gettime(&NTPtime); //get NTP time
         delay(100);
         roundtripdelay += NTP_gettime(&temptime); //get another timestamp to validate
-        if (NTPtime > 3712665708) //true if we got a valid timestamp
+        if (NTPtime > 1516299215) //true if we got a valid timestamp
         {
           timevalidation = temptime - NTPtime; //should be zero or one if we got the same time twice
         }        
@@ -127,9 +127,9 @@ void timeManager(bool forceupdate)
 
       if (errorcounter < 8) {
         localTimeValid = true;
-        setTime(NTPtime - 2208988800UL); //initialize the time with epoch timestamp
+        setTime(NTPtime); //initialize the time with epoch timestamp
         Serial.print(F("Synchronizing RTC with NTP... "));
-        syncRTC(NTPtime - 2208988800UL); //check sync of local RTC               
+        syncRTC(NTPtime); //check sync of local RTC               
       }
        NTPupdate = millis(); //update again in a few minutes
     }

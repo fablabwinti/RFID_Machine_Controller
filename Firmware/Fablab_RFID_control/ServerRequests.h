@@ -25,10 +25,10 @@ void sendToServer(sendoutpackage* datastruct, bool saveiffail, bool enforce) {
         needupdate = 1;
         DynamicJsonBuffer jsonBuffer(256); //crate a buffer for one event
         JsonObject& event = jsonBuffer.createObject();
-        event["timestamp"] = convertToTimesting(datastruct->timestamp);
+        event["timestamp"] = convertToTimestring(datastruct->timestamp); //datastruct->timestamp; 
         event["mid"] = config.mid;
-        event["event"] = datastruct->event;
-        if (datatosend[i].tid > 0)
+        event["eid"] = datastruct->event;
+        if (datatosend[i].tid >= 0)
         {
           event["tid"] = datastruct->tid;
         }
@@ -61,8 +61,8 @@ void sendToServer(sendoutpackage* datastruct, bool saveiffail, bool enforce) {
       }
 
       connectfailcounter = 0;
-      //send POST to '/logs'
-      client.print(String("POST /logs HTTP/1.1\r\n") +
+      //send POST to '/api/logs'
+      client.print(String("POST /api/logs HTTP/1.1\r\n") +
                    "Host: http://" + config.serverAddress + "/\r\n" +
                    "Connection: close\r\n" +
                    "Content-Type: application/json\r\n" +
@@ -150,7 +150,7 @@ void UpdateDBfromServer(void) {
 
     showCloudDownload(); //show cloud download icon on the display
 
-    String server_URI = "/machines/" + String(config.mid) + "/tags";
+    String server_URI = "/api/machines/" + String(config.mid) + "/tags";
     Serial.print("Requesting URI: ");
     Serial.println(server_URI);
 
@@ -159,9 +159,9 @@ void UpdateDBfromServer(void) {
                  "Host: " + config.serverAddress + "\r\n" +
                  "Connection: close\r\n\r\n");
     unsigned long timeout = millis();
-    while (client.available() == 0) {
+    while (client.available() == 0) { //also happens if the server does not send any data, i.e. the database for this machine is empty (not sure why?)
       if (millis() - timeout > 4000) {
-        Serial.println(">>> Client Timeout !");
+        Serial.println(">>> Client Timeout !"); 
         client.stop();
         return;
       }
@@ -217,26 +217,25 @@ void UpdateDBfromServer(void) {
 
       for (int i = 0; i < root.size(); i++)
       {
-        //TODO: check if fields exist and only add them if they actually do (prevents crashes!)
+
         Serial.println(" ");
 
-
         //check if received database entry is fully defined (i.e. all required fields exist)
-        if (root[i]["tid"].success() && root[i]["uid"].success() && root[i]["owner"].success() && root[i]["start"].success() && root[i]["end"].success())
+        if (root[i]["tid"].success() && root[i]["uid"].success() && root[i]["name"].success() && root[i]["start"].success() && root[i]["end"].success())
         {
           uint16_t tid = root[i]["tid"];
           uint32_t uid = root[i]["uid"];
-          const char* name = root[i]["owner"];
-          uint32_t start = 0; //root[i]["start"]; //todo: implement this properly
-          uint32_t end = 0; //root[i]["end"];
+          const char* name = root[i]["name"];
+          uint32_t start = root[i]["start"]; //todo: implement this properly
+          uint32_t end = root[i]["end"];
 
           Serial.println(tid);
-          Serial.println(root[i]["owner"].asString());
+          Serial.println(root[i]["name"].asString());
           Serial.println(uid);
           Serial.println(start);
           Serial.println(end);
 
-          delay(100);
+          delay(50); //wait for more data to arrive
 
           if (userDBaddentry(tid, uid, start, end, name) == false)
           {

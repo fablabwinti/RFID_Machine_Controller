@@ -38,6 +38,23 @@
         $.mobile.loading("show");
         connection.send(toSend);
     };
+    
+    function reboot() {
+        var toSend = "reboot";
+        $.mobile.loading("show");
+        connection.send(toSend);
+    };
+	function RFIDprogram() {
+        var toSend = "programtag";
+        $.mobile.loading("show");
+        connection.send(toSend);
+    };
+    function RFIDclear() {
+        var toSend = "cleartag";
+        $.mobile.loading("show");
+        connection.send(toSend);
+    };
+    
 
     function deleteWiFi() {
         var toSend = "resetwifi";
@@ -47,7 +64,7 @@
     function scanMachine() {
         //try to connect to the server, if there is an error, show message
 
-        var URL = "http://" + document.getElementById('Saddr').value + ":" + document.getElementById('Sport').value + "/machines";
+        var URL = "http://" + document.getElementById('Saddr').value + ":" + document.getElementById('Sport').value + "/api/machines";
 
         $.mobile.loading("show");
         $.getJSON(URL, function(data) {
@@ -92,7 +109,6 @@
         $.mobile.loading("hide");
 
     };
-
 
 
     function submitWifi() {
@@ -163,6 +179,15 @@
         connection.send(JSON.stringify(obj));
         return false; //prevent form being posted (we use websocket)
     };        
+	
+	function submitUID() {
+        var obj = new Object();
+        obj.UID = document.getElementById('RFIDadmin').value;
+        console.log(JSON.stringify(obj));
+        connection.send(JSON.stringify(obj));
+        return false; //prevent form being posted (we use websocket)
+    };        
+    
 
     function updateFirmware() {
         var toSend = "upgradeFW";
@@ -295,6 +320,7 @@
                 </form>
             </div>
             <BR>
+            <a data-role="button" id="reboot" data-icon="delete" onclick="reboot()">Reboot</a>
             <BR>
             <label for="msg">Message from Controller:</label>
             <div data-role="fieldcontain">
@@ -351,6 +377,11 @@
                     <input type="submit" value="Save to Controller" data-icon="refresh">
                 </div>
             </form>
+			<BR>
+             <h5>To program new (blank) tags with the codes stored on this RFID controller use the button below. Hold each blank tag against the reader and it will be programmed immediately. To reset a card to blank state for tags using the currently programmd codes, use the other button. Reboot when done.WARNING: check if the codes are correct before using this function or your tag can be bricked.</h5> 
+            <a data-role="button" id="program" data-icon="alert" onclick="RFIDprogram()">Program blank tags</a>
+            <BR>
+            <a data-role="button" id="clear" data-icon="star" onclick="RFIDclear()">Clear programmed tags</a>            
         </div>
         <BR>
 		<div data-role="collapsible" data-collapsed="false">
@@ -392,9 +423,9 @@
     	</div> 
 		<BR>
 		<div data-role="collapsible" data-collapsed="false">
-                <h4>Admin RFID</h4>                             
+                <h4>Admin RFID tag</h4>                             
             <form action="" method="post" id="APIConfig" onsubmit="return submitUID()">
-             <h5>This 32bit UID has unlimited access and works even after a full config reset.</h5> 
+             <h5>This 32bit UID has unlimited access and works even after a full config reset. Enter it as a integer number.</h5> 
                 <div data-role="fieldcontain">
                     <div data-role="fieldcontain">
                         <label for="RFIDadmin">RFID UID</label>

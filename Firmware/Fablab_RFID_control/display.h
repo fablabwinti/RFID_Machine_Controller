@@ -108,11 +108,21 @@ void displayUpdate(void) {
   }
   else //machine is unlocked, user is logged in
   {
+    String firstname;
+    String surname;
+    if(currentuser == 0) //the admin tag is logged in
+    {
+      firstname = "ADMIN";
+      surname = "";
+    }
+    else
+    {
     //get current users name from database
     userdatabase.readRec(currentuser, EDB_REC userentry); //get the currently loggeed in user entry
     String fullname = String(userentry.name);
-    String firstname = splitStringbySeparator(fullname, char(' ')); //split the name string into first name and surname
-    String surname = fullname.substring(firstname.length() + 1);
+    firstname = splitStringbySeparator(fullname, char(' ')); //split the name string into first name and surname
+    surname = fullname.substring(firstname.length() + 1);
+    }
     display.setFont(&FreeSans9pt7b);
     display.setCursor(0, 12);
     display.print(firstname);

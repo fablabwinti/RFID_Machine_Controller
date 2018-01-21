@@ -8,7 +8,7 @@
 
 
   //Note on formatting SD cards: the arduino website recommends FAT16 even though FAT32 is also supported
-  
+
 
 */
 
@@ -23,7 +23,7 @@
 
 #define EVENTDB_TABLE_SIZE 102400 //event database table size (on SD card) to store unsent events
 
-//function prototypes (todo: need to clean up the head file depedency mess!)
+//function prototypes (todo: need to clean up the header file depedency mess!)
 void sendToServer(sendoutpackage* datastruct, bool save, bool enforce);
 
 uint8_t SDstate = SD_UNKNOWN;
@@ -59,13 +59,13 @@ void eventDBInit(void)
       //Serial.print(F("Opening eventDB table... "));
       EDB_Status result = eventdatabase.open(0);
       if (result == EDB_OK) {
-       // Serial.println("DONE");
+        // Serial.println("DONE");
         return;
       } else {
         //Serial.println(F("ERROR"));
-       // Serial.print(F("Did not find eventDB in the file "));
-       // Serial.println(String(db_events));
-      //  Serial.print(F("Creating new table... "));
+        // Serial.print(F("Did not find eventDB in the file "));
+        // Serial.println(String(db_events));
+        //  Serial.print(F("Creating new table... "));
         eventdatabase.create(0, EVENTDB_TABLE_SIZE, (unsigned int)sizeof(eventDBpackage));
         //Serial.println("DONE");
         return;
@@ -153,7 +153,7 @@ void eventDBgetpending(void)
   }
   eventDBpackage.pending = false; //reset pending (use it to check in calling function to check if data was even read)
   uint16_t i;
- // Serial.print(F("number of event DB entries: "));
+  // Serial.print(F("number of event DB entries: "));
   //Serial.println(eventdatabase.count());
   for (i = eventdatabase.count(); i > 0; i--) //start scanning from the end (deleting end entries is faster), also, zero index is not used in EDB
   {
@@ -346,8 +346,9 @@ bool SDinit(uint8_t pin)
     if (!SD.begin(pin)) {
       yield();
       Serial.println(F("card failed"));
-      display.println(F("card failed"));
+      display.println(F("SD card failed"));
       display.display();
+      createErrorEvent("SD card read error");
       return false;
     }
     else
@@ -357,10 +358,10 @@ bool SDinit(uint8_t pin)
       display.println(F("OK"));
       display.display();
       /*
-      File dir = SD.open("/");
-      printDirectory(dir, 0);
-      dir.close();
-*/
+        File dir = SD.open("/");
+        printDirectory(dir, 0);
+        dir.close();
+      */
       return true;
     }
   }
@@ -370,6 +371,7 @@ bool SDinit(uint8_t pin)
     display.println(F("no card"));
     display.display();
     SDstate = SD_NOTPRESENT;
+    createErrorEvent("SD card not present");
     return false;
   }
 }
@@ -395,13 +397,14 @@ void SDmanager(void)
         {
           SDstate = SD_REMOVED;
           Serial.println(F("SDcard Removed"));
+          createErrorEvent("SD card removed");
         }
         else //SD is initialized and ready: check for pending events
-        {          
+        {
           eventDBgetpending();
           if (eventDBpackage.pending)
           {
-            sendToServer(&eventDBpackage,false,false); //send to server, do not save again
+            sendToServer(&eventDBpackage, false, false); //send to server, do not save again
             if (eventDBpackage.pending == false) //if sent out successfully, delete this entry from the database (sendout sets pending = false)
             {
               eventDBdeleteentry(eventDBentrytosend);
@@ -430,6 +433,7 @@ void SDmanager(void)
       else if (SDstate == SD_ACESSFAILED)
       {
         //todo: send a note to the server
+        createErrorEvent("SD card error");
         return;
       }
     }

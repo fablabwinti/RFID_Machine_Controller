@@ -70,7 +70,7 @@ ESP8266WebServer server(80);  // The Webserver
 
 WebSocketsServer webSocket = WebSocketsServer(81);
 WiFiClient espClient;
-
+RtcDS3231<TwoWire> RTC(Wire); //DS3231 RTC clock on I2C
 
 
 // WiFiClientSecure SSLclient; //secure connections
@@ -82,7 +82,7 @@ bool localTimeValid;
 bool RTCTimeValid = false; //is set true after setting the RTC successfully
 bool machineLocked = true;
 uint32_t userStarttime; //timestamp at start of machine use
-
+uint8_t RFIDtagprogrogramming = 0; //flag used to program blank rfid cards (flag = 1) or to blank already programmed cards (flag = 2)
 uint8_t websocket_connected = 0;
 bool webserver_active = false; //set true if webserver is started
 
@@ -103,7 +103,7 @@ struct NodeConfig {
   bool useDHCP;
   uint8_t RFIDkey[6]; //access key for RFID data
   uint8_t RFIDcode[16]; //access code that needs to match on RFID card
-  uint8_t adminUID[4]; //admin UID which always has access, once set, even a complete reset will not delete this
+  uint32_t adminUID; //admin UID which always has access, once set, even a complete reset will not delete this
   String webPW;       // 31 bytes maximum, password for config webpage access
   String webUser;  // 31 bytes maximum, username for config webpage access
   String APIkey;       // 31 bytes maximum, key for server API access
@@ -184,7 +184,7 @@ void WriteConfig() {
 
   EEPROMWriteByteArray(EE_RFIDKEY_ADDR, (uint8_t*)&config.RFIDkey, 6); //6 bytes
   EEPROMWriteByteArray(EE_RFIDCODE_ADDR, (uint8_t*)&config.RFIDcode, 16); //16 bytes
-  EEPROMWriteByteArray(EE_ADMINUID_ADDR, (uint8_t*)&config.adminUID, 4); //4 bytes
+  EEPROMWritelong(EE_ADMINUID_ADDR, config.adminUID); //4 bytes
 
   WriteStringToEEPROM(EE_WEBPASS_ADDR, config.webPW, DEFAULTSTRINGLENGTH);
   WriteStringToEEPROM(EE_WEBUSER_ADDR, config.webUser, DEFAULTSTRINGLENGTH);
@@ -237,7 +237,7 @@ void writeDefaultConfig(void) {
   config.APIkey = "";
   config.APIuser = "";
 
-//note: do not overwrite the admin UID nor the access codes for the RFID card so a reset does not require to set them again
+  //note: do not overwrite the admin UID nor the access codes for the RFID card so a reset does not require to set them again
 
   WriteConfig();
   Serial.println(F("Standard config applied"));
@@ -283,7 +283,7 @@ void ReadConfig() {
 
     EEPROMReadByteArray(EE_RFIDKEY_ADDR, (uint8_t*)&config.RFIDkey, 6); //6 bytes
     EEPROMReadByteArray(EE_RFIDCODE_ADDR, (uint8_t*)&config.RFIDcode, 16); //16 bytes
-    EEPROMReadByteArray(EE_ADMINUID_ADDR, (uint8_t*)&config.adminUID, 4); //4 bytes
+    config.adminUID = EEPROMReadlong(EE_ADMINUID_ADDR); //4 bytes
 
 
     config.webPW = ReadStringFromEEPROM(EE_WEBPASS_ADDR);;
@@ -320,7 +320,7 @@ void WebServerinit(void)
   display.println(F("Reboot when done"));
   display.display();
 
-  server.on("/", HTTP_GET, []() {  
+  server.on("/", HTTP_GET, []() {
     if (!server.authenticate(config.webUser.c_str(), config.webPW.c_str()))
       return server.requestAuthentication();
     if (!handleHTTPRequest("/index.htm")) server.send(404, "text/plain", "FileNotFound");
@@ -335,6 +335,33 @@ void WebServerinit(void)
   webSocket.begin(); //todo: check if this can lead to memory leaks if called multiple times
   webSocket.onEvent(webSocketEvent);
 
+}
+
+//call this function and it performs a factory reset, writing the default config
+//caution: it can brick the webpage if eeprom size was changed for example
+void forceFactoryReset(void)
+{
+  uint8_t buttoncounter = 0;
+  // wait for any ongoing SPI transaction to finish:
+  while (SPI1CMD & SPIBUSY) {
+  }
+
+  // now make the pin an input, read it and set it to an output again
+  pinMode(SD_CSN_PIN, INPUT);
+  while (digitalRead(SD_CSN_PIN) == LOW) {
+    delay(50);
+    buttoncounter++;
+    if (buttoncounter > 40) //after 2 seconds, do a factory reset
+    {
+      writeDefaultConfig();  //"reset to factory defaults"
+      userDBpurge(); //also delete the user database
+      playBeep(); //to init the beeper (this function is intended to be run at the very beginning of the setup as a safety measure)
+      delay(100);
+      playMarch();
+      delay(1000);
+      ESP.restart();  // reboot
+    }
+  }
 }
 
 bool checkButtonState(void) {
@@ -380,7 +407,8 @@ bool checkButtonState(void) {
       display.display();
     }
     if (millis() - buttontimestamp > 8000) {
-      //not used anymore, was used for factory reset here, can do something else, right now it is easter egg.
+      //used as secondary version for factory reset
+      forceFactoryReset();
       playMarch();
       delay(200);
     }
@@ -390,31 +418,6 @@ bool checkButtonState(void) {
 
 }
 
-//call this function at bootup, it does a factory reset if the button is pressed long enough
-void forceFactoryReset(void)
-{
-  uint8_t buttoncounter = 0;
-  // wait for any ongoing SPI transaction to finish:
-  while (SPI1CMD & SPIBUSY) {
-  }
-
-  // now make the pin an input, read it and set it to an output again
-  pinMode(SD_CSN_PIN, INPUT);
-  while (digitalRead(SD_CSN_PIN) == LOW) {
-    delay(50);
-    buttoncounter++;
-    if (buttoncounter > 40) //after 2 seconds, do a factory reset
-    {
-      writeDefaultConfig();  //"reset to factory defaults"
-      userDBpurge(); //also delete the user database
-      playBeep(); //to init the beeper (this function is intended to be run at the very beginning of the setup as a safety measure)
-      delay(100);
-      playMarch();
-      delay(1000);
-      ESP.restart();  // reboot
-    }
-  }
-}
 
 void printConfig(void) {
   uint8_t i;
@@ -482,7 +485,7 @@ void addEventToQueue(uint8_t logevent, int16_t tagID, String remarkstr)
 //create log event without tagid (logevent: 0 = controller_start, 1 = controller_ok, 2 = controller_error, 3 = tag_login,4 = tag_logout)
 void addEventToQueue(uint8_t logevent, String remarkstr)
 {
-  addEventToQueue(logevent, 0, remarkstr); //if no tid provided, tid is set zero (and not sent out)
+  addEventToQueue(logevent, -1, remarkstr); //if no tid provided, tid is set negative (and not sent out)
 }
 
 

@@ -1,3 +1,4 @@
+
 /*
   Tested on Arduino 1.6.8 using ESP8266 Arduino version 2.3.0  (https://github.com/esp8266/Arduino/releases)
   Not working with arduino 1.8.4, nor with ESP8266 Version 2.4.0-rc1
@@ -8,7 +9,7 @@
     -wifi configuration
     -machine ID, machine name, machine pricing
 
-  -the SPIFF file system contains 
+  -the SPIFF file system contains
     -the config web page
     -user IDs and access control stuff (in a database file)
   -logging is done on the SD card:
@@ -46,7 +47,7 @@ extern "C" {
 #include <MFRC522.h> //RFID library
 #include <FastLED.h>
 #include <TimeLib.h>  //Time library https://github.com/PaulStoffregen/Time
-#include "RtcDS3231.h" //RTC library: https://github.com/Makuna/Rtc
+#include "RtcDS3231.h" //RTC library by makuna: https://github.com/Makuna/Rtc (version 2.0.2 tested)
 #include <Adafruit_SSD1306.h> //oled display library
 #include <ESP8266WiFi.h>
 #include <ESP8266WiFiMulti.h>
@@ -97,28 +98,30 @@ extern "C" {
   -create a config section for all compile time config stuff (started putting it on beginning of this file, complete?)
   -create log file structure
   -add time control for access
-  -though: add admin key (UID) that can be updated on webpage and is not deleted on a factory reset -> admin key always works no matter what.
+  -thought: add admin key (UID) that can be updated on webpage and is not deleted on a factory reset -> admin key always works no matter what.
     -> also need to add possibility to do factory reset if program is stuck in an infinite reboot loop -> show boot screen longer while flash key is pressed during bootup, allowing the mode to change
-
-  -add possibility to update spiffs through webpage
 
   -add SSL to all server traffic
   -add SD card viewer to webpage
-  --
-  -add a config key for password to access the RFID cards first sector
-  -add a config variable for the key stored in the first sector (same key for all cards), adds security to make cards impossible to be copied (easily) as access to this sector is restricted
-  -need a solid way to handle the master key, independant of timer (in case no time is available from RTC or NTP to unlock the machine)
-  -program a cache function that writes log entries to the SD card. one log file per month or something and one file for 'unsent messages' or better: create a database on the sd card for entries, add a flag and clear it if the entry was sent out succesfully.
+  -- 
+ 
   -IMPORTANT BUGFIX: in case RTC fails, the controller has to display a huge warning! also, update has to be forced more frequently!
   -optimize ram usage of local config (currently it is fully copied to ram and always kept there using over 512bytes of ram)
-  -add debug outputs to websocket print (see example in verifyRFIDdata() )
+  -add more debug outputs to websocket print (see example in verifyRFIDdata() )
 
   -switch to async web server (more stable) -> not for now
+
+  
   IN PROGRESS:
 
 
 
   DONE:
+   -program a cache function that writes log entries to the SD card. one log file per month or something and one file for 'unsent messages' or better: create a database on the sd card for entries, add a flag and clear it if the entry was sent out succesfully. -> DONE
+  -need a solid way to handle the admin key, independant of timer (in case no time is available from RTC or NTP to unlock the machine) -> DONE
+   -add a config variable for the key stored in the first sector (same key for all cards), adds security to make cards impossible to be copied (easily) as access to this sector is restricted -> DONE
+   -add a config key for password to access the RFID cards first sector ->DONE
+   -add possibility to update spiffs through webpage -> DONE
    -add buzzer support -> DONE
    -clean out unused stuff -> DONE
    -add user database -> DONE
@@ -146,7 +149,7 @@ extern "C" {
 void setup() {
   delay(400);  // wait for power to stabilize
   Serial.begin(115200); //comment the led init below if using serial
-  Serial.println(F("\r\n\r\n***********************************"));  // todo: add actual build info here
+  Serial.println(F("\r\n\r\n*******************************"));  // todo: add actual build info here
   Serial.println(F("** Fablab Winti RFID CONTROL **"));  // todo: add actual build info here
   Serial.println(F("*******************************"));  // todo: add actual build info here
   Serial.println(F("\r\n\r\n"));  // todo: add actual build info here
@@ -187,12 +190,12 @@ void setup() {
   playBeep(); //init the beeper by playing a short sound
   initOutput(); //initialize output pin
 
-  
-    Serial.print(F("Free heap:"));
-    Serial.println(ESP.getFreeHeap(), DEC);
-    Serial.print(F("EEPROM USED:"));
-    Serial.println(EE_END, DEC);
-  
+
+  Serial.print(F("Free heap:"));
+  Serial.println(ESP.getFreeHeap(), DEC);
+  Serial.print(F("EEPROM USED:"));
+  Serial.println(EE_END, DEC);
+
 
   display.println(F("setup done"));
   display.display();
@@ -213,7 +216,7 @@ void setup() {
   //print full user database:
   //userDBprintout();
 
-  addEventToQueue(0, "" ); //send 'controller start' event
+  addEventToQueue(1, "" ); //send 'controller start' event
 }
 /*
   void sleepcallback()
@@ -228,8 +231,8 @@ void loop() {
   yield();  // run background processes
   watchdog = 0;  // kick the watchdog
 
-  //checkRFID();
-  rfidsecuretest();
+  checkRFID();
+
 
   if (webserver_active == false)
   {

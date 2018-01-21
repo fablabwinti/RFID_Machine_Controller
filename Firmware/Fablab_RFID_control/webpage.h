@@ -188,6 +188,23 @@ void webSocketEvent(uint8_t num, WStype_t type, uint8_t * payload, size_t lenght
           // clean up ram
           WiFi.scanDelete();
         }
+        else if (text == "reboot")  //reboot requested
+        {
+          //disconnect the webservice, then reboot
+          server.stop();
+          delay(100);
+          WiFi.disconnect(true);
+          delay(100);
+          ESP.restart();  // reboot
+        }
+        else if (text == "programtag")  //program blank tags
+        {
+          RFIDtagprogrogramming = 1;
+        }
+        else if (text == "cleartag")  //blank out programmed tags
+        {
+          RFIDtagprogrogramming = 2;
+        }
         else if (text == "resetwifi") { //delete all known wifi's
           for (i = 0; i < MULTIWIFIS ; i++)
           {
@@ -387,7 +404,7 @@ void webSocketEvent(uint8_t num, WStype_t type, uint8_t * payload, size_t lenght
           else
             Serial.println(F("RFID code json parsing failed"));
         }
-        else if (text.indexOf("APIKEY") != -1) //node settings as a json string,
+        else if (text.indexOf("APIKEY") != -1)
         {
           //API access settings
           //parse the json text
@@ -411,7 +428,7 @@ void webSocketEvent(uint8_t num, WStype_t type, uint8_t * payload, size_t lenght
           else
             Serial.println(F("api settings json parsing failed"));
         }
-        else if (text.indexOf("WEBUSER") != -1) //node settings as a json string,
+        else if (text.indexOf("WEBUSER") != -1)
         {
           //API access settings
           //parse the json text
@@ -435,6 +452,29 @@ void webSocketEvent(uint8_t num, WStype_t type, uint8_t * payload, size_t lenght
           else
             Serial.println(F("webaccess settings json parsing failed"));
         }
+        else if (text.indexOf("UID") != -1) //amdin UID as json string
+        {
+          //API access settings
+          //parse the json text
+          DynamicJsonBuffer jsonBuffer(150); //crate a buffer
+          JsonObject& uiddata = jsonBuffer.parseObject(text);
+          uiddata.prettyPrintTo(Serial); //debug!!!
+          if (uiddata.success())
+          {
+            if (uiddata.containsKey("UID"))
+            {
+              config.adminUID = uiddata["UID"];
+
+              Serial.println(" ");
+              Serial.print(F("got UID: "));
+              Serial.println(config.adminUID);
+            }
+          }
+          WriteConfig();
+          WS_print(F("Admin UID saved\r\n"));
+        }
+        else
+          Serial.println(F("webaccess settings json parsing failed"));
       }
       break;
 
@@ -444,7 +484,6 @@ void webSocketEvent(uint8_t num, WStype_t type, uint8_t * payload, size_t lenght
       // send message to client
       // webSocket.sendBIN(num, payload, lenght);
       break;
-
   }
 }
 
