@@ -47,12 +47,14 @@ void sendToServer(sendoutpackage* datastruct, bool saveiffail, bool enforce) {
       config.serverAddress.toCharArray(serveradd, 32);
       while (!client.connect(serveradd, config.serverPort)) { //enforces a connection
         Serial.println(F("Server connect failed"));
+        delay(1); //run background stuff
         LED_blink_once(20);
         //if this fails multiple times, write data to SD database
         connectfailcounter++;
         if (connectfailcounter > 10)
         {
           if (saveiffail)
+          Serial.println(F("writing entry to SD"));
             eventDBaddentry(datastruct); //transfer this event over to the SD card database (pending flag is removed there so it will not be sent from queue)
 
           return;

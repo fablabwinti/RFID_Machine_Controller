@@ -51,38 +51,40 @@ EDB eventdatabase(&eventDBwriter, &eventDBreader); //create the event database
 //open a database file, create it if it does not exist
 void eventDBInit(void)
 {
-  if (SD.exists(db_events)) {
-    //Serial.println(F("SD database file exists")); //!!!
-    eventDBfile = SD.open(db_events, FILE_WRITE); //open file for reading and writing
+  if (SDstate == SD_INITIALIZED)
+  {
+    if (SD.exists(db_events)) {
+      //Serial.println(F("SD database file exists")); //!!!
+      eventDBfile = SD.open(db_events, FILE_WRITE); //open file for reading and writing
 
-    if (eventDBfile) {
-      //Serial.print(F("Opening eventDB table... "));
-      EDB_Status result = eventdatabase.open(0);
-      if (result == EDB_OK) {
-        // Serial.println("DONE");
-        return;
+      if (eventDBfile) {
+        //Serial.print(F("Opening eventDB table... "));
+        EDB_Status result = eventdatabase.open(0);
+        if (result == EDB_OK) {
+          // Serial.println("DONE");
+          return;
+        } else {
+          //Serial.println(F("ERROR"));
+          // Serial.print(F("Did not find eventDB in the file "));
+          // Serial.println(String(db_events));
+          //  Serial.print(F("Creating new table... "));
+          eventdatabase.create(0, EVENTDB_TABLE_SIZE, (unsigned int)sizeof(eventDBpackage));
+          //Serial.println("DONE");
+          return;
+        }
       } else {
-        //Serial.println(F("ERROR"));
-        // Serial.print(F("Did not find eventDB in the file "));
-        // Serial.println(String(db_events));
-        //  Serial.print(F("Creating new table... "));
-        eventdatabase.create(0, EVENTDB_TABLE_SIZE, (unsigned int)sizeof(eventDBpackage));
-        //Serial.println("DONE");
-        return;
+        Serial.println("Could not open file " + String(db_events));
+        //delete the corrupt file
+        SD.remove(db_events);
+        //now go on and create a new file with a new table
       }
-    } else {
-      Serial.println("Could not open file " + String(db_events));
-      //delete the corrupt file
-      SD.remove(db_events);
-      //now go on and create a new file with a new table
     }
+    Serial.print(F("Creating event database... "));
+    // create table at with starting address 0
+    eventDBfile = SD.open(db_events, FILE_WRITE); //create file, overwrite if it exists (w+)
+    eventdatabase.create(0, EVENTDB_TABLE_SIZE, (unsigned int)sizeof(eventDBpackage));
+    Serial.println(F("DONE"));
   }
-  Serial.print(F("Creating event database... "));
-  // create table at with starting address 0
-  eventDBfile = SD.open(db_events, FILE_WRITE); //create file, overwrite if it exists (w+)
-  eventdatabase.create(0, EVENTDB_TABLE_SIZE, (unsigned int)sizeof(eventDBpackage));
-  Serial.println(F("DONE"));
-
 }
 
 
@@ -97,75 +99,84 @@ void eventDBclose(void)
 
 void eventDBdeleteentry(uint16_t entryno)
 {
-  if (!eventDBfile) //database file not open, so open the database
+  if (SDstate == SD_INITIALIZED)
   {
-    eventDBInit();
-  }
+    if (!eventDBfile) //database file not open, so open the database
+    {
+      eventDBInit();
+    }
 
-  Serial.print(F("Deleting entry... "));
-  if (entryno <= eventdatabase.count()) //if entry exists (entries are from 1 to count, not starting at 0!)
-  {
-    eventdatabase.deleteRec(entryno);
-    Serial.println(F("DONE"));
+    Serial.print(F("Deleting entry... "));
+    if (entryno <= eventdatabase.count()) //if entry exists (entries are from 1 to count, not starting at 0!)
+    {
+      eventdatabase.deleteRec(entryno);
+      Serial.println(F("DONE"));
+    }
+    else
+    {
+      Serial.println(F("NOT FOUND"));
+    }
+    eventDBclose();
   }
-  else
-  {
-    Serial.println(F("NOT FOUND"));
-  }
-  eventDBclose();
 
 }
 
 //add an entry to the eventDatabase
 bool eventDBaddentry(sendoutpackage* evententry)
 {
-  if (!eventDBfile) //database file not open, so open the database
+  if (SDstate == SD_INITIALIZED)
   {
-    eventDBInit();
-  }
+    if (!eventDBfile) //database file not open, so open the database
+    {
+      eventDBInit();
+    }
 
-  Serial.print(F("Appending eventDB entry... "));
+    Serial.print(F("Appending eventDB entry... "));
 
-  //make sure the package is pending:
-  evententry->pending = true;
+    //make sure the package is pending:
+    evententry->pending = true;
 
-  EDB_Status result = eventdatabase.appendRec(EDB_REC * evententry); //eventDBpackage is passed as a pointer but is dereferenced first, then cast back into a pointer by EDB_REC macro (kind of convoluted... see library definitions for details)
-  if (result != EDB_OK) {
-    DBprintError(result);
+    EDB_Status result = eventdatabase.appendRec(EDB_REC * evententry); //eventDBpackage is passed as a pointer but is dereferenced first, then cast back into a pointer by EDB_REC macro (kind of convoluted... see library definitions for details)
+    if (result != EDB_OK) {
+      DBprintError(result);
+      eventDBclose();
+      return false;
+    }
+    Serial.println(F("DONE"));
     eventDBclose();
-    return false;
+    //entry is now in the database, remove it from the queue
+    evententry->pending = false;
+    return true;
   }
-  Serial.println(F("DONE"));
-  eventDBclose();
-  //entry is now in the database, remove it from the queue
-  evententry->pending = false;
-  return true;
 }
 
 
 //read a pending event from the database (if any) into the eventDBpackage (can only be called from within this file)
 void eventDBgetpending(void)
 {
-  //Serial.println(F("Checking pending events on DB"));
-  if (!eventDBfile) //database file not open, so open the database
+  if (SDstate == SD_INITIALIZED)
   {
-    eventDBInit();
-  }
-  eventDBpackage.pending = false; //reset pending (use it to check in calling function to check if data was even read)
-  uint16_t i;
-  // Serial.print(F("number of event DB entries: "));
-  //Serial.println(eventdatabase.count());
-  for (i = eventdatabase.count(); i > 0; i--) //start scanning from the end (deleting end entries is faster), also, zero index is not used in EDB
-  {
-    EDB_Status result = eventdatabase.readRec(i, EDB_REC eventDBpackage); //eventDBpackage is passed as a pointer
-    if (result == EDB_OK)
+    //Serial.println(F("Checking pending events on DB"));
+    if (!eventDBfile) //database file not open, so open the database
     {
-      //Serial.println(F("read entry from EventDB"));
-      eventDBentrytosend = i;
-      break; //end the for loop now
+      eventDBInit();
     }
+    eventDBpackage.pending = false; //reset pending (use it to check in calling function to check if data was even read)
+    uint16_t i;
+    // Serial.print(F("number of event DB entries: "));
+    //Serial.println(eventdatabase.count());
+    for (i = eventdatabase.count(); i > 0; i--) //start scanning from the end (deleting end entries is faster), also, zero index is not used in EDB
+    {
+      EDB_Status result = eventdatabase.readRec(i, EDB_REC eventDBpackage); //eventDBpackage is passed as a pointer
+      if (result == EDB_OK)
+      {
+        //Serial.println(F("read entry from EventDB"));
+        eventDBentrytosend = i;
+        break; //end the for loop now
+      }
+    }
+    eventDBclose();
   }
-  eventDBclose();
 }
 
 
