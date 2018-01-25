@@ -78,6 +78,8 @@ RtcDS3231<TwoWire> RTC(Wire); //DS3231 RTC clock on I2C
 uint8_t watchdog;      // counter for watchdog
 uint8_t APactive = 0;  // is zero if AP is deactivated, 1 if active (set to 1 to launch accesspoint mode)
 bool refreshUserDB = true; //update the user database immediately if set to true (do so on bootup)
+bool userDBupdated = false;
+bool serverhealthy = false; //set to false if server connection fails multiple times, request time is then decreased to not hinder the usage of the controller by blocking login/logout events, set to true if server connection successful
 bool localTimeValid;
 bool RTCTimeValid = false; //is set true after setting the RTC successfully
 bool machineLocked = true;
@@ -452,11 +454,11 @@ void printConfig(void) {
 void addEventToQueue(uint8_t logevent, int16_t tagID, String remarkstr)
 {
   sendoutpackage tempevent; //create a temporary data struct
-
+  Serial.print(F("Event "));
   //fill in the data, add current time for timestamp
   tempevent.pending = true;
   tempevent.timestamp = getRtcTimestamp(); //get current timestamp from the RTC (returns 0 if RTC time is invalid due to hardware fault)
-  Serial.println(tempevent.timestamp);
+  //Serial.println(tempevent.timestamp);
   tempevent.event = logevent; //event to send (0 = controller_start, 1 = controller_ok, 2 = controller_error, 3 = tag_login,4 = tag_logout)
   tempevent.tid = tagID;
   remarkstr.toCharArray(tempevent.remarks, 41); //copy the string
@@ -480,6 +482,7 @@ void addEventToQueue(uint8_t logevent, int16_t tagID, String remarkstr)
   {
     eventDBaddentry(&tempevent);
   }
+  Serial.println(F("queued"));
 }
 
 //create log event without tagid (logevent: 0 = controller_start, 1 = controller_ok, 2 = controller_error, 3 = tag_login,4 = tag_logout)

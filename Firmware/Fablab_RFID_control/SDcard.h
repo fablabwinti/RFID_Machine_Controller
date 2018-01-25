@@ -31,8 +31,10 @@ int16_t eventDBentrytosend; //index of the event currently being transmitted fro
 sendoutpackage eventDBpackage; //buffer for one package to be read from DB and sent out
 
 //SD card database for storing unsent events
+//!!! the #define line below is for debug only, should use this: 
 const char* db_events = "events.db"; //file for storing events database
-File eventDBfile; //event database resides on the SD card (it may be written often, if worn out, the SD card is easy to replace)
+//#define db_events "events.db" //access to the const char was leading to a crash after updating some libraries... need to get this fixed
+File eventDBfile; //event database resides on the SD card (it may be written often, if worn out, the SD card is easy to replace campared to SPIFFs flash on the ESP8266 board)
 
 void eventDBwriter (unsigned long address, const uint8_t* data, unsigned int datasize) {
   eventDBfile.seek(address);
@@ -51,25 +53,27 @@ EDB eventdatabase(&eventDBwriter, &eventDBreader); //create the event database
 //open a database file, create it if it does not exist
 void eventDBInit(void)
 {
+      Serial.print(F("EventDB init"));
   if (SDstate == SD_INITIALIZED)
   {
+    
     if (SD.exists(db_events)) {
-      //Serial.println(F("SD database file exists")); //!!!
+      Serial.println(F("SD database file exists")); //!!!
       eventDBfile = SD.open(db_events, FILE_WRITE); //open file for reading and writing
 
       if (eventDBfile) {
-        //Serial.print(F("Opening eventDB table... "));
+        Serial.print(F("Opening eventDB table... "));
         EDB_Status result = eventdatabase.open(0);
         if (result == EDB_OK) {
-          // Serial.println("DONE");
+           Serial.println("DONE");
           return;
         } else {
-          //Serial.println(F("ERROR"));
-          // Serial.print(F("Did not find eventDB in the file "));
-          // Serial.println(String(db_events));
-          //  Serial.print(F("Creating new table... "));
+          Serial.println(F("ERROR"));
+           Serial.print(F("Did not find eventDB in the file "));
+           Serial.println(String(db_events));
+            Serial.print(F("Creating new table... "));
           eventdatabase.create(0, EVENTDB_TABLE_SIZE, (unsigned int)sizeof(eventDBpackage));
-          //Serial.println("DONE");
+          Serial.println("DONE");
           return;
         }
       } else {
@@ -188,6 +192,7 @@ void eventDBgetpending(void)
 
 void SDwriteLogfile(String entry)
 {
+  Serial.println(F("writing to log"));
   if (SDstate == SD_INITIALIZED)
   {
 
@@ -368,6 +373,7 @@ bool SDinit(uint8_t pin)
       Serial.println(F("SD card initialized."));
       display.println(F("OK"));
       display.display();
+      SDcardOK = true;
       /*
         File dir = SD.open("/");
         printDirectory(dir, 0);
@@ -409,6 +415,7 @@ void SDmanager(void)
           SDstate = SD_REMOVED;
           Serial.println(F("SDcard Removed"));
           createErrorEvent("SD card removed");
+          SDcardOK = false;
         }
         else //SD is initialized and ready: check for pending events
         {
@@ -443,8 +450,8 @@ void SDmanager(void)
       }
       else if (SDstate == SD_ACESSFAILED)
       {
-        //todo: send a note to the server
         createErrorEvent("SD card error");
+        SDcardOK = false;
         return;
       }
     }

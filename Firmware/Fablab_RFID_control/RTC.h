@@ -195,8 +195,8 @@ String getTimeString()
 //convert a timestamp to a time string (timestamp as unix time string in the format "2000-06-08T22:24:15"
 String convertToTimestring(time_t timestamp)
 {
-  Serial.print("converting ");
-  Serial.println(timestamp);
+ // Serial.print("converting ");
+ // Serial.println(timestamp);
   String datetime;
   RtcDateTime RTCtime;
   if(timestamp < 1394766855) timestamp = 1394766855; //add a dummy time so server accepts it (pi day 2014)

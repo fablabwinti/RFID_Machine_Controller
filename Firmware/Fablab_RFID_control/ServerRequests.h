@@ -11,12 +11,26 @@ void sendToServer(sendoutpackage* datastruct, bool saveiffail, bool enforce) {
   // Use WiFiClient class to create TCP connections
   WiFiClient client;
   static uint8_t connectfailcounter = 0;
-  static bool serverhealthy = 1; //set to false if server connection fails multiple times, request time is then decreased to not hinder the usage of the controller by blocking login/logout events
+  static uint8_t unhealthy_delaycounter = 10; //on first run, assume the server connectin is ok
 
+  Serial.println("sending");
   if (WiFi.status() == WL_CONNECTED) {
     if (millis() - serverUpdateTime > SERVERMININTERVAL)  // do not send data more often than SERVERMININTERVAL to ease on server traffic (all pending data is sent in one call)
     {
       serverUpdateTime = millis();
+      if (serverhealthy == false) //if server seems to be down, slow down the interval
+      {
+        unhealthy_delaycounter++;
+        if (unhealthy_delaycounter < 8)
+        {
+          return; //if server connection seems to be bad, only update at greater intervals
+        }
+        else
+        {
+          unhealthy_delaycounter = 0;
+        }
+      }
+
       uint8_t i;
       uint8_t needupdate = 0;
       String payload = "";
@@ -25,7 +39,7 @@ void sendToServer(sendoutpackage* datastruct, bool saveiffail, bool enforce) {
         needupdate = 1;
         DynamicJsonBuffer jsonBuffer(256); //crate a buffer for one event
         JsonObject& event = jsonBuffer.createObject();
-        event["timestamp"] = convertToTimestring(datastruct->timestamp); //datastruct->timestamp; 
+        event["timestamp"] = convertToTimestring(datastruct->timestamp); //datastruct->timestamp;
         event["mid"] = config.mid;
         event["eid"] = datastruct->event;
         if (datatosend[i].tid >= 0)
@@ -51,15 +65,20 @@ void sendToServer(sendoutpackage* datastruct, bool saveiffail, bool enforce) {
         LED_blink_once(20);
         //if this fails multiple times, write data to SD database
         connectfailcounter++;
+        if (connectfailcounter > 3) //if connection failed three times, server connection is bad
+        {
+          serverhealthy = false;
+        }
         if (connectfailcounter > 10)
         {
+
           if (saveiffail)
-          Serial.println(F("writing entry to SD"));
-            eventDBaddentry(datastruct); //transfer this event over to the SD card database (pending flag is removed there so it will not be sent from queue)
+            Serial.println(F("writing entry to SD"));
+          eventDBaddentry(datastruct); //transfer this event over to the SD card database (pending flag is removed there so it will not be sent from queue)
 
           return;
         }
-        if (enforce == false) return;
+        if (enforce == false) return; //if not forced to try to resend, try again later, else, retry.
       }
 
       connectfailcounter = 0;
@@ -85,6 +104,7 @@ void sendToServer(sendoutpackage* datastruct, bool saveiffail, bool enforce) {
       Serial.println(line);
       if (line.indexOf("200 OK") != -1) {
         datastruct->pending = 0;  // reset flag after sending
+        serverhealthy = true;
         Serial.println(F("Serverupdate OK"));
       }
       else
@@ -104,8 +124,12 @@ void sendToServer(sendoutpackage* datastruct, bool saveiffail, bool enforce) {
   }
   else //no wifi available, log the event to SD card database for later transfer
   {
+
     if (saveiffail)
+    {
+      Serial.println("no wifi, saving....");
       eventDBaddentry(datastruct); //transfer this event over to the SD card database (pending flag is removed there so it will not be sent from queue)
+    }
   }
 }
 
@@ -163,7 +187,7 @@ void UpdateDBfromServer(void) {
     unsigned long timeout = millis();
     while (client.available() == 0) { //also happens if the server does not send any data, i.e. the database for this machine is empty (not sure why?)
       if (millis() - timeout > 4000) {
-        Serial.println(">>> Client Timeout !"); 
+        Serial.println(">>> Client Timeout !");
         client.stop();
         return;
       }
@@ -249,8 +273,7 @@ void UpdateDBfromServer(void) {
 
     }
 
-    //to update the local databese: delete the database file and create a new one with the entries received from the server
-    //the SPIFFS file system uses wear-leveling so flash wearout is not an issue if the update is done in reasonable intervals (like not more than once every few minutes, less is better)
+    //note: the SPIFFS file system uses wear-leveling so flash wearout is not an issue if the update is done in reasonable intervals (like not more than once every few minutes, less is better)
   }
   else //no wifi available
   {
@@ -258,6 +281,7 @@ void UpdateDBfromServer(void) {
   }
   Serial.println("done");
   refreshUserDB = false; //reset if update successful
+  userDBupdated = true; //userDB is now up to date
   retries = 5; //reset the retries for next time
   updateCleanup(true); //cleanup the database, successful update!
   long tock = millis();

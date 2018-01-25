@@ -1,8 +1,7 @@
 
 /*
-  Tested on Arduino 1.6.8 using ESP8266 Arduino version 2.3.0  (https://github.com/esp8266/Arduino/releases)
-  Not working with arduino 1.8.4, nor with ESP8266 Version 2.4.0-rc1
-
+  Tested on Arduino 1.8.5 using ESP8266 Arduino V2.4.0  (https://github.com/esp8266/Arduino/releases)
+  For tested library versions, see next to their includes.
   Note on data structure
 
   -the configuration of the node resides in eeprom. this includes:
@@ -44,11 +43,12 @@ extern "C" {
 #include <FS.h> //spiff file system
 #include <EDB.h> //use the fork here: https://github.com/fablabwinti/EDB
 #include <SPI.h>
-#include <MFRC522.h> //RFID library
-#include <FastLED.h>
+#include <MFRC522.h> //RFID library (V1.3.6 tested)
+#include <FastLED.h> //(V3.1.6 tested)
 #include <TimeLib.h>  //Time library https://github.com/PaulStoffregen/Time
-#include "RtcDS3231.h" //RTC library by makuna: https://github.com/Makuna/Rtc (version 2.0.2 tested)
-#include <Adafruit_SSD1306.h> //oled display library
+#include "RtcDS3231.h" //RTC library by makuna: https://github.com/Makuna/Rtc (V2.0.2 tested)
+#include <Adafruit_SSD1306.h> //oled display library (V1.1.2 tested)
+#include <Adafruit_GFX.h> //(V1.2.3 tested)
 #include <ESP8266WiFi.h>
 #include <ESP8266WiFiMulti.h>
 #include <WiFiClient.h>
@@ -64,8 +64,8 @@ extern "C" {
 #include <Wire.h>
 #include <SD.h>
 #include <ESP8266mDNS.h>  //works on mac out of the box, need to install apple's 'Bonjour' service to work on other systems
-#include <WebSocketsServer.h>
-#include <ArduinoJson.h> // https://bblanchon.github.io/ArduinoJson/
+#include <WebSocketsServer.h> (V2.0.9 tested)
+#include <ArduinoJson.h> // https://bblanchon.github.io/ArduinoJson/  (V5.13.0 tested)
 #include "helpers.h"
 #include "sound.h"
 #include "LED.h"
@@ -94,10 +94,11 @@ extern "C" {
 
 /*  TODO
  * *******
-
+  -add global flags for: SD state, WIFI state, Server connection state, database state 
+  -if saving to SD card fails or if connection to server fails multiple times, increase the time between server connect attempts to not slow down normal operation too frequently
   -create a config section for all compile time config stuff (started putting it on beginning of this file, complete?)
   -create log file structure
-  -add time control for access
+
   -thought: add admin key (UID) that can be updated on webpage and is not deleted on a factory reset -> admin key always works no matter what.
     -> also need to add possibility to do factory reset if program is stuck in an infinite reboot loop -> show boot screen longer while flash key is pressed during bootup, allowing the mode to change
 
@@ -107,7 +108,6 @@ extern "C" {
  
   -IMPORTANT BUGFIX: in case RTC fails, the controller has to display a huge warning! also, update has to be forced more frequently!
   -optimize ram usage of local config (currently it is fully copied to ram and always kept there using over 512bytes of ram)
-  -add more debug outputs to websocket print (see example in verifyRFIDdata() )
 
   -switch to async web server (more stable) -> not for now
 
@@ -117,6 +117,8 @@ extern "C" {
 
 
   DONE:
+    -add more debug outputs to websocket print (see example in verifyRFIDdata() )
+    -add time control for access
    -program a cache function that writes log entries to the SD card. one log file per month or something and one file for 'unsent messages' or better: create a database on the sd card for entries, add a flag and clear it if the entry was sent out succesfully. -> DONE
   -need a solid way to handle the admin key, independant of timer (in case no time is available from RTC or NTP to unlock the machine) -> DONE
    -add a config variable for the key stored in the first sector (same key for all cards), adds security to make cards impossible to be copied (easily) as access to this sector is restricted -> DONE
