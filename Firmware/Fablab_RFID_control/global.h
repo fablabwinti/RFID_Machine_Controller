@@ -1,5 +1,7 @@
 
 //#include <WiFiClientSecure.h>
+#include "Fonts/g9regular.h"
+
 
 #define SD_CSN_PIN 0
 #define SERVERPACKETS 8        // number of server sendout packets (=buffer)
@@ -308,8 +310,8 @@ void WebServerinit(void)
 
   webserver_active = true;
   display.clearDisplay();
-  display.setFont();
-  display.setCursor(0, 0);
+  display.setFont(&g9regularFont);
+  display.setCursor(0, 7);
   display.println(F("Starting Webserver"));
   if (WiFi.status() == WL_CONNECTED)
   {

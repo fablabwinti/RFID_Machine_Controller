@@ -201,7 +201,6 @@ void setup() {
 
   display.println(F("setup done"));
   display.display();
-//fonttest();//!!!
   delay(800);
 
 

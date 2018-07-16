@@ -1,27 +1,7 @@
-#include <Fonts/FreeSans9pt7b.h>  //linienabstand: 16
-#include <Fonts/FreeSans12pt7b.h>
-#include <Fonts/FreeSans18pt7b.h>
-#include <Fonts/FreeSansBoldOblique12pt7b.h>
-#include <Fonts/FreeSansBold18pt7b.h>
 #include <Fonts/FreeSansBold12pt7b.h>
-#include <Fonts/FreeMonoBold12pt7b.h>
 
-//#include "Fonts/NimbusBold9.h" //small font, still readable but ugly...
-#include "Fonts/DialogPlain5pt.h"
-#include "Fonts/DialogBold5pt.h" //too small, not really readable anymore
-#include "Fonts/DialogBold6pt.h"
-
-#include "Fonts/DialogPlain8pt.h" //sehr klein, aber unleserlich und hässlich
-#include "Fonts/SansSerif8.h"
-#include "Fonts/DialogPlain9.h"
-#include "Fonts/DialogPlain12.h"
-#include "Fonts/DialogBold9.h"
-#include "Fonts/DialogBold10.h"
-#include "Fonts/DialogBold11.h"
-#include "Fonts/DialogBold12.h"
-#include "Fonts/DialogBold20.h"
-#include "Fonts/NimbusBold9.h"
-#include "Fonts/NimbusBold10.h"
+// "Fonts/g9regular.h" already included in global.h
+#include "Fonts/g12bold.h"
 
 
 #if (SSD1306_LCDHEIGHT != 64)
@@ -113,8 +93,8 @@ const unsigned char SDokicon [] PROGMEM = {
 
 //print the header: machine name and status icons
 void displayAddHeader(void) {
-  display.setFont();
-  display.setCursor(0, 0);
+  display.setFont(&g9regularFont);
+  display.setCursor(0, 7);
   display.print(config.MachineName);
 
   if (WiFi.status() == WL_CONNECTED)
@@ -151,7 +131,7 @@ void displayAddHeader(void) {
     display.drawBitmap(122, 0, SDfailicon, 6, 7, 1);
   }
 
-  display.drawFastHLine(0, 10, 128, 1); //draw horizontal line
+  display.drawFastHLine(0, 8, 128, 1); //draw horizontal line
 }
 
 void displayUpdate(void) {
@@ -168,35 +148,19 @@ void displayUpdate(void) {
 
   if (machineLocked)
   {
+    char temparr[11];
+    snprintf(temparr, sizeof(temparr), "%02u.%02u.%04u", day(), month(), year());
+    display.setFont(&g9regularFont);
+    display.setCursor(37, 33);
+    display.print(temparr);
+    snprintf(temparr, sizeof(temparr), "%02u:%02u:%02u", hour(), minute(), second());
+    display.setFont(&g12boldFont);
+    display.setCursor(35, 47);
+    display.print(temparr);
 
-
-    char temparr[5];
-    sprintf(temparr, "%02u", day()); //need a fixed length, easiest using sprintf
-    String daystr = String(temparr);
-    sprintf(temparr, "%02u", month()); //need a fixed length, easiest using sprintf
-    String monthstr = String(temparr);
-    sprintf(temparr, "%04u", year()); //need a fixed length, easiest using sprintf
-    String yearstr = String(temparr);
-    sprintf(temparr, "%02u", hour()); //need a fixed length, easiest using sprintf
-    String hourstr = String(temparr);
-    sprintf(temparr, "%02u", minute()); //need a fixed length, easiest using sprintf
-    String minutestr = String(temparr);
-    sprintf(temparr, "%02u", second()); //need a fixed length, easiest using sprintf
-    String secondstr = String(temparr);
-    String localtimestr = hourstr + ":" + minutestr + ":" + secondstr;
-    String datestr = daystr + "." + monthstr + "." + yearstr;
-
-    display.setFont(&Dialogbold12);
-    display.setCursor(18, 28);
-    display.print(datestr);
-
-    display.setFont(&Dialogbold20);
-    display.setCursor(10, 50);
-    display.print(localtimestr);
-
-
-    display.setFont();//default tiny font
-    display.setCursor(0, 57);
+    //todo: remove this debug output (or if it is deemed useful in production, properly integrate it into the layout)
+    display.setFont(&g9regularFont);
+    display.setCursor(0, 63);
     if (WiFi.status() == WL_CONNECTED)
     {
       display.print(F("IP: "));
@@ -224,14 +188,12 @@ void displayUpdate(void) {
       firstname = splitStringbySeparator(fullname, char(' ')); //split the name string into first name and surname
       surname = fullname.substring(firstname.length() + 1);
     }
-    display.setFont(&Dialogbold9);
-    display.setCursor(0, 24);
+    display.setFont(&g12boldFont);
+    display.setCursor(0, 21);
     display.print(String(userentry.name));
     //display.print(0, 27);
     //display.print(surname);
-    display.setFont(&Dialogbold20);
-    display.setCursor(10, 48);
-
+    display.setFont(&FreeSansBold12pt7b);
 
     time_t timeinuse = getRtcTimestamp() - userStarttime;
 
@@ -239,16 +201,35 @@ void displayUpdate(void) {
     uint16_t useminutes = (timeinuse % 3600) / 60;
     uint16_t useseconds = timeinuse % 60;
 
-    char temparr[5];
-    sprintf(temparr, "%02u", usehours); //need a fixed length, easiest using sprintf
-    String hourstr = String(temparr);
-    sprintf(temparr, "%02u", useminutes); //need a fixed length, easiest using sprintf
-    String minutestr = String(temparr);
-    sprintf(temparr, "%02u", useseconds); //need a fixed length, easiest using sprintf
-    String secondstr = String(temparr);
-    String usetime = hourstr + ":" + minutestr + ":" + secondstr;
-    display.print(usetime);
+    char temparr[12];
+    // getTextBounds considers the bitmap size, not the advance width, so the
+    // text width differs for a narrow glyph like '1' at the end, which makes
+    // the text jump around. To avoid that, append a dummy char of known width
+    // for measuring and remove it for rendering.
+    snprintf(temparr, sizeof(temparr), "%u:%02u:%02u.", usehours, useminutes, useseconds);
+    int16_t x, y;
+    uint16_t w1, w2, h;
+    display.getTextBounds(temparr, 0, 0, &x, &y, &w1, &h);
+    temparr[strlen(temparr)-1] = '\0';
+    w1 -= 5;
+    display.setCursor(64 - w1/2, 46);
+    display.print(temparr);
 
+    //todo: calculate and display running cost
+#if 0
+    uint16_t cost = timeinuse/3; //dummy
+    snprintf(temparr, sizeof(temparr), "%d.%02d.", cost/100, cost%100);
+    display.setFont(&g12boldFont);
+    display.getTextBounds(temparr, 0, 0, &x, &y, &w1, &h);
+    temparr[strlen(temparr)-1] = '\0';
+    w1 -= 3;
+    display.setCursor(128-w1, 63);
+    display.print(temparr);
+    display.setFont(&g9regularFont);
+    display.getTextBounds("CHF", 0, 0, &x, &y, &w2, &h);
+    display.setCursor(128-w1-w2-5, 63);
+    display.print("CHF");
+#endif
   }
 
   display.display();
@@ -263,8 +244,14 @@ void displayLogin(void)
 {
   display.clearDisplay();
   displayAddHeader();
-  display.setFont(&Dialogbold20);
-  display.setCursor(35, 50);
+  //todo: display username of recognized tag
+#if 0
+  display.setFont(&g12boldFont);
+  display.setCursor(0, 21);
+  display.print("Master");
+#endif
+  display.setFont(&FreeSansBold12pt7b);
+  display.setCursor(44, 51);
   display.print("Start");
   //todo: add icon
   display.display();
@@ -274,8 +261,14 @@ void displayLogout(void)
 {
   display.clearDisplay();
   displayAddHeader();
-  display.setFont(&Dialogbold20);
-  display.setCursor(35, 50);
+  //todo: display username of recognized tag
+#if 0
+  display.setFont(&g12boldFont);
+  display.setCursor(0, 21);
+  display.print("Damian Schneider");
+#endif
+  display.setFont(&FreeSansBold12pt7b);
+  display.setCursor(44, 51);
   display.print("Stop");
   //todo: add icon
   display.display();
@@ -287,8 +280,13 @@ void displayDenied(uint8_t reason)
 {
   display.clearDisplay();
   displayAddHeader();
-  display.setFont(&Dialogbold12);
-  display.setCursor(25, 46);
+  display.setFont(&g12boldFont);
+  //todo: display username of recognized tag (if any)
+#if 0
+  display.setCursor(0, 21);
+  display.print("Wolfgang Lochbihler");
+#endif
+  display.setCursor(44, 46);
   if (reason == 1)
   {
     display.print("besetzt");
@@ -303,119 +301,6 @@ void displayDenied(uint8_t reason)
   }
   //todo: add icon
   display.display();
-}
-
-
-void fonttest(void)
-{
-  String text = "AabcefskFrown";
-  String numbers = "1234567890";
-
-
-  display.setFont(&SansSerif8); //well readable, braucht viel platz, ca 7 pixel hoch, genau gleich wie dialogplain8!
-  display.clearDisplay();
-  display.setCursor(0, 10);
-  display.print("Laser klein");
-  display.setCursor(0, 30);
-  display.print(text);
-  display.setCursor(0, 60);
-  display.print(numbers);
-  display.display();
-  delay(5000);
-
-
-  //dialogplain 8 ist auch eine gute default schrift.
-  display.setFont(&DialogPlain8); //well readable, braucht viel platz, ca 7 pixel hoch
-  display.clearDisplay();
-  display.setCursor(0, 10);
-  display.print("Laser klein");
-  display.setCursor(0, 30);
-  display.print(text);
-  display.setCursor(0, 60);
-  display.print(numbers);
-  display.display();
-  delay(5000);
-
-  display.setFont(&Dialogplain9); //well readable, braucht viel platz, ca 8 pixel hoch
-  display.clearDisplay();
-  display.setCursor(0, 10);
-  display.print("Wolfgang Lochbihler :) asdfghj");
-  display.setCursor(0, 30);
-  display.print(text);
-  display.setCursor(0, 60);
-  display.print(numbers);
-  display.display();
-  delay(5000);
-
-  display.setFont(&Dialogbold9); //sehr gut lesbar, fett, schöne zahlen, ca 8 pixel hoch -> für allerlei benutzbar
-  display.clearDisplay();
-  display.setCursor(0, 10);
-  display.print("Wolfgang Lochbihler :) asdfghj");
-  display.setCursor(0, 30);
-  display.print(text);
-  display.setCursor(0, 60);
-  display.print(numbers);
-  display.display();
-  delay(5000);
-
-  display.setFont(&Dialogbold10); //
-  display.clearDisplay();
-  display.setCursor(0, 30);
-  display.print(text);
-  display.setCursor(0, 60);
-  display.print(numbers);
-  display.display();
-  delay(5000);
-
-
-  display.setFont(&Dialogbold11); //
-  display.clearDisplay();
-  display.setCursor(0, 30);
-  display.print(text);
-  display.setCursor(0, 60);
-  display.print(numbers);
-  display.display();
-  delay(5000);
-
-
-  display.setFont(&Dialogbold12); //
-  display.clearDisplay();
-  display.setCursor(0, 30);
-  display.print(text);
-  display.setCursor(0, 60);
-  display.print(numbers);
-  display.display();
-  delay(5000);
-
-
-  display.setFont(&Dialogplain12); //schöne schrift, gross
-  display.clearDisplay();
-  display.setCursor(0, 30);
-  display.print(text);
-  display.setCursor(0, 60);
-  display.print(numbers);
-  display.display();
-  delay(5000);
-
-
-  display.setFont(&NimbusBold9); //ok, lesbar, munzig
-  display.clearDisplay();
-  display.setCursor(0, 30);
-  display.print(text);
-  display.setCursor(0, 60);
-  display.print(numbers);
-  display.display();
-  delay(5000);
-
-  display.setFont(&NimbusBold10); //schlechter lesbar als grösse 9!
-  display.clearDisplay();
-  display.setCursor(0, 30);
-  display.print(text);
-  display.setCursor(0, 60);
-  display.print(numbers);
-  display.display();
-  delay(5000);
-
 }
 
 
@@ -452,8 +337,8 @@ void displayinit(void)
   delay(800);
   display.clearDisplay();
   display.display();
-  display.setFont(&DialogPlain8);
-  display.setCursor(0, 0);
+  display.setFont(&g9regularFont);
+  display.setCursor(0, 7);
 
 }
 
