@@ -87,6 +87,7 @@ uint32_t userStarttime; //timestamp at start of machine use
 uint8_t RFIDtagprogrogramming = 0; //flag used to program blank rfid cards (flag = 1) or to blank already programmed cards (flag = 2)
 uint8_t websocket_connected = 0;
 bool webserver_active = false; //set true if webserver is started
+bool SDcardOK = false;
 
 struct NodeConfig {
   String ssid[MULTIWIFIS];           // 31 bytes maximum
