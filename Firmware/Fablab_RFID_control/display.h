@@ -60,35 +60,35 @@ const unsigned char DBdl [] PROGMEM = {
 
 // 'wifi_fail', 9x7px
 const unsigned char wififailicon [] PROGMEM = {
-  0x1c, 0x31, 0xa0, 0x28, 0x22, 0x20, 0xa0, 0x21
+  0x1c, 0x00, 0x63, 0x00, 0x80, 0x80, 0x41, 0x00, 0x22, 0x00, 0x14, 0x00, 0x08, 0x00
 };
 // 'wifi_ok', 9x7px
 const unsigned char wifiokicon [] PROGMEM = {
-  0x1c, 0x3f, 0xbf, 0xef, 0xe3, 0xe0, 0xe0, 0x21
+  0x1c, 0x00, 0x7f, 0x00, 0xff, 0x80, 0x7f, 0x00, 0x3e, 0x00, 0x1c, 0x00, 0x08, 0x00
 };
 // 'DB_fail', 6x7px
 const unsigned char DBfailicon [] PROGMEM = {
-  0x33, 0x38, 0x61, 0x87, 0x33, 0x3f
+  0x30, 0xcc, 0x84, 0x84, 0x84, 0xcc, 0x30
 };
 // 'DB_ok', 6x7px
 const unsigned char DBokicon [] PROGMEM = {
-  0x33, 0xff, 0xff, 0xff, 0xf3, 0x3f
+  0x30, 0xfc, 0xfc, 0xfc, 0xfc, 0xfc, 0x30
 };
 // 'server_fail', 7x7px
 const unsigned char serverfailicon [] PROGMEM = {
-  0x7c, 0x89, 0x13, 0xe0, 0x18, 0xf1, 0xff
+  0x7c, 0x44, 0x44, 0x7c, 0x00, 0xc6, 0xc6
 };
 // 'server_ok', 7x7px
 const unsigned char serverokicon [] PROGMEM = {
-  0x7c, 0xf9, 0xf3, 0xe3, 0x9f, 0xfb, 0xff
+  0x7c, 0x7c, 0x7c, 0x7c, 0x18, 0xfe, 0xee
 };
 // 'SD_fail', 6x7px
 const unsigned char SDfailicon [] PROGMEM = {
-  0x3d, 0x18, 0x61, 0x86, 0x1f, 0xff
+  0x3c, 0x44, 0x84, 0x84, 0x84, 0x84, 0xfc
 };
 // 'SD_ok', 6x7px
 const unsigned char SDokicon [] PROGMEM = {
-  0x3d, 0xff, 0xff, 0xff, 0xff, 0xff
+  0x3c, 0x7c, 0xfc, 0xfc, 0xfc, 0xfc, 0xfc
 };
 
 //print the header: machine name and status icons
@@ -99,27 +99,27 @@ void displayAddHeader(void) {
 
   if (WiFi.status() == WL_CONNECTED)
   {
-    display.drawBitmap(97, 0, wifiokicon, 9, 7, 1);
+    display.drawBitmap(94, 0, wifiokicon, 9, 7, 1);
   }
   else
   {
-    display.drawBitmap(97, 0, wififailicon, 9, 7, 1);
+    display.drawBitmap(94, 0, wififailicon, 9, 7, 1);
   }
   if (userDBupdated)
   {
-    display.drawBitmap(107, 0, DBokicon, 6, 7, 1);
+    display.drawBitmap(105, 0, DBokicon, 6, 7, 1);
   }
   else
   {
-    display.drawBitmap(107, 0, DBfailicon, 6, 7, 1);
+    display.drawBitmap(105, 0, DBfailicon, 6, 7, 1);
   }
   if (serverhealthy)
   {
-    display.drawBitmap(114, 0, serverokicon, 7, 7, 1);
+    display.drawBitmap(113, 0, serverokicon, 7, 7, 1);
   }
   else
   {
-    display.drawBitmap(114, 0, serverfailicon, 7, 7, 1);
+    display.drawBitmap(113, 0, serverfailicon, 7, 7, 1);
   }
 
   if (SDcardOK)
@@ -159,16 +159,12 @@ void displayUpdate(void) {
     display.print(temparr);
 
     //todo: remove this debug output (or if it is deemed useful in production, properly integrate it into the layout)
-    display.setFont(&g9regularFont);
-    display.setCursor(0, 63);
     if (WiFi.status() == WL_CONNECTED)
     {
+      display.setFont(&g9regularFont);
+      display.setCursor(0, 63);
       display.print(F("IP: "));
       display.print(WiFi.localIP());
-    }
-    else
-    {
-      display.print(F("WIFI DISCONNECTED"));
     }
   }
   else //machine is unlocked, user is logged in
