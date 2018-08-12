@@ -1,28 +1,10 @@
-#include <Fonts/FreeSans9pt7b.h>  //linienabstand: 16
-#include <Fonts/FreeSans12pt7b.h>
-#include <Fonts/FreeSans18pt7b.h>
-#include <Fonts/FreeSansBoldOblique12pt7b.h>
-#include <Fonts/FreeSansBold18pt7b.h>
 #include <Fonts/FreeSansBold12pt7b.h>
-#include <Fonts/FreeMonoBold12pt7b.h>
 
-//#include "Fonts/NimbusBold9.h" //small font, still readable but ugly...
-#include "Fonts/DialogPlain5pt.h"
-#include "Fonts/DialogBold5pt.h" //too small, not really readable anymore
-#include "Fonts/DialogBold6pt.h"
 
-#include "Fonts/DialogPlain8pt.h" //sehr klein, aber unleserlich und hässlich
-#include "Fonts/SansSerif8.h"
-#include "Fonts/DialogPlain9.h"
-#include "Fonts/DialogPlain12.h"
-#include "Fonts/DialogBold9.h"
-#include "Fonts/DialogBold10.h"
-#include "Fonts/DialogBold11.h"
-#include "Fonts/DialogBold12.h"
-#include "Fonts/DialogBold20.h"
-#include "Fonts/NimbusBold9.h"
-#include "Fonts/NimbusBold10.h"
-#include "Fonts/tinypixelfonts/TomThumb.h"
+// "Fonts/g9regular.h" already included in global.h
+#include "Fonts/g12bold.h"
+
+
 
 #if (SSD1306_LCDHEIGHT != 64)
 #error("Display height not set to 64 pixels, please fix Adafruit_SSD1306.h!");
@@ -101,11 +83,15 @@ const unsigned char deniedicon [] PROGMEM = {
 
 // 'wifi_fail', 8x7px
 const unsigned char wififailicon [] PROGMEM = {
-  0x00, 0x38, 0x44, 0x82, 0x44, 0x28, 0x10
+
+  0x1c, 0x00, 0x63, 0x00, 0x80, 0x80, 0x41, 0x00, 0x22, 0x00, 0x14, 0x00, 0x08, 0x00
+
 };
 // 'wifi_ok', 8x7px
 const unsigned char wifiokicon [] PROGMEM = {
-  0x00, 0x38, 0x7c, 0xfe, 0x7c, 0x38, 0x10
+
+  0x1c, 0x00, 0x7f, 0x00, 0xff, 0x80, 0x7f, 0x00, 0x3e, 0x00, 0x1c, 0x00, 0x08, 0x00
+
 };
 // 'DB_fail', 8x7px
 const unsigned char DBfailicon [] PROGMEM = {
@@ -121,7 +107,7 @@ const unsigned char serverfailicon [] PROGMEM = {
 };
 // 'server_ok', 8x7px
 const unsigned char serverokicon [] PROGMEM = {
-  0x7c, 0x7c, 0x7c, 0x7c, 0x38, 0xfe, 0xee
+  0x7c, 0x7c, 0x7c, 0x7c, 0x18, 0xfe, 0xee
 };
 // 'SD_fail', 8x7px
 const unsigned char SDfailicon [] PROGMEM = {
@@ -132,35 +118,70 @@ const unsigned char SDokicon [] PROGMEM = {
   0x3c, 0x7c, 0xfc, 0xfc, 0xfc, 0xfc, 0xfc
 };
 
+#define check_xbm_width 32
+#define check_xbm_height 32
+static const unsigned char check_xbm_bits[] PROGMEM = {
+   0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+   0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x38, 0x00, 0x00, 0x00, 0x7C,
+   0x00, 0x00, 0x00, 0xFE, 0x00, 0x00, 0x00, 0xFF, 0x00, 0x00, 0x80, 0xFF,
+   0x00, 0x00, 0xC0, 0x7F, 0x00, 0x00, 0xE0, 0x3F, 0x00, 0x00, 0xF0, 0x1F,
+   0x00, 0x00, 0xF8, 0x0F, 0x00, 0x00, 0xFC, 0x07, 0x1C, 0x00, 0xFE, 0x03,
+   0x3E, 0x00, 0xFF, 0x01, 0x7F, 0x80, 0xFF, 0x00, 0xFF, 0xC0, 0x7F, 0x00,
+   0xFF, 0xE1, 0x3F, 0x00, 0xFE, 0xF3, 0x1F, 0x00, 0xFC, 0xFF, 0x0F, 0x00,
+   0xF8, 0xFF, 0x07, 0x00, 0xF0, 0xFF, 0x03, 0x00, 0xE0, 0xFF, 0x01, 0x00,
+   0xC0, 0xFF, 0x00, 0x00, 0x80, 0x7F, 0x00, 0x00, 0x00, 0x3F, 0x00, 0x00,
+   0x00, 0x1E, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+   0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00 };
+
+#define cross_xbm_width 32
+#define cross_xbm_height 32
+static const unsigned char cross_xbm_bits[] PROGMEM = {
+   0x1C, 0x00, 0x00, 0x38, 0x3E, 0x00, 0x00, 0x7C, 0x7F, 0x00, 0x00, 0xFE,
+   0xFF, 0x00, 0x00, 0xFF, 0xFF, 0x01, 0x80, 0xFF, 0xFE, 0x03, 0xC0, 0x7F,
+   0xFC, 0x07, 0xE0, 0x3F, 0xF8, 0x0F, 0xF0, 0x1F, 0xF0, 0x1F, 0xF8, 0x0F,
+   0xE0, 0x3F, 0xFC, 0x07, 0xC0, 0x7F, 0xFE, 0x03, 0x80, 0xFF, 0xFF, 0x01,
+   0x00, 0xFF, 0xFF, 0x00, 0x00, 0xFE, 0x7F, 0x00, 0x00, 0xFC, 0x3F, 0x00,
+   0x00, 0xF8, 0x1F, 0x00, 0x00, 0xF8, 0x1F, 0x00, 0x00, 0xFC, 0x3F, 0x00,
+   0x00, 0xFE, 0x7F, 0x00, 0x00, 0xFF, 0xFF, 0x00, 0x80, 0xFF, 0xFF, 0x01,
+   0xC0, 0x7F, 0xFE, 0x03, 0xE0, 0x3F, 0xFC, 0x07, 0xF0, 0x1F, 0xF8, 0x0F,
+   0xF8, 0x0F, 0xF0, 0x1F, 0xFC, 0x07, 0xE0, 0x3F, 0xFE, 0x03, 0xC0, 0x7F,
+   0xFF, 0x01, 0x80, 0xFF, 0xFF, 0x00, 0x00, 0xFF, 0x7F, 0x00, 0x00, 0xFE,
+   0x3E, 0x00, 0x00, 0x7C, 0x1C, 0x00, 0x00, 0x38 };
+
 //print the header: machine name and status icons
 void displayAddHeader(void) {
-  display.setFont(&TomThumb);
-  display.setCursor(0, 6);
+
+  display.setFont(&g9regularFont);
+  display.setCursor(0, 7);
+
+
   display.print(config.MachineName);
 
   if (WiFi.status() == WL_CONNECTED)
   {
-    display.drawBitmap(98, 0, wifiokicon, 8, 7, 1);
+
+    display.drawBitmap(94, 0, wifiokicon, 9, 7, 1);
   }
   else
   {
-    display.drawBitmap(98, 0, wififailicon, 8, 7, 1);
+    display.drawBitmap(94, 0, wififailicon, 9, 7, 1);
   }
   if (userDBupdated)
   {
-    display.drawBitmap(106, 0, DBokicon, 8, 7, 1);
+    display.drawBitmap(105, 0, DBokicon, 6, 7, 1);
   }
   else
   {
-    display.drawBitmap(106, 0, DBfailicon, 8, 7, 1);
+    display.drawBitmap(105, 0, DBfailicon, 6, 7, 1);
   }
   if (serverhealthy)
   {
-    display.drawBitmap(114, 0, serverokicon, 8, 7, 1);
+    display.drawBitmap(113, 0, serverokicon, 7, 7, 1);
   }
   else
   {
-    display.drawBitmap(114, 0, serverfailicon, 8, 7, 1);
+    display.drawBitmap(113, 0, serverfailicon, 7, 7, 1);
+
   }
 
   if (SDcardOK)
@@ -172,7 +193,7 @@ void displayAddHeader(void) {
     display.drawBitmap(122, 0, SDfailicon, 8, 7, 1);
   }
 
-  display.drawFastHLine(0, 9, 128, 1); //draw horizontal line
+  display.drawFastHLine(0, 8, 128, 1); //draw horizontal line
 }
 
 void displayUpdate(void) {
@@ -189,6 +210,20 @@ void displayUpdate(void) {
 
   if (machineLocked)
   {
+
+  /*
+    char temparr[11];
+    snprintf(temparr, sizeof(temparr), "%02u.%02u.%04u", day(), month(), year());
+    display.setFont(&g9regularFont);
+    display.setCursor(37, 33);
+    display.print(temparr);
+    snprintf(temparr, sizeof(temparr), "%02u:%02u:%02u", hour(), minute(), second());
+    display.setFont(&g12boldFont);
+    display.setCursor(35, 47);
+    display.print(temparr);
+*/
+    //todo: remove this debug output (or if it is deemed useful in production, properly integrate it into the layout)
+
 
 
     char temparr[5];
@@ -218,14 +253,13 @@ void displayUpdate(void) {
 
     display.setFont(&TomThumb);
     display.setCursor(33, 60);
+
     if (WiFi.status() == WL_CONNECTED)
     {
+      display.setFont(&g9regularFont);
+      display.setCursor(0, 63);
       display.print(F("IP: "));
       display.print(WiFi.localIP());
-    }
-    else
-    {
-      display.print(F("WIFI DISCONNECTED"));
     }
   }
   else //machine is unlocked, user is logged in
@@ -241,18 +275,18 @@ void displayUpdate(void) {
     {
       //get current users name from database
       userdatabase.readRec(currentuser, EDB_REC userentry); //get the currently loggeed in user entry
-      fullname = String(userentry.name);
+     // fullname = String(userentry.name);
       //firstname = splitStringbySeparator(fullname, char(' ')); //split the name string into first name and surname
       //surname = fullname.substring(firstname.length() + 1);
     }
-    display.setFont(&Dialogbold9);
-    display.setCursor(0, 24);
-    display.print(fullname);
+
+    display.setFont(&g12boldFont);
+    display.setCursor(0, 21);
+    display.print(String(userentry.name));
+
     //display.print(0, 27);
     //display.print(surname);
-    display.setFont(&Dialogbold20);
-    display.setCursor(10, 48);
-
+    display.setFont(&FreeSansBold12pt7b);
 
     time_t timeinuse = getRtcTimestamp() - userStarttime;
 
@@ -260,16 +294,35 @@ void displayUpdate(void) {
     uint16_t useminutes = (timeinuse % 3600) / 60;
     uint16_t useseconds = timeinuse % 60;
 
-    char temparr[5];
-    sprintf(temparr, "%02u", usehours); //need a fixed length, easiest using sprintf
-    String hourstr = String(temparr);
-    sprintf(temparr, "%02u", useminutes); //need a fixed length, easiest using sprintf
-    String minutestr = String(temparr);
-    sprintf(temparr, "%02u", useseconds); //need a fixed length, easiest using sprintf
-    String secondstr = String(temparr);
-    String usetime = hourstr + ":" + minutestr + ":" + secondstr;
-    display.print(usetime);
+    char temparr[12];
+    // getTextBounds considers the bitmap size, not the advance width, so the
+    // text width differs for a narrow glyph like '1' at the end, which makes
+    // the text jump around. To avoid that, append a dummy char of known width
+    // for measuring and remove it for rendering.
+    snprintf(temparr, sizeof(temparr), "%u:%02u:%02u.", usehours, useminutes, useseconds);
+    int16_t x, y;
+    uint16_t w1, w2, h;
+    display.getTextBounds(temparr, 0, 0, &x, &y, &w1, &h);
+    temparr[strlen(temparr)-1] = '\0';
+    w1 -= 5;
+    display.setCursor(64 - w1/2, 46);
+    display.print(temparr);
 
+    //todo: calculate and display running cost
+#if 0
+    uint16_t cost = timeinuse/3; //dummy
+    snprintf(temparr, sizeof(temparr), "%d.%02d.", cost/100, cost%100);
+    display.setFont(&g12boldFont);
+    display.getTextBounds(temparr, 0, 0, &x, &y, &w1, &h);
+    temparr[strlen(temparr)-1] = '\0';
+    w1 -= 3;
+    display.setCursor(128-w1, 63);
+    display.print(temparr);
+    display.setFont(&g9regularFont);
+    display.getTextBounds("CHF", 0, 0, &x, &y, &w2, &h);
+    display.setCursor(128-w1-w2-5, 63);
+    display.print("CHF");
+#endif
   }
 
   display.display();
@@ -285,11 +338,22 @@ void displayLogin(void)
 {
   display.clearDisplay();
   displayAddHeader();
-  display.drawBitmap(3, 30, accepticon, 24, 24, 1);
-  display.setFont(&Dialogbold20);
-  display.setCursor(38, 48);
+
+  //todo: display username of recognized tag
+#if 0
+  display.setFont(&g12boldFont);
+  display.setCursor(0, 21);
+  display.print("Master");
+#endif
+  display.setFont(&FreeSansBold12pt7b);
+  display.setCursor(44, 51);
+
+ // display.drawBitmap(3, 30, accepticon, 24, 24, 1);
+  //display.setFont(&Dialogbold20);
+ // display.setCursor(38, 48);
+
   display.print("Start");
-  //todo: add icon
+  display.drawXBitmap(5, 27, check_xbm_bits, check_xbm_width, check_xbm_height, 1);
   display.display();
 }
 
@@ -297,11 +361,22 @@ void displayLogout(void)
 {
   display.clearDisplay();
   displayAddHeader();
-  display.drawBitmap(3, 30, accepticon, 24, 24, 1);
-  display.setFont(&Dialogbold20);
-  display.setCursor(38, 48);
+
+  //todo: display username of recognized tag
+#if 0
+  display.setFont(&g12boldFont);
+  display.setCursor(0, 21);
+  display.print("Damian Schneider");
+#endif
+  display.setFont(&FreeSansBold12pt7b);
+  display.setCursor(44, 51);
+
+ // display.drawBitmap(3, 30, accepticon, 24, 24, 1);
+ // display.setFont(&Dialogbold20);
+ // display.setCursor(38, 48);
+
   display.print("Stop");
-  //todo: add icon
+  display.drawXBitmap(5, 27, check_xbm_bits, check_xbm_width, check_xbm_height, 1);
   display.display();
 }
 
@@ -311,9 +386,19 @@ void displayDenied(uint8_t reason)
 {
   display.clearDisplay();
   displayAddHeader();
-  display.drawBitmap(0, 30, deniedicon, 24, 24, 1);
-  display.setFont(&Dialogbold12);
-  display.setCursor(25, 46);
+
+  display.setFont(&g12boldFont);
+  //todo: display username of recognized tag (if any)
+#if 0
+  display.setCursor(0, 21);
+  display.print("Wolfgang Lochbihler");
+#endif
+  display.setCursor(44, 46);
+
+ // display.drawBitmap(0, 30, deniedicon, 24, 24, 1);
+ // display.setFont(&Dialogbold12);
+ // display.setCursor(25, 46);
+
   if (reason == 1)
   {
     display.print("besetzt");
@@ -326,121 +411,8 @@ void displayDenied(uint8_t reason)
   {
     display.print("unberechtigt");
   }
-  //todo: add icon
+  display.drawXBitmap(5, 27, cross_xbm_bits, cross_xbm_width, cross_xbm_height, 1);
   display.display();
-}
-
-
-void fonttest(void)
-{
-  String text = "AabcefskFrown";
-  String numbers = "1234567890";
-
-
-  display.setFont(&SansSerif8); //well readable, braucht viel platz, ca 7 pixel hoch, genau gleich wie dialogplain8!
-  display.clearDisplay();
-  display.setCursor(0, 10);
-  display.print("Laser klein");
-  display.setCursor(0, 30);
-  display.print(text);
-  display.setCursor(0, 60);
-  display.print(numbers);
-  display.display();
-  delay(5000);
-
-
-  //dialogplain 8 ist auch eine gute default schrift.
-  display.setFont(&DialogPlain8); //well readable, braucht viel platz, ca 7 pixel hoch
-  display.clearDisplay();
-  display.setCursor(0, 10);
-  display.print("Laser klein");
-  display.setCursor(0, 30);
-  display.print(text);
-  display.setCursor(0, 60);
-  display.print(numbers);
-  display.display();
-  delay(5000);
-
-  display.setFont(&Dialogplain9); //well readable, braucht viel platz, ca 8 pixel hoch
-  display.clearDisplay();
-  display.setCursor(0, 10);
-  display.print("Wolfgang Lochbihler :) asdfghj");
-  display.setCursor(0, 30);
-  display.print(text);
-  display.setCursor(0, 60);
-  display.print(numbers);
-  display.display();
-  delay(5000);
-
-  display.setFont(&Dialogbold9); //sehr gut lesbar, fett, schöne zahlen, ca 8 pixel hoch -> für allerlei benutzbar
-  display.clearDisplay();
-  display.setCursor(0, 10);
-  display.print("Wolfgang Lochbihler :) asdfghj");
-  display.setCursor(0, 30);
-  display.print(text);
-  display.setCursor(0, 60);
-  display.print(numbers);
-  display.display();
-  delay(5000);
-
-  display.setFont(&Dialogbold10); //
-  display.clearDisplay();
-  display.setCursor(0, 30);
-  display.print(text);
-  display.setCursor(0, 60);
-  display.print(numbers);
-  display.display();
-  delay(5000);
-
-
-  display.setFont(&Dialogbold11); //
-  display.clearDisplay();
-  display.setCursor(0, 30);
-  display.print(text);
-  display.setCursor(0, 60);
-  display.print(numbers);
-  display.display();
-  delay(5000);
-
-
-  display.setFont(&Dialogbold12); //
-  display.clearDisplay();
-  display.setCursor(0, 30);
-  display.print(text);
-  display.setCursor(0, 60);
-  display.print(numbers);
-  display.display();
-  delay(5000);
-
-
-  display.setFont(&Dialogplain12); //schöne schrift, gross
-  display.clearDisplay();
-  display.setCursor(0, 30);
-  display.print(text);
-  display.setCursor(0, 60);
-  display.print(numbers);
-  display.display();
-  delay(5000);
-
-
-  display.setFont(&NimbusBold9); //ok, lesbar, munzig
-  display.clearDisplay();
-  display.setCursor(0, 30);
-  display.print(text);
-  display.setCursor(0, 60);
-  display.print(numbers);
-  display.display();
-  delay(5000);
-
-  display.setFont(&NimbusBold10); //schlechter lesbar als grösse 9!
-  display.clearDisplay();
-  display.setCursor(0, 30);
-  display.print(text);
-  display.setCursor(0, 60);
-  display.print(numbers);
-  display.display();
-  delay(5000);
-
 }
 
 
@@ -477,8 +449,10 @@ void displayinit(void)
   delay(800);
   display.clearDisplay();
   display.display();
-  display.setFont();
-  display.setCursor(0, 0);
+
+  display.setFont(&g9regularFont);
+  display.setCursor(0, 7);
+
 
 }
 

@@ -201,8 +201,8 @@ void setup() {
   delay(100);
   display.println(F("setup done"));
   display.display();
-  //fonttest();//!!!
-  delay(500);
+
+  delay(800);
 
 
   //test search speed:
