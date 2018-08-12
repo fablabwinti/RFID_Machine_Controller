@@ -1,7 +1,9 @@
 #include <Fonts/FreeSansBold12pt7b.h>
 
+
 // "Fonts/g9regular.h" already included in global.h
 #include "Fonts/g12bold.h"
+
 
 
 #if (SSD1306_LCDHEIGHT != 64)
@@ -10,6 +12,8 @@
 
 
 //logo generated using http://javl.github.io/image2cpp/
+//note on icon generation: the library can only display bitmaps with the x dimension being a multiple of 8 so all icons must be in this format, other dimension screw up the displayed image
+//the default settings on the webpage are fine (horizontal mode)
 
 unsigned char fablablogo []  = {
   0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x7f, 0xf8, 0x00, 0x00, 0x00,
@@ -56,37 +60,60 @@ const unsigned char DBdl [] PROGMEM = {
   0x7f, 0xc3, 0xc3, 0xfe, 0x3f, 0x03, 0xc0, 0xfe, 0x1e, 0x03, 0xc0, 0x7c, 0x00, 0x03, 0xc0, 0x70,
   0x00, 0x1f, 0xf8, 0x00, 0x00, 0x3f, 0xfc, 0x00, 0x00, 0x3f, 0xfc, 0x00, 0x00, 0x1f, 0xf8, 0x00,
   0x00, 0x0f, 0xf0, 0x00, 0x00, 0x07, 0xe0, 0x00, 0x00, 0x03, 0xc0, 0x00, 0x00, 0x01, 0x80, 0x00
+
 };
 
-// 'wifi_fail', 9x7px
+// 'accept', 24x24px
+const unsigned char accepticon [] PROGMEM = {
+  0x00, 0x00, 0x00, 0x00, 0x00, 0x18, 0x00, 0x00, 0x3c, 0x00, 0x00, 0x3c, 0x00, 0x00, 0x7c, 0x00,
+  0x00, 0xfe, 0x00, 0x00, 0xfc, 0x00, 0x01, 0xf8, 0x00, 0x01, 0xf0, 0x00, 0x03, 0xe0, 0x78, 0x07,
+  0xc0, 0x7c, 0x07, 0x80, 0x3e, 0x0f, 0x00, 0x1f, 0x1e, 0x00, 0x0f, 0xbc, 0x00, 0x07, 0xf8, 0x00,
+  0x03, 0xf0, 0x00, 0x01, 0xe0, 0x00, 0x00, 0xe0, 0x00, 0x00, 0x40, 0x00, 0x00, 0x00, 0x00, 0x00,
+  0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00
+};
+
+// 'denied', 24x24px
+const unsigned char deniedicon [] PROGMEM = {
+  0x00, 0x00, 0x00, 0x00, 0x00, 0x38, 0x20, 0x00, 0x7c, 0x7c, 0x01, 0xf8, 0x3f, 0x83, 0xf8, 0x1f,
+  0xe7, 0xf8, 0x0f, 0xff, 0xf0, 0x07, 0xff, 0xc0, 0x00, 0xff, 0x80, 0x00, 0x7f, 0x80, 0x00, 0x7f,
+  0xc0, 0x00, 0xff, 0xe0, 0x01, 0xff, 0xf0, 0x01, 0xf3, 0xf8, 0x03, 0xe1, 0xf8, 0x03, 0xc0, 0xfc,
+  0x03, 0xc0, 0x7e, 0x07, 0x80, 0x7e, 0x07, 0x80, 0x3e, 0x0f, 0x00, 0x1e, 0x0e, 0x00, 0x04, 0x0e,
+  0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00
+};
+
+// 'wifi_fail', 8x7px
 const unsigned char wififailicon [] PROGMEM = {
+
   0x1c, 0x00, 0x63, 0x00, 0x80, 0x80, 0x41, 0x00, 0x22, 0x00, 0x14, 0x00, 0x08, 0x00
+
 };
-// 'wifi_ok', 9x7px
+// 'wifi_ok', 8x7px
 const unsigned char wifiokicon [] PROGMEM = {
+
   0x1c, 0x00, 0x7f, 0x00, 0xff, 0x80, 0x7f, 0x00, 0x3e, 0x00, 0x1c, 0x00, 0x08, 0x00
+
 };
-// 'DB_fail', 6x7px
+// 'DB_fail', 8x7px
 const unsigned char DBfailicon [] PROGMEM = {
   0x30, 0xcc, 0x84, 0x84, 0x84, 0xcc, 0x30
 };
-// 'DB_ok', 6x7px
+// 'DB_ok', 8x7px
 const unsigned char DBokicon [] PROGMEM = {
   0x30, 0xfc, 0xfc, 0xfc, 0xfc, 0xfc, 0x30
 };
-// 'server_fail', 7x7px
+// 'server_fail', 8x7px
 const unsigned char serverfailicon [] PROGMEM = {
   0x7c, 0x44, 0x44, 0x7c, 0x00, 0xc6, 0xc6
 };
-// 'server_ok', 7x7px
+// 'server_ok', 8x7px
 const unsigned char serverokicon [] PROGMEM = {
   0x7c, 0x7c, 0x7c, 0x7c, 0x18, 0xfe, 0xee
 };
-// 'SD_fail', 6x7px
+// 'SD_fail', 8x7px
 const unsigned char SDfailicon [] PROGMEM = {
   0x3c, 0x44, 0x84, 0x84, 0x84, 0x84, 0xfc
 };
-// 'SD_ok', 6x7px
+// 'SD_ok', 8x7px
 const unsigned char SDokicon [] PROGMEM = {
   0x3c, 0x7c, 0xfc, 0xfc, 0xfc, 0xfc, 0xfc
 };
@@ -123,12 +150,16 @@ static const unsigned char cross_xbm_bits[] PROGMEM = {
 
 //print the header: machine name and status icons
 void displayAddHeader(void) {
+
   display.setFont(&g9regularFont);
   display.setCursor(0, 7);
+
+
   display.print(config.MachineName);
 
   if (WiFi.status() == WL_CONNECTED)
   {
+
     display.drawBitmap(94, 0, wifiokicon, 9, 7, 1);
   }
   else
@@ -150,15 +181,16 @@ void displayAddHeader(void) {
   else
   {
     display.drawBitmap(113, 0, serverfailicon, 7, 7, 1);
+
   }
 
   if (SDcardOK)
   {
-    display.drawBitmap(122, 0, SDokicon, 6, 7, 1);
+    display.drawBitmap(122, 0, SDokicon, 8, 7, 1);
   }
   else
   {
-    display.drawBitmap(122, 0, SDfailicon, 6, 7, 1);
+    display.drawBitmap(122, 0, SDfailicon, 8, 7, 1);
   }
 
   display.drawFastHLine(0, 8, 128, 1); //draw horizontal line
@@ -178,6 +210,8 @@ void displayUpdate(void) {
 
   if (machineLocked)
   {
+
+  /*
     char temparr[11];
     snprintf(temparr, sizeof(temparr), "%02u.%02u.%04u", day(), month(), year());
     display.setFont(&g9regularFont);
@@ -187,8 +221,39 @@ void displayUpdate(void) {
     display.setFont(&g12boldFont);
     display.setCursor(35, 47);
     display.print(temparr);
-
+*/
     //todo: remove this debug output (or if it is deemed useful in production, properly integrate it into the layout)
+
+
+
+    char temparr[5];
+    sprintf(temparr, "%02u", day()); //need a fixed length, easiest using sprintf
+    String daystr = String(temparr);
+    sprintf(temparr, "%02u", month()); //need a fixed length, easiest using sprintf
+    String monthstr = String(temparr);
+    sprintf(temparr, "%04u", year()); //need a fixed length, easiest using sprintf
+    String yearstr = String(temparr);
+    sprintf(temparr, "%02u", hour()); //need a fixed length, easiest using sprintf
+    String hourstr = String(temparr);
+    sprintf(temparr, "%02u", minute()); //need a fixed length, easiest using sprintf
+    String minutestr = String(temparr);
+    sprintf(temparr, "%02u", second()); //need a fixed length, easiest using sprintf
+    String secondstr = String(temparr);
+    String localtimestr = hourstr + ":" + minutestr + ":" + secondstr;
+    String datestr = daystr + "." + monthstr + "." + yearstr;
+
+    display.setFont(&Dialogbold12);
+    display.setCursor(18, 28);
+    display.print(datestr);
+
+    display.setFont(&Dialogbold20);
+    display.setCursor(10, 50);
+    display.print(localtimestr);
+
+
+    display.setFont(&TomThumb);
+    display.setCursor(33, 60);
+
     if (WiFi.status() == WL_CONNECTED)
     {
       display.setFont(&g9regularFont);
@@ -199,24 +264,26 @@ void displayUpdate(void) {
   }
   else //machine is unlocked, user is logged in
   {
-    String firstname;
-    String surname;
+    String fullname;
+    //String firstname;
+   //String surname;
     if (currentuser == 0) //the admin tag is logged in
     {
-      firstname = "MASTER";
-      surname = "";
+      fullname = "MASTER KEY";
     }
     else
     {
       //get current users name from database
       userdatabase.readRec(currentuser, EDB_REC userentry); //get the currently loggeed in user entry
-      String fullname = String(userentry.name);
-      firstname = splitStringbySeparator(fullname, char(' ')); //split the name string into first name and surname
-      surname = fullname.substring(firstname.length() + 1);
+     // fullname = String(userentry.name);
+      //firstname = splitStringbySeparator(fullname, char(' ')); //split the name string into first name and surname
+      //surname = fullname.substring(firstname.length() + 1);
     }
+
     display.setFont(&g12boldFont);
     display.setCursor(0, 21);
     display.print(String(userentry.name));
+
     //display.print(0, 27);
     //display.print(surname);
     display.setFont(&FreeSansBold12pt7b);
@@ -266,10 +333,12 @@ void displayUpdate(void) {
 
 }
 
+
 void displayLogin(void)
 {
   display.clearDisplay();
   displayAddHeader();
+
   //todo: display username of recognized tag
 #if 0
   display.setFont(&g12boldFont);
@@ -278,6 +347,11 @@ void displayLogin(void)
 #endif
   display.setFont(&FreeSansBold12pt7b);
   display.setCursor(44, 51);
+
+ // display.drawBitmap(3, 30, accepticon, 24, 24, 1);
+  //display.setFont(&Dialogbold20);
+ // display.setCursor(38, 48);
+
   display.print("Start");
   display.drawXBitmap(5, 27, check_xbm_bits, check_xbm_width, check_xbm_height, 1);
   display.display();
@@ -287,6 +361,7 @@ void displayLogout(void)
 {
   display.clearDisplay();
   displayAddHeader();
+
   //todo: display username of recognized tag
 #if 0
   display.setFont(&g12boldFont);
@@ -295,6 +370,11 @@ void displayLogout(void)
 #endif
   display.setFont(&FreeSansBold12pt7b);
   display.setCursor(44, 51);
+
+ // display.drawBitmap(3, 30, accepticon, 24, 24, 1);
+ // display.setFont(&Dialogbold20);
+ // display.setCursor(38, 48);
+
   display.print("Stop");
   display.drawXBitmap(5, 27, check_xbm_bits, check_xbm_width, check_xbm_height, 1);
   display.display();
@@ -306,6 +386,7 @@ void displayDenied(uint8_t reason)
 {
   display.clearDisplay();
   displayAddHeader();
+
   display.setFont(&g12boldFont);
   //todo: display username of recognized tag (if any)
 #if 0
@@ -313,6 +394,11 @@ void displayDenied(uint8_t reason)
   display.print("Wolfgang Lochbihler");
 #endif
   display.setCursor(44, 46);
+
+ // display.drawBitmap(0, 30, deniedicon, 24, 24, 1);
+ // display.setFont(&Dialogbold12);
+ // display.setCursor(25, 46);
+
   if (reason == 1)
   {
     display.print("besetzt");
@@ -363,8 +449,10 @@ void displayinit(void)
   delay(800);
   display.clearDisplay();
   display.display();
+
   display.setFont(&g9regularFont);
   display.setCursor(0, 7);
+
 
 }
 

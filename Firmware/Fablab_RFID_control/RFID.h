@@ -230,7 +230,7 @@ void authenticationSuccess(void)
 
 
 //verify the UID exists in the database, check if the card is valid (correct key and a known user), unlock machine if valid
-//todo: add name verification?
+
 void verifyRFIDdata() {
 
   MFRC522::MIFARE_Key key; //key for data access of the card (each sector of 4x16 bytes can have a separate key)
@@ -241,7 +241,6 @@ void verifyRFIDdata() {
     return;
   }
 
-  //todo: what happens if the UID is bigger? which bytes are taken? is this even an issue? probably not...
   uint32_t uid = mfrc522.uid.uidByte[0] | (mfrc522.uid.uidByte[1] << 8) | (mfrc522.uid.uidByte[2] << 16) | (mfrc522.uid.uidByte[3] << 24); //direct typecast is dangerous due to memory alignment, better to do it this way
 
   Serial.println(uid, DEC);
@@ -331,7 +330,7 @@ void verifyRFIDdata() {
     String info = "";
     if (dbentryno > 0)
     {
-      info += String(F(" User = ")) + String(userentry.name) + String(F("is authorized to use this machine"));
+      info += String(F(" User = ")) + String(userentry.name) + String(F(" is authorized to use this machine"));
       displayLogin(); //print login on the display
       playLogin();
     }
@@ -423,7 +422,7 @@ void checkRFID(void)
     programRFIDkeys(); //function checks the global flag and tries to program/blank a card. it uses sound for feedback.
   }
 
-  mfrc522.PICC_HaltA();       // Halt PICC  //todo: moved this from below to make function return if no new card is detected
+  mfrc522.PICC_HaltA();       // Halt PICC 
   mfrc522.PCD_StopCrypto1();  // Stop encryption on PCD
 
 }
@@ -433,8 +432,11 @@ void checkRFID(void)
 
 void initRFID(void)
 {
+
   mfrc522.PCD_Init();
   //mfrc522.PCD_SetAntennaGain(0x07 << 4); //increase RX gain to maximum (increases range by about 0.5cm)
+  display.println(F("RFID initialized"));
+  display.display();
 }
 
 /*gain settings:
@@ -450,7 +452,7 @@ void initRFID(void)
     RxGain_avg        = 0x04 << 4,  // 100b - 33 dB, average, convenience for RxGain_33dB
     RxGain_max        = 0x07 << 4   // 111b - 48 dB, maximum, convenience for RxGain_48dB
   };
- */
+*/
 
 
 

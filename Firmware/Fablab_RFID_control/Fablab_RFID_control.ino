@@ -94,7 +94,7 @@ extern "C" {
 
 /*  TODO
  * *******
-  -add global flags for: SD state, WIFI state, Server connection state, database state 
+  -add global flags for: SD state, WIFI state, Server connection state, database state
   -if saving to SD card fails or if connection to server fails multiple times, increase the time between server connect attempts to not slow down normal operation too frequently
   -create a config section for all compile time config stuff (started putting it on beginning of this file, complete?)
   -create log file structure
@@ -104,14 +104,14 @@ extern "C" {
 
   -add SSL to all server traffic
   -add SD card viewer to webpage
-  -- 
- 
+  --
+
   -IMPORTANT BUGFIX: in case RTC fails, the controller has to display a huge warning! also, update has to be forced more frequently!
   -optimize ram usage of local config (currently it is fully copied to ram and always kept there using over 512bytes of ram)
 
   -switch to async web server (more stable) -> not for now
 
-  
+
   IN PROGRESS:
 
 
@@ -178,10 +178,10 @@ void setup() {
   //*****************
   //HARDWARE INIT
   //*****************
-  ConfigureWifi();  //connect to wifi
   Wire.begin(); //I2C, default pins: 4 & 5
   SPI.begin();
   displayinit(); //show bootup screen
+  ConfigureWifi();  //connect to wifi
   RTCinit(); //init the local time from RTC
   //LEDinit(); //intialize WS2812 fastled library (comment this line if using Serial debugging output)
   Serial.println("SD init");
@@ -192,15 +192,16 @@ void setup() {
   playBeep(); //init the beeper by playing a short sound
   initOutput(); //initialize output pin
 
-
-  Serial.print(F("Free heap:"));
-  Serial.println(ESP.getFreeHeap(), DEC);
-  Serial.print(F("EEPROM USED:"));
-  Serial.println(EE_END, DEC);
-
-
+  display.print(F("Free heap:"));
+  display.println(ESP.getFreeHeap(), DEC);
+  display.display();
+  display.print(F("EEPROM used:"));
+  display.println(EE_END, DEC);
+  display.display();
+  delay(100);
   display.println(F("setup done"));
   display.display();
+
   delay(800);
 
 
@@ -239,7 +240,6 @@ void loop() {
   {
 
     displayUpdate();
-
 
     if (machineLocked) //only run wifi accessing stuff if user is logged in (wifi is not 100% stable or has long timeouts)
     {

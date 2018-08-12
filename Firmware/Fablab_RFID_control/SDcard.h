@@ -306,18 +306,6 @@ void SDwriteNodeDataFileEntry(String data) //writes a string to SD card, one dat
 }
 
 
-void SDwriteData(uint8_t index) //todo: update this function
-{
-  if (SDstate == SD_INITIALIZED)
-  {
-    String datastr = "{";
-    datastr += datatosend[index].timestamp;
-
-    datastr += "}";
-    SDwriteNodeDataFileEntry(datastr);
-  }
-}
-
 //from SD library example:
 void printDirectory(File dir, int numTabs) {
   if (SDstate == SD_INITIALIZED)

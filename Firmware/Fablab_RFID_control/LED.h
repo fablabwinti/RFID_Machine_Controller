@@ -13,8 +13,7 @@ CHSV LEDColor; //a hsv color
 CRGB leds[NUM_LEDS]; //data array for the RGB colors (these are sent out to the leds)
 
 unsigned long LEDtimestamp;  // timestamp for updating RGB led
-bool ledblink = 0;  // blink led in current color an full brightness while set to one  todo: implement it?
-
+bool ledblink = 0;  // blink led in current color an full brightness while set to one  
 
 // sets the LED to the color once, it returns to the default color after 'LEDUPDATETIME' has elapsed (or next time updateLED is called, whichever is longer)
 void LED_blink_once(uint8_t blinkhue) {
@@ -51,6 +50,7 @@ void updateLED(void) {
 
 void LEDinit(void)
 {
+
   pinMode(PIXEL_PIN, OUTPUT);
   FastLED.addLeds<CHIPSET, PIXEL_PIN, COLOR_ORDER>(leds, NUM_LEDS).setCorrection( TypicalLEDStrip );
   // set initial LED color in HSV color space
@@ -58,6 +58,7 @@ void LEDinit(void)
   LEDColor.s = 255;  //full saturation
   LEDColor.v = LED_DEFAULTBRIGTHNESS;  // default brightness
   updateLED();  // Initialize LED color
+
 }
 
 

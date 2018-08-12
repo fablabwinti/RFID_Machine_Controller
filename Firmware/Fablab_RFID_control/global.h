@@ -81,6 +81,7 @@ uint8_t watchdog;      // counter for watchdog
 uint8_t APactive = 0;  // is zero if AP is deactivated, 1 if active (set to 1 to launch accesspoint mode)
 bool refreshUserDB = true; //update the user database immediately if set to true (do so on bootup)
 bool userDBupdated = false;
+bool SDcardOK = false;
 bool serverhealthy = false; //set to false if server connection fails multiple times, request time is then decreased to not hinder the usage of the controller by blocking login/logout events, set to true if server connection successful
 bool localTimeValid;
 bool RTCTimeValid = false; //is set true after setting the RTC successfully
@@ -336,7 +337,7 @@ void WebServerinit(void)
   });
 
 
-  server.begin();  // start webserver  todo: only need webserver in server mode, not in client mode so could just start it there... may save some ram and make system more stable?
+  server.begin();  // start webserver  
   webSocket.begin(); //todo: check if this can lead to memory leaks if called multiple times
   webSocket.onEvent(webSocketEvent);
 
