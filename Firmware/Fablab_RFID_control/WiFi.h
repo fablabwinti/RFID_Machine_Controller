@@ -170,17 +170,11 @@ void wifiCheckConnection()
 }
 
 
-
-
-
-
-
 void ConfigureWifi()
 {
-  // Serial.print("Connecting to Network: ");
-  //  Serial.print(config.ssid.c_str());
-  //   Serial.print("using pass ");
-  //   Serial.print(config.password.c_str());
+  display.println(F("Starting WiFi"));
+  display.display();
+  
   WiFi.persistent(false); //do not write SSID and password on every wifi connect, prevents flash wearout
   wifiConnectFailCounter = 0;
   //WiFi.disconnect(true); //delete any old wifi configuration (not needed with wifi multi)
@@ -189,6 +183,7 @@ void ConfigureWifi()
   //WiFi.setSleepMode(WIFI_LIGHT_SLEEP); //enable light sleep mode to save power
   //wifi_fpm_set_sleep_type(LIGHT_SLEEP_T);
   wifiConnect(); //connect to wifi
+  
 }
 
 

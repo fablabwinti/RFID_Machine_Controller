@@ -13,7 +13,6 @@ void sendToServer(sendoutpackage* datastruct, bool saveiffail, bool enforce) {
   static uint8_t connectfailcounter = 0;
   static uint8_t unhealthy_delaycounter = 10; //on first run, assume the server connectin is ok
 
-  Serial.println("sending");
   if (WiFi.status() == WL_CONNECTED) {
     if (millis() - serverUpdateTime > SERVERMININTERVAL)  // do not send data more often than SERVERMININTERVAL to ease on server traffic (all pending data is sent in one call)
     {
@@ -155,8 +154,8 @@ void UpdateDBfromServer(void) {
   static uint32_t timetoupdateDB = 0;
 
   long tick = millis();
-  //try to update 5 times in interals of 10 seconds
-  if (refreshUserDB && (WiFi.status() == WL_CONNECTED)  && (millis() - timetoupdateDB > 10000) && (retries > 0)) {
+  //try to update 5 times in interals of 10 seconds (if wifi is connected and server connection is ok)
+  if (refreshUserDB && (WiFi.status() == WL_CONNECTED)  && serverhealthy && (millis() - timetoupdateDB > 10000) && (retries > 0)) {
     Serial.println(F("Updating user database..."));
     timetoupdateDB = millis();
     retries--;
@@ -252,7 +251,7 @@ void UpdateDBfromServer(void) {
           uint16_t tid = root[i]["tid"];
           uint32_t uid = root[i]["uid"];
           const char* name = root[i]["name"];
-          uint32_t start = root[i]["start"]; //todo: implement this properly
+          uint32_t start = root[i]["start"]; 
           uint32_t end = root[i]["end"];
 
           Serial.println(tid);

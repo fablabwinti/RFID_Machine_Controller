@@ -9,9 +9,6 @@ const unsigned int UDPlocalPort = 2390;
 // send an NTP request to the time server at the given address
 unsigned long sendNTPpacket(IPAddress& address, uint32_t* timestamp, byte* packetBuffer)
 {
-
-  //todo: add reference to source of this code
-
   //set all bytes in the buffer to 0
   memset(packetBuffer, 0, NTP_PACKET_SIZE);
   //Initialize values needed to form NTP request
@@ -123,9 +120,9 @@ void timeManager(bool forceupdate)
         }        
         else timevalidation = 10; //time we got is invalid for sure.
         errorcounter++;
-      } while ((roundtripdelay <= 0 || roundtripdelay > 2000) && (timevalidation > 5) && (errorcounter < 8));  //allows time inaccuracies up to 5 seconds (can be made much more accurate but it is a lot slower)
+      } while ((roundtripdelay <= 0 || roundtripdelay > 2000) && (timevalidation > 5) && (errorcounter < 6));  //allows time inaccuracies up to 5 seconds (can be made much more accurate but it is a lot slower)
 
-      if (errorcounter < 8) {
+      if (errorcounter < 6) {
         localTimeValid = true;
         setTime(NTPtime); //initialize the time with epoch timestamp
         Serial.print(F("Synchronizing RTC with NTP... "));
