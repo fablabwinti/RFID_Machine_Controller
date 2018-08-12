@@ -53,7 +53,7 @@ EDB eventdatabase(&eventDBwriter, &eventDBreader); //create the event database
 //open a database file, create it if it does not exist
 void eventDBInit(void)
 {
-      Serial.print(F("EventDB init"));
+      Serial.print(F("EventDB init: "));
   if (SDstate == SD_INITIALIZED)
   {
     
@@ -413,7 +413,8 @@ void SDmanager(void)
             sendToServer(&eventDBpackage, false, false); //send to server, do not save again
             if (eventDBpackage.pending == false) //if sent out successfully, delete this entry from the database (sendout sets pending = false)
             {
-              eventDBdeleteentry(eventDBentrytosend);
+              eventDBdeleteentry(
+);
             }
           }
         }

@@ -10,6 +10,7 @@ void sendToServer(sendoutpackage* datastruct, bool saveiffail, bool enforce) {
 
   // Use WiFiClient class to create TCP connections
   WiFiClient client;
+  client.setTimeout(500); //use short timeout, the server is local and should react pretty fast if it is available, if not this reduces unnecessary long delays
   static uint8_t connectfailcounter = 0;
   static uint8_t unhealthy_delaycounter = 10; //on first run, assume the server connectin is ok
 
@@ -126,7 +127,7 @@ void sendToServer(sendoutpackage* datastruct, bool saveiffail, bool enforce) {
 
     if (saveiffail)
     {
-      Serial.println("no wifi, saving....");
+      Serial.println("no wifi, saving to SD");
       eventDBaddentry(datastruct); //transfer this event over to the SD card database (pending flag is removed there so it will not be sent from queue)
     }
   }

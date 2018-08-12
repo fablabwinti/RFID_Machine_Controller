@@ -211,7 +211,7 @@ void displayUpdate(void) {
   if (machineLocked)
   {
 
-  /*
+  
     char temparr[11];
     snprintf(temparr, sizeof(temparr), "%02u.%02u.%04u", day(), month(), year());
     display.setFont(&g9regularFont);
@@ -221,9 +221,9 @@ void displayUpdate(void) {
     display.setFont(&g12boldFont);
     display.setCursor(35, 47);
     display.print(temparr);
-*/
-    //todo: remove this debug output (or if it is deemed useful in production, properly integrate it into the layout)
 
+    //todo: remove this debug output (or if it is deemed useful in production, properly integrate it into the layout)
+/*
 
 
     char temparr[5];
@@ -253,7 +253,7 @@ void displayUpdate(void) {
 
     display.setFont(&TomThumb);
     display.setCursor(33, 60);
-
+*/
     if (WiFi.status() == WL_CONNECTED)
     {
       display.setFont(&g9regularFont);
