@@ -6,9 +6,11 @@
   https://github.com/PaulStoffregen/Time  (licensed under GPL)
   https://github.com/arduino/Arduino/tree/master/libraries/SD (licensed under LGPL)
 
+  Note on formatting SD cards: the arduino website recommends FAT16 even though FAT32 is also supported
 
-  //Note on formatting SD cards: the arduino website recommends FAT16 even though FAT32 is also supported
-
+  The SD card holds a human readable system log file and a database to store unsent events. The database can hold
+  100kB of data (can be increased if necessary) entries are deleted once they are sent to the server so it acts
+  just as a persistant buffer. If events have to be logged permanently, multiple files should be created (not implemented)
 
 */
 
@@ -33,7 +35,7 @@ sendoutpackage eventDBpackage; //buffer for one package to be read from DB and s
 //SD card database for storing unsent events
 //!!! the #define line below is for debug only, should use this: 
 const char* db_events = "events.db"; //file for storing events database
-//#define db_events "events.db" //access to the const char was leading to a crash after updating some libraries... need to get this fixed
+//#define db_events "events.db" //access to the const char was leading to a crash after updating some libraries... need to get this fixed (is it fixed now? seems to work just fine)
 File eventDBfile; //event database resides on the SD card (it may be written often, if worn out, the SD card is easy to replace campared to SPIFFs flash on the ESP8266 board)
 
 void eventDBwriter (unsigned long address, const uint8_t* data, unsigned int datasize) {
@@ -139,7 +141,6 @@ bool eventDBaddentry(sendoutpackage* evententry)
 
     //make sure the package is pending:
     evententry->pending = true;
-
     EDB_Status result = eventdatabase.appendRec(EDB_REC * evententry); //eventDBpackage is passed as a pointer but is dereferenced first, then cast back into a pointer by EDB_REC macro (kind of convoluted... see library definitions for details)
     if (result != EDB_OK) {
       DBprintError(result);
@@ -413,8 +414,7 @@ void SDmanager(void)
             sendToServer(&eventDBpackage, false, false); //send to server, do not save again
             if (eventDBpackage.pending == false) //if sent out successfully, delete this entry from the database (sendout sets pending = false)
             {
-              eventDBdeleteentry(
-);
+              eventDBdeleteentry(eventDBentrytosend);
             }
           }
         }

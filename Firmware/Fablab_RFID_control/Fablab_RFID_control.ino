@@ -1,12 +1,24 @@
 
 /*
+  
+  TODO: add license here ( GNU LGPL Version 3 ), also add license to GIT repo
+ 
+  FabLab RFID controller, by Damian Schneider, www.fablabwinti.ch
+  GIT: https://github.com/fablabwinti/RFID_Machine_Controller
+  
+  
+  
   Tested on Arduino 1.8.5 using ESP8266 Arduino V2.4.0  (https://github.com/esp8266/Arduino/releases)
   For tested library versions, see next to their includes.
+
+  
+  
   Note on data structure
 
-  -the configuration of the node resides in eeprom. this includes:
+  -the configuration of the node resides in "eeprom" (flash actually). this includes:
     -wifi configuration
     -machine ID, machine name, machine pricing
+    -admin tags & access codes
 
   -the SPIFF file system contains
     -the config web page
@@ -16,16 +28,21 @@
       -booting/rebooting/crash
       -server communication log
       -web page access
-
     -user login/logout is saved to a separate file
       -uid, username, transferred to server flag
-
 
   Other notes:
     -the displa must show: current user name, log time, running price
     -when not logging: current time&date, machine name, machine pricing
-    -at bootup: show fablab logo or something
-    -maximum number of users: 2000
+    -at bootup: show logo or something
+    -maximum number of users: 2000 (limited by database size, can probably be increased but is untested)
+
+    -while a user is logged in, any network activity (RTC sync, sendout events, webpage etc.) are disabled to ensure best stability while the machine is running
+
+  Admin interface stuff:
+    -administration is done through the web page
+    -the webpage can be activeted only by pressing the function button on the hardware (after bootup)
+    -
 
  * */
 
@@ -69,20 +86,15 @@ extern "C" {
 #include "helpers.h"
 #include "sound.h"
 #include "LED.h"
-
 #include "global.h"
 #include "database.h"
-
 #include "display.h"
 #include "RTC.h" //real time clock and other time management
 #include "NTP.h" //network time protocol management
-
 #include "SDcard.h"
-
 #include "WiFi.h"
 #include "ServerRequests.h"
 #include "output.h"
-
 #include "webpage.h"
 #include "RFID.h"
 
@@ -98,27 +110,25 @@ extern "C" {
   -if saving to SD card fails or if connection to server fails multiple times, increase the time between server connect attempts to not slow down normal operation too frequently
   -create a config section for all compile time config stuff (started putting it on beginning of this file, complete?)
   -create log file structure
-
-  -thought: add admin key (UID) that can be updated on webpage and is not deleted on a factory reset -> admin key always works no matter what.
-    -> also need to add possibility to do factory reset if program is stuck in an infinite reboot loop -> show boot screen longer while flash key is pressed during bootup, allowing the mode to change
-
   -add SSL to all server traffic
   -add SD card viewer to webpage
   --
-
   -IMPORTANT BUGFIX: in case RTC fails, the controller has to display a huge warning! also, update has to be forced more frequently!
   -optimize ram usage of local config (currently it is fully copied to ram and always kept there using over 512bytes of ram)
-
   -switch to async web server (more stable) -> not for now
-
+  -refactor everything, use a better edito!
+  -make sure there are no infinite loops in the code (cannot guarantee that in any library)
+  -what happens if the database on the SD card is full?
 
   IN PROGRESS:
 
 
 
   DONE:
-    -add more debug outputs to websocket print (see example in verifyRFIDdata() )
-    -add time control for access
+   -add admin key (UID) that can be updated on webpage and is not deleted on a factory reset -> admin key always works no matter what. (done)
+     -> also need to add possibility to do factory reset if program is stuck in an infinite reboot loop -> show boot screen longer while flash key is pressed during bootup, allowing the mode to change (done)
+   -add more debug outputs to websocket print (see example in verifyRFIDdata() )
+   -add time control for access
    -program a cache function that writes log entries to the SD card. one log file per month or something and one file for 'unsent messages' or better: create a database on the sd card for entries, add a flag and clear it if the entry was sent out succesfully. -> DONE
   -need a solid way to handle the admin key, independant of timer (in case no time is available from RTC or NTP to unlock the machine) -> DONE
    -add a config variable for the key stored in the first sector (same key for all cards), adds security to make cards impossible to be copied (easily) as access to this sector is restricted -> DONE
@@ -248,7 +258,6 @@ void loop() {
       timeManager(false); // check the local time
       SDmanager();  // check SD card (and send locally saved events)
     }
-
   }
   else //serve the config webpage (reboot to deactivate)
   {

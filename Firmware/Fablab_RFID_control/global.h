@@ -4,7 +4,7 @@
 
 
 #define SD_CSN_PIN 0
-#define SERVERPACKETS 8        // number of server sendout packets (=buffer)
+#define SERVERPACKETS 8   // number of server sendout packets (=event packet buffer in ram)
 
 
 #define DEFAULTSTRINGLENGTH 32 //strings stored in eeprom have this length by default (31 chars + termination)
@@ -378,7 +378,11 @@ bool checkButtonState(void) {
   // becomes active. This is not a problem just a hint.
 
   // wait for any ongoing SPI transaction to finish:
+  uint32_t timeout = 0;
   while (SPI1CMD & SPIBUSY) {
+    timeout++;
+    if(timeout > 2000) break; //make sure this cannot become an infinite loop
+    delay(1);
   }
 
   // now make the pin an input, read it and set it to an output again

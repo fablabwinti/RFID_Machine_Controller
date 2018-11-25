@@ -296,28 +296,28 @@ void verifyRFIDdata() {
     if (websocket_connected)
     {
       String info = String(F(" THIS IS THE ADMIN TAG"));
-      playLogin();
       WS_println(info);
+    }
+
+    if (machineLocked == false)
+    {
+      //if machine is running, stop and logout
+      displayLogout(); //print logout on the display
+      playLogout();
+      lockMachine();
+      currentuser = 0; //user logged out
+      SDwriteLogfile("Admin logout");
+      addEventToQueue(5, 0 ,  "Admin logout"); //event 5 = tag_logout
     }
     else
     {
-      if (machineLocked == false)
-      {
-        //if machine is running, stop and logout
-        displayLogout(); //print logout on the display
-        playLogout();
-        lockMachine();
-        currentuser = 0; //user logged out
-        addEventToQueue(5, 0 ,  "Admin logout"); //event 5 = tag_logout
-      }
-      else
-      {
-        //if not running, release machine:
-        currentuser = 0; //user is admin
-        addEventToQueue(4, 0, "Admin login"); //event 4 = tag_login
-        authenticationSuccess();
-      }
+      //if not running, release machine:
+      currentuser = 0; //user is admin
+      addEventToQueue(4, 0, "Admin login"); //event 4 = tag_login
+      SDwriteLogfile("Admin login");
+      authenticationSuccess(); //plays sound, releases machine, send event to server 
     }
+
     return;
   }
 
@@ -422,7 +422,7 @@ void checkRFID(void)
     programRFIDkeys(); //function checks the global flag and tries to program/blank a card. it uses sound for feedback.
   }
 
-  mfrc522.PICC_HaltA();       // Halt PICC 
+  mfrc522.PICC_HaltA();       // Halt PICC
   mfrc522.PCD_StopCrypto1();  // Stop encryption on PCD
 
 }
