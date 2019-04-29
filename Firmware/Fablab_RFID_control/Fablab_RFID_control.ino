@@ -1,18 +1,19 @@
 
 /*
-  
+  Hardare: Use only ESP8266 with 4M of flash, then select 4M (with 3M SPIFFS)
+
   TODO: add license here ( GNU LGPL Version 3 ), also add license to GIT repo
- 
+
   FabLab RFID controller, by Damian Schneider, www.fablabwinti.ch
   GIT: https://github.com/fablabwinti/RFID_Machine_Controller
-  
-  
-  
+
+
+
   Tested on Arduino 1.8.5 using ESP8266 Arduino V2.4.0  (https://github.com/esp8266/Arduino/releases)
   For tested library versions, see next to their includes.
 
-  
-  
+
+
   Note on data structure
 
   -the configuration of the node resides in "eeprom" (flash actually). this includes:
@@ -240,16 +241,14 @@ void setup() {
 long testtimestamp = 0;
 
 void loop() {
-  yield();  // run background processes
+  yield();
   watchdog = 0;  // kick the watchdog
-
   checkRFID();
-
 
   if (webserver_active == false)
   {
 
-    displayUpdate();
+    displayUpdate(); //when machine is locked, only update the display and monitor the RFID, WiFi is disabled when locked
 
     if (machineLocked) //only run wifi accessing stuff if user is logged in (wifi is not 100% stable or has long timeouts)
     {
@@ -257,18 +256,18 @@ void loop() {
       sendPendingEvents(false);  // send data out (if available in RAM, does not check the SD card)
       timeManager(false); // check the local time
       SDmanager();  // check SD card (and send locally saved events)
+      wifiCheckConnection();
+      updateLED();  // update LED output
+      checkButtonState();  // check GPIO0 button state
+      checkPostLogoutDelay();
     }
   }
   else //serve the config webpage (reboot to deactivate)
   {
     server.handleClient(); //handles http connections and webpage requests
     webSocket.loop();   // handles websocket requests
+    checkPostLogoutDelay();
   }
-
-  wifiCheckConnection();
-  updateLED();  // update LED output
-  checkButtonState();  // check GPIO0 button state
-
 
   delay(180); //automatically adds some sleep mode, saving power, not necessary to manually put it to sleep (only works if connected to network)
 

@@ -15,7 +15,7 @@ void sendToServer(sendoutpackage* datastruct, bool saveiffail, bool enforce) {
   static uint8_t unhealthy_delaycounter = 10; //on first run, assume the server connectin is ok
 
   if (WiFi.status() == WL_CONNECTED) {
-    if (millis() - serverUpdateTime > SERVERMININTERVAL)  // do not send data more often than SERVERMININTERVAL to ease on server traffic (all pending data is sent in one call)
+    if ((millis() - serverUpdateTime > SERVERMININTERVAL) || enforce)  // do not send data more often than SERVERMININTERVAL to ease on server traffic (all pending data is sent in one call)
     {
       serverUpdateTime = millis();
       if (serverhealthy == false) //if server seems to be down, slow down the interval
@@ -124,9 +124,9 @@ void sendToServer(sendoutpackage* datastruct, bool saveiffail, bool enforce) {
   }
   else //no wifi available, log the event to SD card database for later transfer
   {
-
     if (saveiffail)
     {
+      yield();  // run background processes
       Serial.println("no wifi, saving to SD");
       eventDBaddentry(datastruct); //transfer this event over to the SD card database (pending flag is removed there so it will not be sent from queue)
     }
@@ -142,6 +142,7 @@ void sendPendingEvents(bool enforce)
   {
     if (datatosend[i].pending)  // if sendout flag is set
     {
+       yield(); 
       sendToServer(&datatosend[i], true, enforce); //send the data
       return; //return, do the others later (to not block login events for too long)
     }
@@ -291,6 +292,3 @@ void UpdateDBfromServer(void) {
   Serial.print(tock - tick);
   Serial.println(F("ms"));
 }
-
-
-

@@ -87,6 +87,7 @@ bool localTimeValid;
 bool RTCTimeValid = false; //is set true after setting the RTC successfully
 bool machineLocked = true;
 uint32_t userStarttime; //timestamp at start of machine use
+
 uint8_t RFIDtagprogrogramming = 0; //flag used to program blank rfid cards (flag = 1) or to blank already programmed cards (flag = 2)
 uint8_t websocket_connected = 0;
 bool webserver_active = false; //set true if webserver is started
@@ -416,7 +417,7 @@ bool checkButtonState(void) {
       display.println(F("Go to 192.168.4.1"));
       display.display();
     }
-    if (millis() - buttontimestamp > 8000) {
+    if (millis() - buttontimestamp > 6000) {
       //used as secondary version for factory reset
       forceFactoryReset();
       playMarch();
@@ -505,4 +506,3 @@ void createErrorEvent(String errorstr)
 {
   addEventToQueue(2, errorstr); //event  2 = controller_error
 }
-

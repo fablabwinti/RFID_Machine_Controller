@@ -153,6 +153,7 @@ bool eventDBaddentry(sendoutpackage* evententry)
     evententry->pending = false;
     return true;
   }
+   Serial.print(F("Error saving to SD card, event not saved!"));
 }
 
 

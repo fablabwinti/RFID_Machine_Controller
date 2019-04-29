@@ -223,7 +223,9 @@ void authenticationSuccess(void)
   playLogin();
   releaseMachine();
   sendPendingEvents(true);  // send data out immediately (enforced sendout) (no data is sent while user is logged in)
-  delay(500); //wait while displaying login
+
+ //shut down wifi, wait and display the login screen as well 
+  disableWifi();
 }
 
 
@@ -305,6 +307,7 @@ void verifyRFIDdata() {
       displayLogout(); //print logout on the display
       playLogout();
       lockMachine();
+      delay(500);
       currentuser = 0; //user logged out
       SDwriteLogfile("Admin logout");
       addEventToQueue(5, 0 ,  "Admin logout"); //event 5 = tag_logout
@@ -366,7 +369,7 @@ void verifyRFIDdata() {
           lockMachine();
           currentuser = 0; //user logged out
           addEventToQueue(5, userentry.tagid , String(userentry.name) + " logout"); //event 5 = tag_logout, no need to read userentry from DB, it was read above in the findentry function
-          delay(800);
+          delay(2000);
         }
         else
         {
@@ -453,9 +456,3 @@ void initRFID(void)
     RxGain_max        = 0x07 << 4   // 111b - 48 dB, maximum, convenience for RxGain_48dB
   };
 */
-
-
-
-
-
-

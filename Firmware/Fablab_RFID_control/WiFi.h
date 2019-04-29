@@ -174,7 +174,7 @@ void ConfigureWifi()
 {
   display.println(F("Starting WiFi"));
   display.display();
-  
+
   WiFi.persistent(false); //do not write SSID and password on every wifi connect, prevents flash wearout
   wifiConnectFailCounter = 0;
   //WiFi.disconnect(true); //delete any old wifi configuration (not needed with wifi multi)
@@ -183,8 +183,24 @@ void ConfigureWifi()
   //WiFi.setSleepMode(WIFI_LIGHT_SLEEP); //enable light sleep mode to save power
   //wifi_fpm_set_sleep_type(LIGHT_SLEEP_T);
   wifiConnect(); //connect to wifi
-  
+
 }
 
+//disconnect and disable wifi during machine running times to not be disturbed
+void disableWifi()
+{
+  Serial.print(F("disabling wifi..."));
+  WiFi.disconnect();
+  delay(2000); //wait to terminate all connections (if this delay is too short, the softWDT kicks in and resets)
+  WiFi.mode(WIFI_OFF);
+  //WiFi.forceSleepBegin(100);
+ // delay(100);
+  Serial.println(F("disabled"));
+}
 
-
+//re-enable wifi, call this function after 'disableWifi()' 
+void enableWifi()
+{
+//WiFi.forceSleepWake();
+ConfigureWifi();
+}

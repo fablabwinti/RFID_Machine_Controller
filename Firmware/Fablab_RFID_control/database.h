@@ -2,6 +2,8 @@
    using extended database library, writing to a file in the SPIFFS file system and to the SD card
 
    if a user is found in the database of this machine, the machine is unlocked
+
+
 */
 
 
@@ -171,7 +173,6 @@ bool userDBaddentry(uint16_t tid, uint32_t RFuid, uint32_t validfrom, uint32_t v
   }
   //Serial.println(F("DONE"));
   return true;
-
 }
 
 //for debugging purposes

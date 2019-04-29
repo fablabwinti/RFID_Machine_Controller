@@ -198,7 +198,6 @@ void displayAddHeader(void) {
 
 void displayUpdate(void) {
 
-  //todo: need to define the display layout
 
   //stuff to display: time
   //currently logged in user
@@ -352,7 +351,7 @@ void displayLogin(void)
   //display.setFont(&Dialogbold20);
  // display.setCursor(38, 48);
 
-  display.print("Start");
+  display.print("Start   ");
   display.drawXBitmap(5, 27, check_xbm_bits, check_xbm_width, check_xbm_height, 1);
   display.display();
 }
@@ -375,7 +374,7 @@ void displayLogout(void)
  // display.setFont(&Dialogbold20);
  // display.setCursor(38, 48);
 
-  display.print("Stop");
+  display.print("Stop     ");
   display.drawXBitmap(5, 27, check_xbm_bits, check_xbm_width, check_xbm_height, 1);
   display.display();
 }
@@ -455,4 +454,3 @@ void displayinit(void)
 
 
 }
-
