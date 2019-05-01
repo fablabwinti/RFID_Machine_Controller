@@ -178,7 +178,8 @@ void setup() {
   //SOFTWARE INIT
   //*****************
 
-  watchdog = 0;  // initialize watchdog counter (used in ticker interrupt)
+
+  ESP.wdtDisable(); //disable the standard software watchdog (hardware watchdog still running)it did sometimes reset when disabling wifi due to long timeouts
   localTimeValid = false;  // set true once the time is set from NTP server
   //writeDefaultConfig();
   ReadConfig();  // read configuration from eeprom, apply default config if invalid
@@ -242,31 +243,37 @@ long testtimestamp = 0;
 
 void loop() {
   yield();
-  watchdog = 0;  // kick the watchdog
+  ESP.wdtFeed(); //kick hardware watchdog (usually done in software watchdog interrupt which is disabled in setup)
   checkRFID();
 
   if (webserver_active == false)
   {
 
-    displayUpdate(); //when machine is locked, only update the display and monitor the RFID, WiFi is disabled when locked
+    displayUpdate(); //when machine is in use, only update the display and monitor the RFID, WiFi is disabled when locked
 
-    if (machineLocked) //only run wifi accessing stuff if user is logged in (wifi is not 100% stable or has long timeouts)
+    if (machineLocked) //only run wifi accessing stuff if user is NOT logged in (wifi is not 100% stable or has long timeouts)
     {
-      UpdateDBfromServer(); //update the user database if necessary
-      sendPendingEvents(false);  // send data out (if available in RAM, does not check the SD card)
-      timeManager(false); // check the local time
-      SDmanager();  // check SD card (and send locally saved events)
       wifiCheckConnection();
       updateLED();  // update LED output
       checkButtonState();  // check GPIO0 button state
-      checkPostLogoutDelay();
+      checkPostLogoutDelay(); //switch machine off after some time after logout
+
+      if (millis() > postlogoutmillis + 10000) //only check and send data after 10 seconds after logout, wifi is not yet connected
+      {
+        UpdateDBfromServer(); //update the user database if necessary
+        sendPendingEvents(false);  // send data out (if available in RAM, does not check the SD card)
+        timeManager(false); // check the local time
+        SDmanager();  // check SD card (and send locally saved events)
+      }
+
     }
   }
   else //serve the config webpage (reboot to deactivate)
   {
+    wifiCheckConnection();
+    checkButtonState();  // check GPIO0 button state
     server.handleClient(); //handles http connections and webpage requests
     webSocket.loop();   // handles websocket requests
-    checkPostLogoutDelay();
   }
 
   delay(180); //automatically adds some sleep mode, saving power, not necessary to manually put it to sleep (only works if connected to network)

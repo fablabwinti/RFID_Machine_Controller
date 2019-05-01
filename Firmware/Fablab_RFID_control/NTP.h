@@ -55,6 +55,7 @@ int NTP_gettime(uint32_t* t)
   // wait to see if a reply is available
   do {
     yield();
+    ESP.wdtFeed(); //kick hardware watchdog
     gotresponse = udp.parsePacket();
   } while (!gotresponse && (millis() - timeout < 300));
 
@@ -80,7 +81,7 @@ int NTP_gettime(uint32_t* t)
     //Serial.println(highWord << 16 | lowWord);
     // combine the four bytes (two words) into a long integer
     // this is NTP time (seconds since Jan 1 1900)
-    *t = secsSince1900-2208988800UL; //return value, time as unix timestamp
+    *t = secsSince1900 - 2208988800UL; //return value, time as unix timestamp
     Serial.print(F(" OK: "));
     Serial.println(*t); //print in unix time
 
@@ -112,12 +113,13 @@ void timeManager(bool forceupdate)
       do
       {
         roundtripdelay = NTP_gettime(&NTPtime); //get NTP time
+        ESP.wdtFeed(); //kick hardware watchdog
         delay(100);
         roundtripdelay += NTP_gettime(&temptime); //get another timestamp to validate
         if (NTPtime > 1516299215) //true if we got a valid timestamp
         {
           timevalidation = temptime - NTPtime; //should be zero or one if we got the same time twice
-        }        
+        }
         else timevalidation = 10; //time we got is invalid for sure.
         errorcounter++;
       } while ((roundtripdelay <= 0 || roundtripdelay > 2000) && (timevalidation > 5) && (errorcounter < 6));  //allows time inaccuracies up to 5 seconds (can be made much more accurate but it is a lot slower)
@@ -126,10 +128,9 @@ void timeManager(bool forceupdate)
         localTimeValid = true;
         setTime(NTPtime); //initialize the time with epoch timestamp
         Serial.print(F("Synchronizing RTC with NTP... "));
-        syncRTC(NTPtime); //check sync of local RTC               
+        syncRTC(NTPtime); //check sync of local RTC
       }
-       NTPupdate = millis(); //update again in a few minutes
+      NTPupdate = millis(); //update again in a few minutes
     }
   }
 }
-

@@ -15,11 +15,17 @@ void sendToServer(sendoutpackage* datastruct, bool saveiffail, bool enforce) {
   static uint8_t unhealthy_delaycounter = 10; //on first run, assume the server connectin is ok
 
   if (WiFi.status() == WL_CONNECTED) {
-    if ((millis() - serverUpdateTime > SERVERMININTERVAL) || enforce)  // do not send data more often than SERVERMININTERVAL to ease on server traffic (all pending data is sent in one call)
+    if ((millis() - serverUpdateTime > SERVERMININTERVAL) || enforce)  // do not send data more often than SERVERMININTERVAL to ease on server traffic
     {
       serverUpdateTime = millis();
-      if (serverhealthy == false) //if server seems to be down, slow down the interval
+      if (serverhealthy == false) //if server seems to be down, slow down the interval, if enforce is requested, immediately save to SD card
       {
+        if(enforce && saveiffail)
+        {
+          Serial.println(F("writing entry to SD"));
+          eventDBaddentry(datastruct); //transfer this event over to the SD card database (pending flag is removed there so it will not be sent from queue)
+        }
+
         unhealthy_delaycounter++;
         if (unhealthy_delaycounter < 8)
         {
@@ -62,6 +68,7 @@ void sendToServer(sendoutpackage* datastruct, bool saveiffail, bool enforce) {
       while (!client.connect(serveradd, config.serverPort)) { //enforces a connection
         Serial.println(F("Server connect failed"));
         delay(1); //run background stuff
+        ESP.wdtFeed(); //kick hardware watchdog
         LED_blink_once(20);
         //if this fails multiple times, write data to SD database
         connectfailcounter++;
@@ -69,13 +76,13 @@ void sendToServer(sendoutpackage* datastruct, bool saveiffail, bool enforce) {
         {
           serverhealthy = false;
         }
-        if (connectfailcounter > 10)
+        if (connectfailcounter > 5)
         {
-
           if (saveiffail)
+          {
             Serial.println(F("writing entry to SD"));
-          eventDBaddentry(datastruct); //transfer this event over to the SD card database (pending flag is removed there so it will not be sent from queue)
-
+            eventDBaddentry(datastruct); //transfer this event over to the SD card database (pending flag is removed there so it will not be sent from queue)
+          }
           return;
         }
         if (enforce == false) return; //if not forced to try to resend, try again later, else, retry.
@@ -126,6 +133,7 @@ void sendToServer(sendoutpackage* datastruct, bool saveiffail, bool enforce) {
   {
     if (saveiffail)
     {
+      ESP.wdtFeed(); //kick hardware watchdog
       yield();  // run background processes
       Serial.println("no wifi, saving to SD");
       eventDBaddentry(datastruct); //transfer this event over to the SD card database (pending flag is removed there so it will not be sent from queue)
@@ -142,9 +150,13 @@ void sendPendingEvents(bool enforce)
   {
     if (datatosend[i].pending)  // if sendout flag is set
     {
-       yield(); 
-      sendToServer(&datatosend[i], true, enforce); //send the data
-      return; //return, do the others later (to not block login events for too long)
+      yield();
+      ESP.wdtFeed(); //kick hardware watchdog
+      sendToServer(&datatosend[i], true, enforce); //send the data, save to SD if sending fails
+      if (enforce == false)
+      {
+        return; //return, do the others later (to not block login events for too long)
+      }
     }
   }
 }
@@ -214,6 +226,7 @@ void UpdateDBfromServer(void) {
     client.readStringUntil('['); //discard the rest of the header and the inital bracket
     while (client.available() > 0)
     {
+      ESP.wdtFeed(); //kick hardware watchdog
       delay(1); //wait for more data and make way for background activity if needed
       DynamicJsonBuffer jsonBuffer(512); //crate a buffer for 5 database entries (todo: could optimize ram usage if necessary by making this buffer smaller)
       str = "["; //add initial array bracket
@@ -239,7 +252,7 @@ void UpdateDBfromServer(void) {
 
       root.prettyPrintTo(Serial);
       Serial.println(".");
-
+      ESP.wdtFeed(); //kick hardware watchdog
       delay(1); //run background functions
 
       for (int i = 0; i < root.size(); i++)
@@ -253,7 +266,7 @@ void UpdateDBfromServer(void) {
           uint16_t tid = root[i]["tid"];
           uint32_t uid = root[i]["uid"];
           const char* name = root[i]["name"];
-          uint32_t start = root[i]["start"]; 
+          uint32_t start = root[i]["start"];
           uint32_t end = root[i]["end"];
 
           Serial.println(tid);

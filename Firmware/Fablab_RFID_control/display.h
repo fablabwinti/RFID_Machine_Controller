@@ -10,6 +10,8 @@
 #error("Display height not set to 64 pixels, please fix Adafruit_SSD1306.h!");
 #endif
 
+#define POSTLOGOUTDISPLAYTIME 10 //time in seconds user info is displayed after logout
+
 
 //logo generated using http://javl.github.io/image2cpp/
 //note on icon generation: the library can only display bitmaps with the x dimension being a multiple of 8 so all icons must be in this format, other dimension screw up the displayed image
@@ -121,32 +123,34 @@ const unsigned char SDokicon [] PROGMEM = {
 #define check_xbm_width 32
 #define check_xbm_height 32
 static const unsigned char check_xbm_bits[] PROGMEM = {
-   0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
-   0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x38, 0x00, 0x00, 0x00, 0x7C,
-   0x00, 0x00, 0x00, 0xFE, 0x00, 0x00, 0x00, 0xFF, 0x00, 0x00, 0x80, 0xFF,
-   0x00, 0x00, 0xC0, 0x7F, 0x00, 0x00, 0xE0, 0x3F, 0x00, 0x00, 0xF0, 0x1F,
-   0x00, 0x00, 0xF8, 0x0F, 0x00, 0x00, 0xFC, 0x07, 0x1C, 0x00, 0xFE, 0x03,
-   0x3E, 0x00, 0xFF, 0x01, 0x7F, 0x80, 0xFF, 0x00, 0xFF, 0xC0, 0x7F, 0x00,
-   0xFF, 0xE1, 0x3F, 0x00, 0xFE, 0xF3, 0x1F, 0x00, 0xFC, 0xFF, 0x0F, 0x00,
-   0xF8, 0xFF, 0x07, 0x00, 0xF0, 0xFF, 0x03, 0x00, 0xE0, 0xFF, 0x01, 0x00,
-   0xC0, 0xFF, 0x00, 0x00, 0x80, 0x7F, 0x00, 0x00, 0x00, 0x3F, 0x00, 0x00,
-   0x00, 0x1E, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
-   0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00 };
+  0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+  0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x38, 0x00, 0x00, 0x00, 0x7C,
+  0x00, 0x00, 0x00, 0xFE, 0x00, 0x00, 0x00, 0xFF, 0x00, 0x00, 0x80, 0xFF,
+  0x00, 0x00, 0xC0, 0x7F, 0x00, 0x00, 0xE0, 0x3F, 0x00, 0x00, 0xF0, 0x1F,
+  0x00, 0x00, 0xF8, 0x0F, 0x00, 0x00, 0xFC, 0x07, 0x1C, 0x00, 0xFE, 0x03,
+  0x3E, 0x00, 0xFF, 0x01, 0x7F, 0x80, 0xFF, 0x00, 0xFF, 0xC0, 0x7F, 0x00,
+  0xFF, 0xE1, 0x3F, 0x00, 0xFE, 0xF3, 0x1F, 0x00, 0xFC, 0xFF, 0x0F, 0x00,
+  0xF8, 0xFF, 0x07, 0x00, 0xF0, 0xFF, 0x03, 0x00, 0xE0, 0xFF, 0x01, 0x00,
+  0xC0, 0xFF, 0x00, 0x00, 0x80, 0x7F, 0x00, 0x00, 0x00, 0x3F, 0x00, 0x00,
+  0x00, 0x1E, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+  0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00
+};
 
 #define cross_xbm_width 32
 #define cross_xbm_height 32
 static const unsigned char cross_xbm_bits[] PROGMEM = {
-   0x1C, 0x00, 0x00, 0x38, 0x3E, 0x00, 0x00, 0x7C, 0x7F, 0x00, 0x00, 0xFE,
-   0xFF, 0x00, 0x00, 0xFF, 0xFF, 0x01, 0x80, 0xFF, 0xFE, 0x03, 0xC0, 0x7F,
-   0xFC, 0x07, 0xE0, 0x3F, 0xF8, 0x0F, 0xF0, 0x1F, 0xF0, 0x1F, 0xF8, 0x0F,
-   0xE0, 0x3F, 0xFC, 0x07, 0xC0, 0x7F, 0xFE, 0x03, 0x80, 0xFF, 0xFF, 0x01,
-   0x00, 0xFF, 0xFF, 0x00, 0x00, 0xFE, 0x7F, 0x00, 0x00, 0xFC, 0x3F, 0x00,
-   0x00, 0xF8, 0x1F, 0x00, 0x00, 0xF8, 0x1F, 0x00, 0x00, 0xFC, 0x3F, 0x00,
-   0x00, 0xFE, 0x7F, 0x00, 0x00, 0xFF, 0xFF, 0x00, 0x80, 0xFF, 0xFF, 0x01,
-   0xC0, 0x7F, 0xFE, 0x03, 0xE0, 0x3F, 0xFC, 0x07, 0xF0, 0x1F, 0xF8, 0x0F,
-   0xF8, 0x0F, 0xF0, 0x1F, 0xFC, 0x07, 0xE0, 0x3F, 0xFE, 0x03, 0xC0, 0x7F,
-   0xFF, 0x01, 0x80, 0xFF, 0xFF, 0x00, 0x00, 0xFF, 0x7F, 0x00, 0x00, 0xFE,
-   0x3E, 0x00, 0x00, 0x7C, 0x1C, 0x00, 0x00, 0x38 };
+  0x1C, 0x00, 0x00, 0x38, 0x3E, 0x00, 0x00, 0x7C, 0x7F, 0x00, 0x00, 0xFE,
+  0xFF, 0x00, 0x00, 0xFF, 0xFF, 0x01, 0x80, 0xFF, 0xFE, 0x03, 0xC0, 0x7F,
+  0xFC, 0x07, 0xE0, 0x3F, 0xF8, 0x0F, 0xF0, 0x1F, 0xF0, 0x1F, 0xF8, 0x0F,
+  0xE0, 0x3F, 0xFC, 0x07, 0xC0, 0x7F, 0xFE, 0x03, 0x80, 0xFF, 0xFF, 0x01,
+  0x00, 0xFF, 0xFF, 0x00, 0x00, 0xFE, 0x7F, 0x00, 0x00, 0xFC, 0x3F, 0x00,
+  0x00, 0xF8, 0x1F, 0x00, 0x00, 0xF8, 0x1F, 0x00, 0x00, 0xFC, 0x3F, 0x00,
+  0x00, 0xFE, 0x7F, 0x00, 0x00, 0xFF, 0xFF, 0x00, 0x80, 0xFF, 0xFF, 0x01,
+  0xC0, 0x7F, 0xFE, 0x03, 0xE0, 0x3F, 0xFC, 0x07, 0xF0, 0x1F, 0xF8, 0x0F,
+  0xF8, 0x0F, 0xF0, 0x1F, 0xFC, 0x07, 0xE0, 0x3F, 0xFE, 0x03, 0xC0, 0x7F,
+  0xFF, 0x01, 0x80, 0xFF, 0xFF, 0x00, 0x00, 0xFF, 0x7F, 0x00, 0x00, 0xFE,
+  0x3E, 0x00, 0x00, 0x7C, 0x1C, 0x00, 0x00, 0x38
+};
 
 //print the header: machine name and status icons
 void displayAddHeader(void) {
@@ -196,6 +200,74 @@ void displayAddHeader(void) {
   display.drawFastHLine(0, 8, 128, 1); //draw horizontal line
 }
 
+//display user info during login or post logout
+void displayUserInfo(void)
+{
+  String fullname;
+  //String firstname;
+  //String surname;
+  if (currentuser == 0) //the admin tag is logged in
+  {
+    fullname = "MASTER KEY";
+  }
+  else
+  {
+    //get current users name from database
+    userdatabase.readRec(currentuser, EDB_REC userentry); //get the currently loggeed in user entry
+    fullname = String(userentry.name);
+    //firstname = splitStringbySeparator(fullname, char(' ')); //split the name string into first name and surname
+    //surname = fullname.substring(firstname.length() + 1);
+  }
+
+  display.setFont(&g12boldFont);
+  display.setCursor(0, 21);
+  display.print(fullname);//String(userentry.name));
+
+  //display.print(0, 27);
+  //display.print(surname);
+  display.setFont(&FreeSansBold12pt7b);
+
+  time_t timeinuse;
+  if (machineLocked) //if no user is logged in, this is a post logout call, display static time
+    timeinuse = userStoptime - userStarttime;
+  else
+    timeinuse = getRtcTimestamp() - userStarttime;
+
+  uint16_t usehours = timeinuse / 3600;
+  uint16_t useminutes = (timeinuse % 3600) / 60;
+  uint16_t useseconds = timeinuse % 60;
+
+  char temparr[12];
+  // getTextBounds considers the bitmap size, not the advance width, so the
+  // text width differs for a narrow glyph like '1' at the end, which makes
+  // the text jump around. To avoid that, append a dummy char of known width
+  // for measuring and remove it for rendering.
+  snprintf(temparr, sizeof(temparr), "%u:%02u:%02u.", usehours, useminutes, useseconds);
+  int16_t x, y;
+  uint16_t w1, w2, h;
+  display.getTextBounds(temparr, 0, 0, &x, &y, &w1, &h);
+  temparr[strlen(temparr) - 1] = '\0';
+  w1 -= 5;
+  display.setCursor(64 - w1 / 2, 46);
+  display.print(temparr);
+
+  //todo: calculate and display running cost
+#if 0
+  uint16_t cost = timeinuse / 3; //dummy
+  snprintf(temparr, sizeof(temparr), "%d.%02d.", cost / 100, cost % 100);
+  display.setFont(&g12boldFont);
+  display.getTextBounds(temparr, 0, 0, &x, &y, &w1, &h);
+  temparr[strlen(temparr) - 1] = '\0';
+  w1 -= 3;
+  display.setCursor(128 - w1, 63);
+  display.print(temparr);
+  display.setFont(&g9regularFont);
+  display.getTextBounds("CHF", 0, 0, &x, &y, &w2, &h);
+  display.setCursor(128 - w1 - w2 - 5, 63);
+  display.print("CHF");
+#endif
+}
+
 void displayUpdate(void) {
 
 
@@ -207,121 +279,39 @@ void displayUpdate(void) {
   display.clearDisplay();
   displayAddHeader();
 
-  if (machineLocked)
+
+  if (machineLocked) //machine not in use
   {
-
-  
-    char temparr[11];
-    snprintf(temparr, sizeof(temparr), "%02u.%02u.%04u", day(), month(), year());
-    display.setFont(&g9regularFont);
-    display.setCursor(37, 33);
-    display.print(temparr);
-    snprintf(temparr, sizeof(temparr), "%02u:%02u:%02u", hour(), minute(), second());
-    display.setFont(&g12boldFont);
-    display.setCursor(35, 47);
-    display.print(temparr);
-
-    //todo: remove this debug output (or if it is deemed useful in production, properly integrate it into the layout)
-/*
-
-
-    char temparr[5];
-    sprintf(temparr, "%02u", day()); //need a fixed length, easiest using sprintf
-    String daystr = String(temparr);
-    sprintf(temparr, "%02u", month()); //need a fixed length, easiest using sprintf
-    String monthstr = String(temparr);
-    sprintf(temparr, "%04u", year()); //need a fixed length, easiest using sprintf
-    String yearstr = String(temparr);
-    sprintf(temparr, "%02u", hour()); //need a fixed length, easiest using sprintf
-    String hourstr = String(temparr);
-    sprintf(temparr, "%02u", minute()); //need a fixed length, easiest using sprintf
-    String minutestr = String(temparr);
-    sprintf(temparr, "%02u", second()); //need a fixed length, easiest using sprintf
-    String secondstr = String(temparr);
-    String localtimestr = hourstr + ":" + minutestr + ":" + secondstr;
-    String datestr = daystr + "." + monthstr + "." + yearstr;
-
-    display.setFont(&Dialogbold12);
-    display.setCursor(18, 28);
-    display.print(datestr);
-
-    display.setFont(&Dialogbold20);
-    display.setCursor(10, 50);
-    display.print(localtimestr);
-
-
-    display.setFont(&TomThumb);
-    display.setCursor(33, 60);
-*/
-    if (WiFi.status() == WL_CONNECTED)
+    if ( postlogoutmillis > 0 && millis() < postlogoutmillis + (long)POSTLOGOUTDISPLAYTIME * 1000) //user just logged out
     {
+      displayUserInfo();
+    }
+    else //idle
+    {
+      char temparr[11];
+      snprintf(temparr, sizeof(temparr), "%02u.%02u.%04u", day(), month(), year());
       display.setFont(&g9regularFont);
-      display.setCursor(0, 63);
-      display.print(F("IP: "));
-      display.print(WiFi.localIP());
+      display.setCursor(37, 33);
+      display.print(temparr);
+      snprintf(temparr, sizeof(temparr), "%02u:%02u:%02u", hour(), minute(), second());
+      display.setFont(&g12boldFont);
+      display.setCursor(35, 47);
+      display.print(temparr);
+
+      //todo: remove this debug IP output (or if it is deemed useful in production, properly integrate it into the layout)
+
+      if (WiFi.status() == WL_CONNECTED)
+      {
+        display.setFont(&g9regularFont);
+        display.setCursor(0, 63);
+        display.print(F("IP: "));
+        display.print(WiFi.localIP());
+      }
     }
   }
   else //machine is unlocked, user is logged in
   {
-    String fullname;
-    //String firstname;
-   //String surname;
-    if (currentuser == 0) //the admin tag is logged in
-    {
-      fullname = "MASTER KEY";
-    }
-    else
-    {
-      //get current users name from database
-      userdatabase.readRec(currentuser, EDB_REC userentry); //get the currently loggeed in user entry
-     // fullname = String(userentry.name);
-      //firstname = splitStringbySeparator(fullname, char(' ')); //split the name string into first name and surname
-      //surname = fullname.substring(firstname.length() + 1);
-    }
-
-    display.setFont(&g12boldFont);
-    display.setCursor(0, 21);
-    display.print(String(userentry.name));
-
-    //display.print(0, 27);
-    //display.print(surname);
-    display.setFont(&FreeSansBold12pt7b);
-
-    time_t timeinuse = getRtcTimestamp() - userStarttime;
-
-    uint16_t usehours = timeinuse / 3600;
-    uint16_t useminutes = (timeinuse % 3600) / 60;
-    uint16_t useseconds = timeinuse % 60;
-
-    char temparr[12];
-    // getTextBounds considers the bitmap size, not the advance width, so the
-    // text width differs for a narrow glyph like '1' at the end, which makes
-    // the text jump around. To avoid that, append a dummy char of known width
-    // for measuring and remove it for rendering.
-    snprintf(temparr, sizeof(temparr), "%u:%02u:%02u.", usehours, useminutes, useseconds);
-    int16_t x, y;
-    uint16_t w1, w2, h;
-    display.getTextBounds(temparr, 0, 0, &x, &y, &w1, &h);
-    temparr[strlen(temparr)-1] = '\0';
-    w1 -= 5;
-    display.setCursor(64 - w1/2, 46);
-    display.print(temparr);
-
-    //todo: calculate and display running cost
-#if 0
-    uint16_t cost = timeinuse/3; //dummy
-    snprintf(temparr, sizeof(temparr), "%d.%02d.", cost/100, cost%100);
-    display.setFont(&g12boldFont);
-    display.getTextBounds(temparr, 0, 0, &x, &y, &w1, &h);
-    temparr[strlen(temparr)-1] = '\0';
-    w1 -= 3;
-    display.setCursor(128-w1, 63);
-    display.print(temparr);
-    display.setFont(&g9regularFont);
-    display.getTextBounds("CHF", 0, 0, &x, &y, &w2, &h);
-    display.setCursor(128-w1-w2-5, 63);
-    display.print("CHF");
-#endif
+    displayUserInfo();
   }
 
   display.display();
@@ -347,9 +337,9 @@ void displayLogin(void)
   display.setFont(&FreeSansBold12pt7b);
   display.setCursor(44, 51);
 
- // display.drawBitmap(3, 30, accepticon, 24, 24, 1);
+  // display.drawBitmap(3, 30, accepticon, 24, 24, 1);
   //display.setFont(&Dialogbold20);
- // display.setCursor(38, 48);
+  // display.setCursor(38, 48);
 
   display.print("Start   ");
   display.drawXBitmap(5, 27, check_xbm_bits, check_xbm_width, check_xbm_height, 1);
@@ -370,9 +360,9 @@ void displayLogout(void)
   display.setFont(&FreeSansBold12pt7b);
   display.setCursor(44, 51);
 
- // display.drawBitmap(3, 30, accepticon, 24, 24, 1);
- // display.setFont(&Dialogbold20);
- // display.setCursor(38, 48);
+  // display.drawBitmap(3, 30, accepticon, 24, 24, 1);
+  // display.setFont(&Dialogbold20);
+  // display.setCursor(38, 48);
 
   display.print("Stop     ");
   display.drawXBitmap(5, 27, check_xbm_bits, check_xbm_width, check_xbm_height, 1);
@@ -394,9 +384,9 @@ void displayDenied(uint8_t reason)
 #endif
   display.setCursor(44, 46);
 
- // display.drawBitmap(0, 30, deniedicon, 24, 24, 1);
- // display.setFont(&Dialogbold12);
- // display.setCursor(25, 46);
+  // display.drawBitmap(0, 30, deniedicon, 24, 24, 1);
+  // display.setFont(&Dialogbold12);
+  // display.setCursor(25, 46);
 
   if (reason == 1)
   {

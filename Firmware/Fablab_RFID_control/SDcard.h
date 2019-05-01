@@ -311,8 +311,8 @@ void SDwriteNodeDataFileEntry(String data) //writes a string to SD card, one dat
 //from SD library example:
 void printDirectory(File dir, int numTabs) {
   if (SDstate == SD_INITIALIZED)
-  {
-    while (true) {
+  {    
+    while (true) {      
       File entry =  dir.openNextFile();
       if (! entry) {
         // no more files
@@ -339,7 +339,7 @@ void printDirectory(File dir, int numTabs) {
 bool SDinit(uint8_t pin)
 {
   yield();
-
+  ESP.wdtFeed(); //kick hardware watchdog 
   pinMode(SD_CSN_PIN, OUTPUT);
   digitalWrite(SD_CSN_PIN, HIGH);
   Serial.print(F("SD init... "));
@@ -447,4 +447,3 @@ void SDmanager(void)
     }
   }
 }
-

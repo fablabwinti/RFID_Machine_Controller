@@ -77,7 +77,7 @@ RtcDS3231<TwoWire> RTC(Wire); //DS3231 RTC clock on I2C
 
 // WiFiClientSecure SSLclient; //secure connections
 // uint8_t* SSLspacebloackreservation;
-uint8_t watchdog;      // counter for watchdog
+
 uint8_t APactive = 0;  // is zero if AP is deactivated, 1 if active (set to 1 to launch accesspoint mode)
 bool refreshUserDB = true; //update the user database immediately if set to true (do so on bootup)
 bool userDBupdated = false;
@@ -86,7 +86,9 @@ bool serverhealthy = false; //set to false if server connection fails multiple t
 bool localTimeValid;
 bool RTCTimeValid = false; //is set true after setting the RTC successfully
 bool machineLocked = true;
-uint32_t userStarttime; //timestamp at start of machine use
+uint32_t userStarttime; //UNIX timestamp at start of machine use
+uint32_t userStoptime; //UNIX timestamp at logout
+uint32_t postlogoutmillis; //time after logout (used to not permanently having to check the RTC)
 
 uint8_t RFIDtagprogrogramming = 0; //flag used to program blank rfid cards (flag = 1) or to blank already programmed cards (flag = 2)
 uint8_t websocket_connected = 0;
@@ -380,6 +382,7 @@ bool checkButtonState(void) {
 
   // wait for any ongoing SPI transaction to finish:
   uint32_t timeout = 0;
+  ESP.wdtFeed(); //kick hardware watchdog
   while (SPI1CMD & SPIBUSY) {
     timeout++;
     if(timeout > 2000) break; //make sure this cannot become an infinite loop

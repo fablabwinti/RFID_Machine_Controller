@@ -24,7 +24,7 @@ bool handleHTTPRequest(String path) {
   {
 
   }
-
+  ESP.wdtFeed(); //kick hardware watchdog
   Serial.println("handleFileRead: " + path);
   if (path.endsWith("/")) path += "index.htm";
   String contentType = getContentType(path);
@@ -83,6 +83,7 @@ void WS_println(const String &s)
 
 void webSocketEvent(uint8_t num, WStype_t type, uint8_t * payload, size_t lenght) {
   uint8_t i;
+  ESP.wdtFeed(); //kick hardware watchdog
   switch (type) {
     case WStype_DISCONNECTED:
       Serial.println("Disconnected!");
@@ -486,6 +487,3 @@ void webSocketEvent(uint8_t num, WStype_t type, uint8_t * payload, size_t lenght
       break;
   }
 }
-
-
-

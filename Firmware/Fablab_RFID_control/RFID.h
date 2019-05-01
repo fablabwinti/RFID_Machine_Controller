@@ -369,7 +369,7 @@ void verifyRFIDdata() {
           lockMachine();
           currentuser = 0; //user logged out
           addEventToQueue(5, userentry.tagid , String(userentry.name) + " logout"); //event 5 = tag_logout, no need to read userentry from DB, it was read above in the findentry function
-          delay(2000);
+          delay(2000); //wait to show logout          
         }
         else
         {

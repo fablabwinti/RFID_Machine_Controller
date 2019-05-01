@@ -191,16 +191,18 @@ void disableWifi()
 {
   Serial.print(F("disabling wifi..."));
   WiFi.disconnect();
-  delay(2000); //wait to terminate all connections (if this delay is too short, the softWDT kicks in and resets)
+  ESP.wdtFeed(); //kick hardware watchdog
+  delay(2000); //wait to terminate all connections (if this delay is too short, the watchdog may kick in and reset)
+  ESP.wdtFeed(); //kick hardware watchdog
   WiFi.mode(WIFI_OFF);
   //WiFi.forceSleepBegin(100);
- // delay(100);
+  // delay(100);
   Serial.println(F("disabled"));
 }
 
-//re-enable wifi, call this function after 'disableWifi()' 
+//re-enable wifi, call this function after 'disableWifi()'
 void enableWifi()
 {
-//WiFi.forceSleepWake();
-ConfigureWifi();
+  //WiFi.forceSleepWake();
+  ConfigureWifi();
 }
