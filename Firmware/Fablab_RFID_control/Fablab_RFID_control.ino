@@ -62,7 +62,7 @@
 #include <EDB.h> //use version 1.0.6 https://github.com/jwhiddon/EDB
 #include <SPI.h>
 #include <MFRC522.h> //RFID library (V1.3.6 tested)
-#include <FastLED.h> //(V3.1.6 tested)
+#include <FastLED.h> //(V3.1.6 tested) (need to comment line 15 in led_sysdefs_esp8266.h on lates esp version, boolean error)
 #include <TimeLib.h>  //Time library https://github.com/PaulStoffregen/Time
 #include "RtcDS3231.h" //RTC library by makuna: https://github.com/Makuna/Rtc (V2.0.2 tested)
 #include <Adafruit_SSD1306.h> //oled display library (V1.1.2 tested)

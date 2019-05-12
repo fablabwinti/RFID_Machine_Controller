@@ -306,11 +306,12 @@ void verifyRFIDdata() {
       //if machine is running, stop and logout
       displayLogout(); //print logout on the display
       playLogout();
-      lockMachine();
-      delay(500);
       currentuser = 0; //user logged out
       SDwriteLogfile("Admin logout");
       addEventToQueue(5, 0 ,  "Admin logout"); //event 5 = tag_logout
+      sendPendingEvents(true);  // send data to SD card since wifi is not ready yet
+      lockMachine();
+      delay(500);
     }
     else
     {
@@ -372,10 +373,12 @@ void verifyRFIDdata() {
         {
           displayLogout(); //print logout on the display
           playLogout();
-          lockMachine();
           currentuser = 0; //user logged out
           addEventToQueue(5, userentry.tagid , String(userentry.name) + " logout"); //event 5 = tag_logout, no need to read userentry from DB, it was read above in the findentry function
+          sendPendingEvents(true);  // send data to SD card since wifi is not ready yet
+          lockMachine();
           delay(2000); //wait to show logout
+          
         }
         else
         {

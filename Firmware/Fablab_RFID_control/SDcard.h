@@ -1,5 +1,13 @@
 /*
-
+note spiffs & SDfat:
+using namespacesdfat funktioniert. 
+vor dem spiffs file gehöert ein fs:: sonst nix.
+#define FS_NO_GLOBALS //allow spiffs to coexist with SD card
+#include <FS.h> //spiff file system
+using namespace sdfat;
+SdFat SD;
+File dbFile; //ist ein SD file
+fs::File spifffile; //ist ein spiffs file
 
   Some code used here was taken from the time and SD arduino libraries. See
 
@@ -23,7 +31,9 @@
 #define SD_REMOVED 4
 #define SD_ACESSFAILED 5
 
-#define EVENTDB_TABLE_SIZE 102400 //event database table size (on SD card) to store unsent events
+#define EVENTDB_TABLE_SIZE 8192 //event database table size (on SD card) to store unsent events
+
+SdFat SD; //using SdFat instead of SD library, much faster and more stable
 
 //function prototypes (todo: need to clean up the header file depedency mess!)
 void sendToServer(sendoutpackage* datastruct, bool save, bool enforce);
@@ -33,9 +43,7 @@ int16_t eventDBentrytosend; //index of the event currently being transmitted fro
 sendoutpackage eventDBpackage; //buffer for one package to be read from DB and sent out
 
 //SD card database for storing unsent events
-//!!! the #define line below is for debug only, should use this: 
 const char* db_events = "events.db"; //file for storing events database
-//#define db_events "events.db" //access to the const char was leading to a crash after updating some libraries... need to get this fixed (is it fixed now? seems to work just fine)
 File eventDBfile; //event database resides on the SD card (it may be written often, if worn out, the SD card is easy to replace campared to SPIFFs flash on the ESP8266 board)
 
 void eventDBwriter (unsigned long address, const uint8_t* data, unsigned int datasize) {
@@ -51,29 +59,32 @@ void eventDBreader (unsigned long address, uint8_t* data, unsigned int datasize)
 
 EDB eventdatabase(&eventDBwriter, &eventDBreader); //create the event database
 
-
 //open a database file, create it if it does not exist
 void eventDBInit(void)
 {
-      Serial.print(F("EventDB init: "));
+  Serial.print(F("EventDB init: "));
   if (SDstate == SD_INITIALIZED)
   {
-    
     if (SD.exists(db_events)) {
       Serial.println(F("SD database file exists")); //!!!
       eventDBfile = SD.open(db_events, FILE_WRITE); //open file for reading and writing
+
+      if (!eventDBfile) //if open fails, try once more
+      {
+        eventDBfile = SD.open(db_events, FILE_WRITE); //open file for reading and writing
+      }
 
       if (eventDBfile) {
         Serial.print(F("Opening eventDB table... "));
         EDB_Status result = eventdatabase.open(0);
         if (result == EDB_OK) {
-           Serial.println("DONE");
+          Serial.println("DONE");
           return;
         } else {
           Serial.println(F("ERROR"));
-           Serial.print(F("Did not find eventDB in the file "));
-           Serial.println(String(db_events));
-            Serial.print(F("Creating new table... "));
+          Serial.print(F("Did not find eventDB in the file "));
+          Serial.println(String(db_events));
+          Serial.print(F("Creating new table... "));
           eventdatabase.create(0, EVENTDB_TABLE_SIZE, (unsigned int)sizeof(eventDBpackage));
           Serial.println("DONE");
           return;
@@ -93,6 +104,7 @@ void eventDBInit(void)
   }
 }
 
+//note: if the eventDB is initialized over and over again it is corrupted. reson is unknown, for now, just do not close the file.
 
 void eventDBclose(void)
 {
@@ -115,14 +127,15 @@ void eventDBdeleteentry(uint16_t entryno)
     Serial.print(F("Deleting entry... "));
     if (entryno <= eventdatabase.count()) //if entry exists (entries are from 1 to count, not starting at 0!)
     {
-      eventdatabase.deleteRec(entryno);
-      Serial.println(F("DONE"));
+      EDB_Status result = eventdatabase.deleteRec(entryno);
+      if (result != EDB_OK) DBprintError(result);
+      Serial.println("DONE");
     }
     else
     {
       Serial.println(F("NOT FOUND"));
     }
-    eventDBclose();
+    // eventDBclose();
   }
 
 }
@@ -137,27 +150,29 @@ bool eventDBaddentry(sendoutpackage* evententry)
       eventDBInit();
     }
 
+
     Serial.print(F("Appending eventDB entry... "));
+    ESP.wdtFeed(); //kick hardware watchdog
 
     //make sure the package is pending:
     evententry->pending = true;
     EDB_Status result = eventdatabase.appendRec(EDB_REC * evententry); //eventDBpackage is passed as a pointer but is dereferenced first, then cast back into a pointer by EDB_REC macro (kind of convoluted... see library definitions for details)
     if (result != EDB_OK) {
       DBprintError(result);
-      eventDBclose();
+      //eventDBclose();
       return false;
     }
     Serial.println(F("DONE"));
-    eventDBclose();
+    //eventDBclose();
     //entry is now in the database, remove it from the queue
     evententry->pending = false;
     return true;
   }
-   Serial.print(F("Error saving to SD card, event not saved!"));
+  Serial.print(F("Error saving to SD card, event not saved!"));
 }
 
 
-//read a pending event from the database (if any) into the eventDBpackage (can only be called from within this file)
+//read a single pending event from the database (if any) into the eventDBpackage (can only be called from within this file)
 void eventDBgetpending(void)
 {
   if (SDstate == SD_INITIALIZED)
@@ -169,19 +184,19 @@ void eventDBgetpending(void)
     }
     eventDBpackage.pending = false; //reset pending (use it to check in calling function to check if data was even read)
     uint16_t i;
-    // Serial.print(F("number of event DB entries: "));
+    //Serial.print(F("number of event DB entries: "));
     //Serial.println(eventdatabase.count());
     for (i = eventdatabase.count(); i > 0; i--) //start scanning from the end (deleting end entries is faster), also, zero index is not used in EDB
     {
       EDB_Status result = eventdatabase.readRec(i, EDB_REC eventDBpackage); //eventDBpackage is passed as a pointer
       if (result == EDB_OK)
       {
-        //Serial.println(F("read entry from EventDB"));
+        Serial.println(F("read entry from EventDB"));
         eventDBentrytosend = i;
         break; //end the for loop now
       }
     }
-    eventDBclose();
+    //eventDBclose();
   }
 }
 
@@ -208,7 +223,7 @@ void SDwriteLogfile(String entry)
     char filename[sizeof(sfilename)];
     sfilename.toCharArray(filename, sizeof(filename));
     yield(); //writing data could take long, better yield before opening file and writing data
-
+    ESP.wdtFeed(); //kick hardware watchdog
     if (SD.exists(filename) == false) //file does not exist, write a header
     {
       File dataFile = SD.open(filename, FILE_WRITE); //create the file, open for writing, start at the end of the file
@@ -309,11 +324,11 @@ void SDwriteNodeDataFileEntry(String data) //writes a string to SD card, one dat
 
 
 //from SD library example:
-void printDirectory(File dir, int numTabs) {
+void printDirectory(sdfat::File dir, int numTabs) {
   if (SDstate == SD_INITIALIZED)
-  {    
-    while (true) {      
-      File entry =  dir.openNextFile();
+  {
+    while (true) {
+      sdfat::File entry =  dir.openNextFile();
       if (! entry) {
         // no more files
         break;
@@ -339,9 +354,9 @@ void printDirectory(File dir, int numTabs) {
 bool SDinit(uint8_t pin)
 {
   yield();
-  ESP.wdtFeed(); //kick hardware watchdog 
-  pinMode(SD_CSN_PIN, OUTPUT);
-  digitalWrite(SD_CSN_PIN, HIGH);
+  ESP.wdtFeed(); //kick hardware watchdog
+  pinMode(pin, OUTPUT);
+  digitalWrite(pin, HIGH);
   Serial.print(F("SD init... "));
   display.print(F("SD init... "));
   display.display();
@@ -365,7 +380,7 @@ bool SDinit(uint8_t pin)
       display.display();
       SDcardOK = true;
       /*
-        File dir = SD.open("/");
+        sdfat::File dir = SD.open("/");
         printDirectory(dir, 0);
         dir.close();
       */
@@ -394,7 +409,7 @@ void SDmanager(void)
   }
   else
   {
-    if (millis() - SDchecktime > 5000) //check the state of the SD card every 5 seconds, this function also checks for pending events in the SD database
+    if (millis() - SDchecktime > 500) //check the state of the SD card every 0.5seconds, this function also checks for pending events in the SD database
     {
       SDchecktime = millis();
       //check the SD state:
