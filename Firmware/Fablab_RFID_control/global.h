@@ -27,11 +27,17 @@
 #define EE_GATEWAY_ADDR EE_NETMASK_ADDR+4                           //address for static Gateway IP
 #define EE_DHCP_ADDR EE_GATEWAY_ADDR+4                              //address for 'use DHCP' boolean
 #define EE_TIMEZONE_ADDR EE_DHCP_ADDR+4                             //address for timezone, signed uint8_t (currently not used)
+//machine settings
 #define EE_MID_ADDR EE_TIMEZONE_ADDR+1                              //address for machine ID, uint8_t
-#define EE_MACHINENAME_ADDR EE_MID_ADDR+1                           //address for machine name, string
+#define EE_MPRICE_ADDR EE_MID_ADDR+1                                //address for machine price, uint16_t
+#define EE_MPERIOD_ADDR EE_MPRICE_ADDR+2                            //address for machine pricing period, uint8_t
+#define EE_MMINPERIODS_ADDR EE_MPERIOD_ADDR+1                       //address for machine min. pricing periods billed, uint8_t
+#define EE_MSWITCHOFFDELAY_ADDR EE_MMINPERIODS_ADDR+1               //address for machine switch-off delay, uint16_t
+#define EE_MACHINENAME_ADDR EE_MSWITCHOFFDELAY_ADDR+2               //address for machine name, string
+//database server settings
 #define EE_SERVERIP_ADDR EE_MACHINENAME_ADDR+DEFAULTSTRINGLENGTH    //address for server IP address, 32byte string (string can be an ip like "192.168.1.1")
 #define EE_SERVERPORT_ADDR EE_SERVERIP_ADDR+DEFAULTSTRINGLENGTH     //address for server port, uint16_t
-
+//RFID settings
 #define EE_RFIDKEY_ADDR EE_SERVERPORT_ADDR+2                        //address for access key for RFID data
 #define EE_RFIDCODE_ADDR EE_RFIDKEY_ADDR+6     //address for access code that needs to match on RFID card
 #define EE_ADMINUID_ADDR EE_RFIDCODE_ADDR+16     //address for one admin UID which always has access, once set, even a complete reset will not delete this
@@ -81,6 +87,7 @@ RtcDS3231<TwoWire> RTC(Wire); //DS3231 RTC clock on I2C
 uint8_t APactive = 0;  // is zero if AP is deactivated, 1 if active (set to 1 to launch accesspoint mode)
 bool refreshUserDB = true; //update the user database immediately if set to true (do so on bootup)
 bool userDBupdated = false;
+bool machineInfoUpdated = false; //set to true once the local machine info is updated from server(happens after bootup just before userDB is updated)
 bool SDcardOK = false;
 bool serverhealthy = false; //set to false if server connection fails multiple times, request time is then decreased to not hinder the usage of the controller by blocking login/logout events, set to true if server connection successful
 bool localTimeValid;
@@ -101,6 +108,10 @@ struct NodeConfig {
   uint8_t nextmultiwifitowrite; //next space in array to write
   String MachineName;         //31 bytes
   uint8_t mid;                 //machine ID
+  uint16_t mPrice; //price per period in cents
+  uint8_t mPeriod; //minimum pricing period in minutes
+  uint8_t mMinPeriods; //minimum periods that are billed
+  uint16_t mSwitchoffDelay; //delay in seconds for relay switch-off after logout
   String serverAddress;         //server address tring (can be an IP)
   uint16_t serverPort;         //port of server
   String DeviceName;     // 31 bytes maximum, name for access point
@@ -133,7 +144,7 @@ struct sendoutpackage {
   //note the machine id is read from the config, it does not to be saved in the payload but is added during parsing of the payload
 };
 
-//struct for user authentication, 46byte per entry, at 500 entries: 23kB -> no problem to stor in flash (but may take some time to validate a tag...read speed of flash is about 400kB/s according to a test found in the forum, so at 23kb this should take less than 100ms which is ok)
+//struct for user authentication, 46byte per entry, at 500 entries: 23kB -> no problem to store in flash (but may take some time to validate a tag...read speed of flash is about 400kB/s according to a test found in the forum, so at 23kb this should take less than 100ms which is ok)
 
 struct userAuth {
   uint16_t tagid; //2byte database tag id (used in the database as a reference to the uid)
@@ -187,7 +198,12 @@ void WriteConfig() {
 
 
   EEPROM.write(EE_MID_ADDR, config.mid);
+  EEPROMWriteByteArray(EE_MPRICE_ADDR, (uint8_t*)&config.mPrice, 2); //uint16_t
+  EEPROM.write(EE_MPERIOD_ADDR, config.mPeriod);
+  EEPROM.write(EE_MMINPERIODS_ADDR, config.mMinPeriods);
+  EEPROMWriteByteArray(EE_MSWITCHOFFDELAY_ADDR, (uint8_t*)&config.mSwitchoffDelay, 2); //uint16_t
   WriteStringToEEPROM(EE_MACHINENAME_ADDR, config.MachineName, DEFAULTSTRINGLENGTH);
+
   WriteStringToEEPROM(EE_SERVERIP_ADDR, config.serverAddress, DEFAULTSTRINGLENGTH);
   EEPROMWriteByteArray(EE_SERVERPORT_ADDR, (uint8_t*)&config.serverPort, 2); //uint16_t
 
@@ -238,8 +254,13 @@ void writeDefaultConfig(void) {
   config.DevicePW = "12345678";
   config.MachineName = "NoName";
   config.mid = 255;
+  config.mPrice = 100; //price per period in cents
+  config.mPeriod = 15; //minimum pricing period in minutes
+  config.mMinPeriods = 1; //minimum periods that are billed
+  config.mSwitchoffDelay = 0; //delay in seconds for relay switch-off after logout
+
   config.serverAddress = "";
-  config.serverPort = 3000;
+  config.serverPort = 3003;
 
   config.webPW = "admin";
   config.webUser = "admin";
@@ -285,6 +306,10 @@ void ReadConfig() {
     config.useDHCP = EEPROM.read(EE_DHCP_ADDR);
 
     config.mid = EEPROM.read(EE_MID_ADDR);
+    EEPROMReadByteArray(EE_MPRICE_ADDR, (uint8_t*)&config.mPrice, 2); //uint16_t
+    config.mPeriod = EEPROM.read(EE_MPERIOD_ADDR);
+    config.mMinPeriods = EEPROM.read(EE_MMINPERIODS_ADDR);
+    EEPROMReadByteArray(EE_MSWITCHOFFDELAY_ADDR, (uint8_t*)&config.mSwitchoffDelay, 2); //uint16_t
     config.MachineName = ReadStringFromEEPROM(EE_MACHINENAME_ADDR);
 
     config.serverAddress = ReadStringFromEEPROM(EE_SERVERIP_ADDR);
@@ -340,7 +365,7 @@ void WebServerinit(void)
   });
 
 
-  server.begin();  // start webserver  
+  server.begin();  // start webserver
   webSocket.begin(); //todo: check if this can lead to memory leaks if called multiple times
   webSocket.onEvent(webSocketEvent);
 
@@ -385,7 +410,7 @@ bool checkButtonState(void) {
   ESP.wdtFeed(); //kick hardware watchdog
   while (SPI1CMD & SPIBUSY) {
     timeout++;
-    if(timeout > 2000) break; //make sure this cannot become an infinite loop
+    if (timeout > 2000) break; //make sure this cannot become an infinite loop
     delay(1);
   }
 

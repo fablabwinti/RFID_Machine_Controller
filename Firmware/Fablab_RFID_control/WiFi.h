@@ -189,13 +189,16 @@ void ConfigureWifi()
 //disconnect and disable wifi during machine running times to not be disturbed
 void disableWifi()
 {
-  Serial.print(F("disabling wifi..."));
+  Serial.print(F("disabling wifi."));
   WiFi.disconnect();
-  ESP.wdtFeed(); //kick hardware watchdog
-  delay(2000); //wait to terminate all connections (if this delay is too short, the watchdog may kick in and reset)
-  ESP.wdtFeed(); //kick hardware watchdog
-  WiFi.mode(WIFI_OFF);
-  //WiFi.forceSleepBegin(100);
+  delay(100);
+  Serial.print(".");
+  delay(100);
+  Serial.print(".");
+  ESP.wdtFeed();
+  
+  // WiFi.mode(WIFI_OFF); //turning wifi off can cause crashes... must be a core bug so keep it running and just disconnect
+  // WiFi.forceSleepBegin(100); //force sleep begin
   // delay(100);
   Serial.println(F("disabled"));
 }
@@ -203,6 +206,6 @@ void disableWifi()
 //re-enable wifi, call this function after 'disableWifi()'
 void enableWifi()
 {
-  //WiFi.forceSleepWake();
+  // WiFi.forceSleepWake();
   ConfigureWifi();
 }

@@ -224,7 +224,7 @@ void authenticationSuccess(void)
   releaseMachine();
   sendPendingEvents(true);  // send data out immediately (enforced sendout) (no data is sent while user is logged in)
 
- //shut down wifi, wait and display the login screen as well 
+  //shut down wifi, wait and display the login screen as well
   disableWifi();
 }
 
@@ -318,7 +318,7 @@ void verifyRFIDdata() {
       currentuser = 0; //user is admin
       addEventToQueue(4, 0, "Admin login"); //event 4 = tag_login
       SDwriteLogfile("Admin login");
-      authenticationSuccess(); //plays sound, releases machine, send event to server 
+      authenticationSuccess(); //plays sound, releases machine, send event to server
     }
 
     return;
@@ -349,6 +349,12 @@ void verifyRFIDdata() {
     if (dbentryno > 0 && localTimeValid) //if entry found in database and local RTC time is valid (time is needed to veryfy if tag has expired)
     {
       RtcDateTime RTCtime  = RTC.GetDateTime();
+      Serial.print(F("Tag valid from "));
+      Serial.println(userentry.ts_validfrom);
+      Serial.print(F("Tag valid until "));
+      Serial.println(userentry.ts_validuntil);
+      Serial.print(F("Current Time: "));
+      Serial.println(RTCtime.Epoch32Time());
       //time verification, check if user's time is already valid and not yet expired
       if (userentry.ts_validfrom > RTCtime.Epoch32Time() || userentry.ts_validuntil < RTCtime.Epoch32Time())
       {
@@ -369,7 +375,7 @@ void verifyRFIDdata() {
           lockMachine();
           currentuser = 0; //user logged out
           addEventToQueue(5, userentry.tagid , String(userentry.name) + " logout"); //event 5 = tag_logout, no need to read userentry from DB, it was read above in the findentry function
-          delay(2000); //wait to show logout          
+          delay(2000); //wait to show logout
         }
         else
         {

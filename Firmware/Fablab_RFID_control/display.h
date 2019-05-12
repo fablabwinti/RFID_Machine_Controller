@@ -213,10 +213,15 @@ void displayUserInfo(void)
   else
   {
     //get current users name from database
-    userdatabase.readRec(currentuser, EDB_REC userentry); //get the currently loggeed in user entry
+    userdatabase.readRec(currentuser, EDB_REC userentry); //get the currently logged in user entry
     fullname = String(userentry.name);
     //firstname = splitStringbySeparator(fullname, char(' ')); //split the name string into first name and surname
     //surname = fullname.substring(firstname.length() + 1);
+  }
+
+  if (machineLocked)
+  {
+    fullname = " "; //currentuser is 0 after logout, so name is no longer available (TODO: could save the 'lastuser' number in a global variable or something)
   }
 
   display.setFont(&g12boldFont);
@@ -228,8 +233,11 @@ void displayUserInfo(void)
   display.setFont(&FreeSansBold12pt7b);
 
   time_t timeinuse;
-  if (machineLocked) //if no user is logged in, this is a post logout call, display static time
+  if (machineLocked) //if no user is logged in, this is a post logout call, display static time of time used
+  {
     timeinuse = userStoptime - userStarttime;
+    //TODO: add machine cost
+  }
   else
     timeinuse = getRtcTimestamp() - userStarttime;
 
@@ -282,7 +290,7 @@ void displayUpdate(void) {
 
   if (machineLocked) //machine not in use
   {
-    if ( postlogoutmillis > 0 && millis() < postlogoutmillis + (long)POSTLOGOUTDISPLAYTIME * 1000) //user just logged out
+    if ( postlogoutmillis > 0 && millis() < postlogoutmillis + (long)POSTLOGOUTDISPLAYTIME * 1000) //user just logged out, postlogoutmillis is set to 0 after postlogout switchoff (of after 30 seconds, whichever one is longer)
     {
       displayUserInfo();
     }
@@ -355,7 +363,7 @@ void displayLogout(void)
 #if 0
   display.setFont(&g12boldFont);
   display.setCursor(0, 21);
-  display.print("Damian Schneider");
+  display.print("name");
 #endif
   display.setFont(&FreeSansBold12pt7b);
   display.setCursor(44, 51);
@@ -379,8 +387,9 @@ void displayDenied(uint8_t reason)
   display.setFont(&g12boldFont);
   //todo: display username of recognized tag (if any)
 #if 0
+  display.setFont(&g12boldFont);
   display.setCursor(0, 21);
-  display.print("Wolfgang Lochbihler");
+  display.print("name");
 #endif
   display.setCursor(44, 46);
 
@@ -409,7 +418,8 @@ void showCloudDownload(void)
 {
   display.clearDisplay();
   display.drawBitmap(46, 20, DBdl, 32, 32, 1);
-  display.setCursor(12, 0);
+  display.setFont(&g12boldFont);
+  display.setCursor(12, 12);
   display.println(F("Updating Database"));
   display.display();
 }

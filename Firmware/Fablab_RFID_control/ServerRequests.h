@@ -1,7 +1,27 @@
 
 unsigned long serverUpdateTime = 0;  // used to control when data is sent out (must not do it faster than every x seconds)
 
+//public key used by the server used to verify we are talking to the correct server
+// Extracted by: openssl x509 -pubkey -noout -in cert.pem
+static const char pubkey[] PROGMEM = R"KEY(
+-----BEGIN PUBLIC KEY-----
+MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEAs3OsT+I3FqRmy7QlBXd7
+mZexvdwNu9O3LlL5qTwTPDXtHTy2f5WdiFQD/U5Rpfa5wQsyrg3gdDmgx++1lllF
+4hMdN9mFPats7QGBlaRC5Z7sAkJ2dbrvH6QUSep9xUnKUBUJe/OHH1spE9kVLdU1
+ZFwslvqQcvU4IY+NGJTj35b66q1tvEwCOy0kgfL+h20rCkUanH/bq0ISLLP+ReLS
+6yt/wya8fj1lMILpITEEUd46ymhe0ABEGA16/z4g1OoV7NNUaptN+R4+YFdC/neX
+UOAjrUERJKPk+/dKFJhm46fkYD/IRcDVy+oP0VfM0tAAIqjY0kK/MIC4hNTK0seO
+GQIDAQAB
+-----END PUBLIC KEY-----
+)KEY";
 
+
+/*
+   as an alternative to using the public key the server can be verified using the fingerprint (which is less secure though)
+  fingerprint:
+  static const char fp[] PROGMEM = "B0:F1:AA:B0:0E:9C:40:C5:B0:C4:66:2B:4E:F1:B7:99:83:E6:3F:84";//b0f1aab00e9c40c5b0c4662b4ef1b79983e63f84
+
+*/
 
 //send all pending events to the server, save to SD card in case 'saveiffail' = true, try to connect up to 10 times if 'enforce' = true (saved to SD immediately if connect fails)
 void sendToServer(sendoutpackage* datastruct, bool saveiffail, bool enforce) {
@@ -9,7 +29,13 @@ void sendToServer(sendoutpackage* datastruct, bool saveiffail, bool enforce) {
   // then format the data and send it out through the ether
 
   // Use WiFiClient class to create TCP connections
-  WiFiClient client;
+  //WiFiClient client;
+
+  BearSSL::WiFiClientSecure client;
+  BearSSL::PublicKey key(pubkey);
+  client.setKnownKey(&key);
+
+
   client.setTimeout(500); //use short timeout, the server is local and should react pretty fast if it is available, if not this reduces unnecessary long delays
   static uint8_t connectfailcounter = 0;
   static uint8_t unhealthy_delaycounter = 10; //on first run, assume the server connectin is ok
@@ -20,7 +46,7 @@ void sendToServer(sendoutpackage* datastruct, bool saveiffail, bool enforce) {
       serverUpdateTime = millis();
       if (serverhealthy == false) //if server seems to be down, slow down the interval, if enforce is requested, immediately save to SD card
       {
-        if(enforce && saveiffail)
+        if (enforce && saveiffail)
         {
           Serial.println(F("writing entry to SD"));
           eventDBaddentry(datastruct); //transfer this event over to the SD card database (pending flag is removed there so it will not be sent from queue)
@@ -87,11 +113,11 @@ void sendToServer(sendoutpackage* datastruct, bool saveiffail, bool enforce) {
         }
         if (enforce == false) return; //if not forced to try to resend, try again later, else, retry.
       }
-
+      Serial.println(F("Server connect successful"));
       connectfailcounter = 0;
       //send POST to '/api/logs'
-      client.print(String("POST /api/logs HTTP/1.1\r\n") +
-                   "Host: http://" + config.serverAddress + "/\r\n" +
+      client.print(String("POST /api/logs HTTP/1.0\r\n") +
+                   "Host: " + config.serverAddress + "\r\n" +
                    "Connection: close\r\n" +
                    "Content-Type: application/json\r\n" +
                    "Content-Length: " + String(payload.length()) +
@@ -170,6 +196,18 @@ void UpdateDBfromServer(void) {
   long tick = millis();
   //try to update 5 times in interals of 10 seconds (if wifi is connected and server connection is ok)
   if (refreshUserDB && (WiFi.status() == WL_CONNECTED)  && serverhealthy && (millis() - timetoupdateDB > 10000) && (retries > 0)) {
+
+    //note: the SPIFFS file system uses wear-leveling so flash wearout is not an issue if the update is done in reasonable intervals (like not more than once every few minutes, less is better)
+
+
+    //WiFiClient client;
+    BearSSL::WiFiClientSecure client;
+    BearSSL::PublicKey key(pubkey);
+    client.setKnownKey(&key);
+
+    //////////////////////////
+    // USER DATABASE UPDATE //
+    //////////////////////////
     Serial.println(F("Updating user database..."));
     timetoupdateDB = millis();
     retries--;
@@ -178,8 +216,8 @@ void UpdateDBfromServer(void) {
     Serial.print(":");
     Serial.println(config.serverPort);
 
-    // Use WiFiClient class to create TCP connections
-    WiFiClient client;
+
+
     char serveradd[32];
     config.serverAddress.toCharArray(serveradd, 32);
     if (!client.connect(serveradd, config.serverPort)) {
@@ -287,7 +325,91 @@ void UpdateDBfromServer(void) {
 
     }
 
-    //note: the SPIFFS file system uses wear-leveling so flash wearout is not an issue if the update is done in reasonable intervals (like not more than once every few minutes, less is better)
+    /////////////////////////////
+    // MACHINE SETTINGS UPDATE //
+    /////////////////////////////
+    //on bootup, read the machine settings from the server and save them to the config
+
+    if (machineInfoUpdated == false) //get machine info from server, if successful, set updated to true
+    {
+      Serial.println(F("Updating Machine info..."));
+      Serial.print("connecting to ");
+      Serial.print(config.serverAddress);
+      Serial.print(":");
+      Serial.println(config.serverPort);
+
+      char serveradd[32];
+      config.serverAddress.toCharArray(serveradd, 32);
+      if (!client.connect(serveradd, config.serverPort)) {
+        Serial.println("connection failed");
+        return;
+      }
+
+      String server_URI = "/api/machines/" + String(config.mid);
+      Serial.print("Requesting URI: ");
+      Serial.println(server_URI);
+
+      // This will send the request to the server
+      client.print(String("GET ") + server_URI + " HTTP/1.1\r\n" +
+                   "Host: " + config.serverAddress + "\r\n" +
+                   "Connection: close\r\n\r\n");
+      unsigned long timeout = millis();
+      while (client.available() == 0) { //also happens if the server does not send any data, i.e. the database for this machine is empty (not sure why?)
+        if (millis() - timeout > 4000) {
+          Serial.println(">>> Client Timeout !");
+          client.stop();
+          return;
+        }
+      }
+
+      String str = client.readStringUntil('\r');  //read first line of response (contains error code)
+      Serial.print(str);
+      if (str.indexOf("200 OK") != -1) {
+        Serial.println(F(" - Server response OK"));
+      }
+      else //server response failed (404 or other error)
+      {
+        Serial.println(F("Server response FAILED"));
+        client.stop();
+        return;
+      }
+
+      client.setTimeout(1000);
+      //read the message body next and parse the json stream:
+
+      client.readStringUntil('['); //discard the rest of the header and the inital bracket
+
+      ESP.wdtFeed(); //kick hardware watchdog
+      delay(10); //wait for more data and make way for background activity if needed
+      DynamicJsonBuffer jsonBuffer(150); //crate a buffer for info data (usually about 100 chars long)
+      str = ""; //clear string
+      str += client.readStringUntil(']'); //read full json string      
+      Serial.println(str);
+      JsonObject& machinesettings = jsonBuffer.parseObject(str);
+
+      if (!machinesettings.success()) {
+        Serial.println("JSON parsing failed!");
+        client.stop();
+        return; //parsing failed for some reason (incomplete stream?)
+      }
+      machinesettings.prettyPrintTo(Serial);
+      ESP.wdtFeed(); //kick hardware watchdog
+      delay(1); //run background functions
+      if (machinesettings["name"].success() && machinesettings["price"].success() && machinesettings["period"].success() && machinesettings["min_periods"].success())
+      {
+        config.MachineName = machinesettings["name"].asString();
+        config.DeviceName = config.MachineName; //also set accesspoint name
+        float price = machinesettings["price"]; //read into a float
+        config.mPrice =  (uint16_t)(price * 100); //price is a float, multiply by 100 to get cents
+        config.mPeriod = machinesettings["period"];
+        config.mMinPeriods = machinesettings["min_periods"];
+        config.mSwitchoffDelay = 100; //TODO: add this from server info
+        WriteConfig();
+        Serial.println(F("Machine Settings updated\r\n"));
+        machineInfoUpdated = true;
+      }
+
+    }
   }
   else //no wifi available
   {

@@ -64,7 +64,7 @@
     function scanMachine() {
         //try to connect to the server, if there is an error, show message
 
-        var URL = "http://" + document.getElementById('Saddr').value + ":" + document.getElementById('Sport').value + "/api/machines";
+        var URL = "https://" + document.getElementById('Saddr').value + ":" + document.getElementById('Sport').value + "/api/machines";
 
         $.mobile.loading("show");
         $.getJSON(URL, function(data) {

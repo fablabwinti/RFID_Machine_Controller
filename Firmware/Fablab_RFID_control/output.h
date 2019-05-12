@@ -1,9 +1,6 @@
 //digital output for relay and optocoupler
 
 #define OUTPUTPIN 15 //GPIO15
-#define POSTLOGOUTDELAY 120 //time in seconds until the relay is switched off after user logout
-
-
 
 //user verified, release the machine for use
 void releaseMachine(void)
@@ -31,7 +28,7 @@ void checkPostLogoutDelay(void)
 {
   if (postlogoutmillis > 0)
   {
-    if (millis() > postlogoutmillis + (long)POSTLOGOUTDELAY * 1000)
+    if (millis() > postlogoutmillis + (long)config.mSwitchoffDelay * 1000)
     {
       digitalWrite(OUTPUTPIN, LOW); //disable output
       if(millis() > postlogoutmillis + 30000) //after at least 30 seconds (or after switching), disable checking, allows for displaying post logout info even without delayed switching
