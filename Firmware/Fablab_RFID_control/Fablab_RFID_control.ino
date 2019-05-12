@@ -53,13 +53,13 @@
 #define SERVERMININTERVAL 1000  // minimum interval (in ms) between server sendouts (where a pending event is sent) default: 1000
 #define MULTIWIFIS 2 //number of wifi credentials to store for wifi multi (uses lots of ram in the config!) default: 2
 
-extern "C" {
-#include "user_interface.h" //for light sleep stuff
-}
+//extern "C" {
+//#include "user_interface.h" //for light sleep stuff
+//}
 #define FS_NO_GLOBALS //allow spiffs to coexist with SD card
 #define FASTLED_ESP8266_RAW_PIN_ORDER
 #include <FS.h> //spiff file system
-#include <EDB.h> //use the fork here: https://github.com/fablabwinti/EDB
+#include <EDB.h> //use version 1.0.6 https://github.com/jwhiddon/EDB
 #include <SPI.h>
 #include <MFRC522.h> //RFID library (V1.3.6 tested)
 #include <FastLED.h> //(V3.1.6 tested)
@@ -69,7 +69,8 @@ extern "C" {
 #include <Adafruit_GFX.h> //(V1.2.3 tested)
 #include <ESP8266WiFi.h>
 #include <ESP8266WiFiMulti.h>
-#include <WiFiClient.h>
+//#include <WiFiClient.h>
+#include <WiFiClientSecure.h>
 #include <ESP8266WebServer.h>
 #include <ESP8266HTTPClient.h>
 #include <ESP8266httpUpdate.h>
@@ -80,7 +81,9 @@ extern "C" {
 #include <WiFiUdp.h>
 #include <IPAddress.h>
 #include <Wire.h>
-#include <SD.h>
+//#include <SD.h> //SD library has bugs, can often lead to crashes (not even the readwrite example works....)
+#include "SdFat.h" //
+using namespace sdfat;
 #include <ESP8266mDNS.h>  //works on mac out of the box, need to install apple's 'Bonjour' service to work on other systems
 #include <WebSocketsServer.h> (V2.0.9 tested)
 #include <ArduinoJson.h> // https://bblanchon.github.io/ArduinoJson/  (V5.13.0 tested)
@@ -259,14 +262,38 @@ void loop() {
       checkPostLogoutDelay(); //switch machine off after some time after logout
 
       if (millis() > postlogoutmillis + 10000) //only check and send data after 10 seconds after logout, wifi is not yet connected
-      {
+      {       
         UpdateDBfromServer(); //update the user database if necessary
+        SDmanager();  // check SD card (and send locally saved eventsDatabase)
         sendPendingEvents(false);  // send data out (if available in RAM, does not check the SD card)
-        timeManager(false); // check the local time
-        SDmanager();  // check SD card (and send locally saved events)
+        timeManager(false); // check the local time        
       }
 
     }
+    else //machine is unlocked and in use
+    {
+      static uint16_t sendoutcounter;
+      uint32_t minutestpassed = (getRtcTimestamp() - userStarttime) / 60;
+      //TODO:
+      //every machine_mininterval write an event '9' to the SD card for tracking in case the user does not logout and just turns off or something else happens
+      if (minutestpassed >= config.mPeriod)
+      {
+        uint16_t periodspassed = minutestpassed / config.mPeriod;
+        if (periodspassed > sendoutcounter) //for each period, send one event
+        {
+          sendoutcounter++;
+          //read currently logged in user from database (userentry contains last used card, not necessarily the current user)
+          userdatabase.readRec(currentuser, EDB_REC userentry); //get the currently logged in user entry
+          addEventToQueue(9, userentry.tagid , String(userentry.name) + " running" +String(sendoutcounter)); //event 9 = running (watchdog)
+          sendPendingEvents(true);  //sends data to the SD card since wifi is disconnected during machine use
+        }
+      }
+      else
+      {
+        sendoutcounter = 0;
+      }
+    }
+
   }
   else //serve the config webpage (reboot to deactivate)
   {
