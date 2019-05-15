@@ -236,7 +236,6 @@ void displayUserInfo(void)
   if (machineLocked) //if no user is logged in, this is a post logout call, display static time of time used
   {
     timeinuse = userStoptime - userStarttime;
-    //TODO: add machine cost
   }
   else
     timeinuse = getRtcTimestamp() - userStarttime;
@@ -259,9 +258,28 @@ void displayUserInfo(void)
   display.setCursor(64 - w1 / 2, 46);
   display.print(temparr);
 
-  //todo: calculate and display running cost
-#if 0
-  uint16_t cost = timeinuse / 3; //dummy
+
+  //running cost is calculated from:
+  // config.mPrice //price per period in cents
+  // config.mPeriod //pricing period in minutes
+  //config.mMinPeriods /minimum periods that are billed
+  //to not bill accidental login, the first 10 seconds are free
+
+  uint16_t cost = 0; //cost in cents
+  if(timeinuse > 30) //after 30 seconds, start counting cost, bill the minimum amount, then increase by pricing period
+  {
+    if(useminutes <= (uint16_t)config.mMinPeriods*(uint16_t)config.mPeriod) //initially, bill the minimum number of periods
+    {
+      cost = (uint16_t)config.mMinPeriods * (uint16_t)config.mPrice;
+    }
+    else //after minimum number of periods, start counting periods
+    {
+      uint16_t numberofperiods = useminutes/config.mPeriod+1; //example: period = 15min -> 65min => 4+1 period when using integer math
+      cost = numberofperiods*(uint16_t)config.mPrice;
+    }
+    
+  }
+  
   snprintf(temparr, sizeof(temparr), "%d.%02d.", cost / 100, cost % 100);
   display.setFont(&g12boldFont);
   display.getTextBounds(temparr, 0, 0, &x, &y, &w1, &h);
@@ -273,7 +291,7 @@ void displayUserInfo(void)
   display.getTextBounds("CHF", 0, 0, &x, &y, &w2, &h);
   display.setCursor(128 - w1 - w2 - 5, 63);
   display.print("CHF");
-#endif
+
 }
 
 void displayUpdate(void) {

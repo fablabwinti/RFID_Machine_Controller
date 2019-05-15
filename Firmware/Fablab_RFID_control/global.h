@@ -109,7 +109,7 @@ struct NodeConfig {
   String MachineName;         //31 bytes
   uint8_t mid;                 //machine ID
   uint16_t mPrice; //price per period in cents
-  uint8_t mPeriod; //minimum pricing period in minutes
+  uint8_t mPeriod; //pricing period in minutes
   uint8_t mMinPeriods; //minimum periods that are billed
   uint16_t mSwitchoffDelay; //delay in seconds for relay switch-off after logout
   String serverAddress;         //server address tring (can be an IP)
@@ -255,7 +255,7 @@ void writeDefaultConfig(void) {
   config.MachineName = "NoName";
   config.mid = 255;
   config.mPrice = 100; //price per period in cents
-  config.mPeriod = 15; //minimum pricing period in minutes
+  config.mPeriod = 15; //pricing period in minutes
   config.mMinPeriods = 1; //minimum periods that are billed
   config.mSwitchoffDelay = 0; //delay in seconds for relay switch-off after logout
 

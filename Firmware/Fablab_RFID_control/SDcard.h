@@ -1,13 +1,13 @@
 /*
-note spiffs & SDfat:
-using namespacesdfat funktioniert. 
-vor dem spiffs file gehöert ein fs:: sonst nix.
-#define FS_NO_GLOBALS //allow spiffs to coexist with SD card
-#include <FS.h> //spiff file system
-using namespace sdfat;
-SdFat SD;
-File dbFile; //ist ein SD file
-fs::File spifffile; //ist ein spiffs file
+  note spiffs & SDfat:
+  using namespacesdfat funktioniert.
+  vor dem spiffs file gehöert ein fs:: sonst nix.
+  #define FS_NO_GLOBALS //allow spiffs to coexist with SD card
+  #include <FS.h> //spiff file system
+  using namespace sdfat;
+  SdFat SD;
+  File dbFile; //ist ein SD file
+  fs::File spifffile; //ist ein spiffs file
 
   Some code used here was taken from the time and SD arduino libraries. See
 
@@ -135,7 +135,7 @@ void eventDBdeleteentry(uint16_t entryno)
     {
       Serial.println(F("NOT FOUND"));
     }
-    // eventDBclose();
+    eventDBclose();
   }
 
 }
@@ -159,11 +159,11 @@ bool eventDBaddentry(sendoutpackage* evententry)
     EDB_Status result = eventdatabase.appendRec(EDB_REC * evententry); //eventDBpackage is passed as a pointer but is dereferenced first, then cast back into a pointer by EDB_REC macro (kind of convoluted... see library definitions for details)
     if (result != EDB_OK) {
       DBprintError(result);
-      //eventDBclose();
+      eventDBclose();
       return false;
     }
     Serial.println(F("DONE"));
-    //eventDBclose();
+    eventDBclose();
     //entry is now in the database, remove it from the queue
     evententry->pending = false;
     return true;
@@ -196,7 +196,7 @@ void eventDBgetpending(void)
         break; //end the for loop now
       }
     }
-    //eventDBclose();
+    eventDBclose();
   }
 }
 
@@ -402,14 +402,14 @@ bool SDinit(uint8_t pin)
 void SDmanager(void)
 {
   static unsigned long SDchecktime = millis();
-
+  static bool SDeventPending = false; //set to true if events were saved to SD, sendout is then repeated faster
   if (SDstate == SD_UNKNOWN) //first time run
   {
     SDinit(SD_CSN_PIN);
   }
   else
   {
-    if (millis() - SDchecktime > 500) //check the state of the SD card every 0.5seconds, this function also checks for pending events in the SD database
+    if (millis() - SDchecktime > 1000 || SDeventPending) //check the state of the SD card once every second, this function also checks for pending events in the SD database
     {
       SDchecktime = millis();
       //check the SD state:
@@ -421,17 +421,23 @@ void SDmanager(void)
           Serial.println(F("SDcard Removed"));
           createErrorEvent("SD card removed");
           SDcardOK = false;
+          SDeventPending = false;
         }
         else //SD is initialized and ready: check for pending events
         {
           eventDBgetpending();
           if (eventDBpackage.pending)
           {
+            SDeventPending = true;
             sendToServer(&eventDBpackage, false, false); //send to server, do not save again
             if (eventDBpackage.pending == false) //if sent out successfully, delete this entry from the database (sendout sets pending = false)
             {
               eventDBdeleteentry(eventDBentrytosend);
             }
+          }
+          else
+          {
+            SDeventPending = false;
           }
         }
         return;
