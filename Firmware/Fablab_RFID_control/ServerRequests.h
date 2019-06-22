@@ -1,19 +1,23 @@
 
+#define MAXKEYSIZE 512 //maximum size of public key in bytes (should be smaller than 500 bytes, not tested for larger keys)
 unsigned long serverUpdateTime = 0;  // used to control when data is sent out (must not do it faster than every x seconds)
 
 //public key used by the server used to verify we are talking to the correct server
 // Extracted by: openssl x509 -pubkey -noout -in cert.pem
-static const char pubkey[] PROGMEM = R"KEY(
------BEGIN PUBLIC KEY-----
-MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEAs3OsT+I3FqRmy7QlBXd7
-mZexvdwNu9O3LlL5qTwTPDXtHTy2f5WdiFQD/U5Rpfa5wQsyrg3gdDmgx++1lllF
-4hMdN9mFPats7QGBlaRC5Z7sAkJ2dbrvH6QUSep9xUnKUBUJe/OHH1spE9kVLdU1
-ZFwslvqQcvU4IY+NGJTj35b66q1tvEwCOy0kgfL+h20rCkUanH/bq0ISLLP+ReLS
-6yt/wya8fj1lMILpITEEUd46ymhe0ABEGA16/z4g1OoV7NNUaptN+R4+YFdC/neX
-UOAjrUERJKPk+/dKFJhm46fkYD/IRcDVy+oP0VfM0tAAIqjY0kK/MIC4hNTK0seO
-GQIDAQAB
------END PUBLIC KEY-----
-)KEY";
+const char* keyfile = "/cert.pem"; //file uploaded to spiffs containing the public key
+
+
+/*= R"KEY(
+  -----BEGIN PUBLIC KEY-----
+  MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEAs3OsT+I3FqRmy7QlBXd7
+  mZexvdwNu9O3LlL5qTwTPDXtHTy2f5WdiFQD/U5Rpfa5wQsyrg3gdDmgx++1lllF
+  4hMdN9mFPats7QGBlaRC5Z7sAkJ2dbrvH6QUSep9xUnKUBUJe/OHH1spE9kVLdU1
+  ZFwslvqQcvU4IY+NGJTj35b66q1tvEwCOy0kgfL+h20rCkUanH/bq0ISLLP+ReLS
+  6yt/wya8fj1lMILpITEEUd46ymhe0ABEGA16/z4g1OoV7NNUaptN+R4+YFdC/neX
+  UOAjrUERJKPk+/dKFJhm46fkYD/IRcDVy+oP0VfM0tAAIqjY0kK/MIC4hNTK0seO
+  GQIDAQAB
+  -----END PUBLIC KEY-----
+  )KEY";*/
 
 
 /*
@@ -23,13 +27,44 @@ GQIDAQAB
 
 */
 
-//send all pending events to the server, save to SD card in case 'saveiffail' = true, try to connect up to 10 times if 'enforce' = true (saved to SD immediately if connect fails)
+bool readKeyfromSPIFFS(uint8_t* charbuffer, uint16_t buffersize)
+{
+  //read the key from SPIFFS file
+  //if it does not exist, no connection is possible
+  if (SPIFFS.exists(keyfile))
+  {
+    fs::File publicKeyFile;
+    publicKeyFile = SPIFFS.open(keyfile, "r"); //open readonly
+    if (publicKeyFile)
+    {
+      Serial.println(F("key file opened"));
+      publicKeyFile.read((uint8_t*)charbuffer, buffersize);
+      publicKeyFile.close(); //close the databasefile if it is open
+      return true;
+    }
+    else
+    {
+      Serial.println(F("Error opening key file"));
+      return false;
+    }
+  }
+  else
+  {
+    Serial.println(F("key file not found"));
+    return false;
+  }
+}
+
+//send all pending events to the server, save to event database (SPIFFs or SD card) in case 'saveiffail' = true, try to connect up to 10 times if 'enforce' = true (saved to database immediately if connect fails)
 void sendToServer(sendoutpackage* datastruct, bool saveiffail, bool enforce) {
   // checks if we can already send more data. if we can, check if data needs to be sent.
   // then format the data and send it out through the ether
 
+  char pubkey[MAXKEYSIZE]; //buffer for the public key
+
   // Use WiFiClient class to create TCP connections
   //WiFiClient client;
+  if (readKeyfromSPIFFS((uint8_t*) pubkey, MAXKEYSIZE) == false) return;
 
   BearSSL::WiFiClientSecure client;
   BearSSL::PublicKey key(pubkey);
@@ -44,12 +79,12 @@ void sendToServer(sendoutpackage* datastruct, bool saveiffail, bool enforce) {
     if ((millis() - serverUpdateTime > SERVERMININTERVAL) || enforce)  // do not send data more often than SERVERMININTERVAL to ease on server traffic
     {
       serverUpdateTime = millis();
-      if (serverhealthy == false) //if server seems to be down, slow down the interval, if enforce is requested, immediately save to SD card
+      if (serverhealthy == false) //if server seems to be down, slow down the interval, if enforce is requested, immediately save to event database
       {
         if (enforce && saveiffail)
         {
-          Serial.println(F("writing entry to SD"));
-          eventDBaddentry(datastruct); //transfer this event over to the SD card database (pending flag is removed there so it will not be sent from queue)
+          Serial.println(F("writing entry to database"));
+          eventDBaddentry(datastruct); //transfer this event over to the event database (pending flag is removed there so it will not be sent from queue)
         }
 
         unhealthy_delaycounter++;
@@ -96,7 +131,7 @@ void sendToServer(sendoutpackage* datastruct, bool saveiffail, bool enforce) {
         delay(1); //run background stuff
         ESP.wdtFeed(); //kick hardware watchdog
         LED_blink_once(20);
-        //if this fails multiple times, write data to SD database
+        //if this fails multiple times, write data to event database
         connectfailcounter++;
         if (connectfailcounter > 3) //if connection failed three times, server connection is bad
         {
@@ -106,8 +141,8 @@ void sendToServer(sendoutpackage* datastruct, bool saveiffail, bool enforce) {
         {
           if (saveiffail)
           {
-            Serial.println(F("writing entry to SD"));
-            eventDBaddentry(datastruct); //transfer this event over to the SD card database (pending flag is removed there so it will not be sent from queue)
+            Serial.println(F("writing entry to database"));
+            eventDBaddentry(datastruct); //transfer this event over to the event database (pending flag is removed there so it will not be sent from queue)
           }
           return;
         }
@@ -138,6 +173,9 @@ void sendToServer(sendoutpackage* datastruct, bool saveiffail, bool enforce) {
       if (line.indexOf("200 OK") != -1) {
         datastruct->pending = 0;  // reset flag after sending
         serverhealthy = true;
+#ifdef SAVE_LOG_TO_SD
+        SDwriteStringToLog(payload);//write it to the SD card log as a backup measure
+#endif
         Serial.println(F("Serverupdate OK"));
       }
       else
@@ -145,8 +183,8 @@ void sendToServer(sendoutpackage* datastruct, bool saveiffail, bool enforce) {
         Serial.println(F("Serverupdate ERROR"));
         createErrorEvent(line); //server error, send out parts of the received error code
         if (saveiffail)
-          eventDBaddentry(datastruct); //transfer this event over to the SD card database (pending flag is removed there so it will not be sent from queue)
-        LED_blink_once(20);
+          eventDBaddentry(datastruct); //transfer this event over to the database (pending flag is removed there so it will not be sent from queue)
+        LED_blink_once(20);//blink red
       }
 
 
@@ -161,14 +199,14 @@ void sendToServer(sendoutpackage* datastruct, bool saveiffail, bool enforce) {
     {
       ESP.wdtFeed(); //kick hardware watchdog
       yield();  // run background processes
-      Serial.println("no wifi, saving to SD");
-      eventDBaddentry(datastruct); //transfer this event over to the SD card database (pending flag is removed there so it will not be sent from queue)
+      Serial.println("no wifi, saving to database");
+      eventDBaddentry(datastruct); //transfer this event over to the event database (pending flag is removed there so it will not be sent from queue)
     }
   }
 }
 
-//send pending events to the server (they are automatically transferred to the SD card database if sending fails)
-//if 'enforce' = true the data is sent immediately or saved to SD if it fails multiple times, use enforce to make sure data is not lost (used to send login data as no wifi access is allwed after a login)
+//send pending events to the server (they are automatically transferred to the events database if sending fails)
+//if 'enforce' = true the data is sent immediately or saved to event database if it fails multiple times, use enforce to make sure data is not lost (used to send login data as no wifi access is allwed after a login)
 void sendPendingEvents(bool enforce)
 {
   uint8_t i;
@@ -178,7 +216,7 @@ void sendPendingEvents(bool enforce)
     {
       yield();
       ESP.wdtFeed(); //kick hardware watchdog
-      sendToServer(&datatosend[i], true, enforce); //send the data, save to SD if sending fails
+      sendToServer(&datatosend[i], true, enforce); //send the data, save to event database if sending fails
       if (enforce == false)
       {
         return; //return, do the others later (to not block login events for too long)
@@ -200,6 +238,8 @@ void UpdateDBfromServer(void) {
     //note: the SPIFFS file system uses wear-leveling so flash wearout is not an issue if the update is done in reasonable intervals (like not more than once every few minutes, less is better)
 
 
+    char pubkey[MAXKEYSIZE]; //buffer for the public key
+    if (readKeyfromSPIFFS((uint8_t*) pubkey, MAXKEYSIZE) == false) return;
     //WiFiClient client;
     BearSSL::WiFiClientSecure client;
     BearSSL::PublicKey key(pubkey);
@@ -383,7 +423,7 @@ void UpdateDBfromServer(void) {
       delay(10); //wait for more data and make way for background activity if needed
       DynamicJsonBuffer jsonBuffer(150); //crate a buffer for info data (usually about 100 chars long)
       str = ""; //clear string
-      str += client.readStringUntil(']'); //read full json string      
+      str += client.readStringUntil(']'); //read full json string
       Serial.println(str);
       JsonObject& machinesettings = jsonBuffer.parseObject(str);
 

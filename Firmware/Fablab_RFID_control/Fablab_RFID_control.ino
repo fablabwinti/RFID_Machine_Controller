@@ -29,11 +29,11 @@
       -booting/rebooting/crash
       -server communication log
       -web page access
-    -user login/logout is saved to a separate file
+  -user login/logout is saved to a separate event database, it is either in SPIFFS or on SD
       -uid, username, transferred to server flag
 
   Other notes:
-    -the displa must show: current user name, log time, running price
+    -the display must show: current user name, log time, running price
     -when not logging: current time&date, machine name, machine pricing
     -at bootup: show logo or something
     -maximum number of users: 2000 (limited by database size, can probably be increased but is untested)
@@ -52,6 +52,8 @@
 #define TIMEZONE 1 //GMT +1  adjust to your timezone if needed, can be negative
 #define SERVERMININTERVAL 1000  // minimum interval (in ms) between server sendouts (where a pending event is sent) default: 1000
 #define MULTIWIFIS 2 //number of wifi credentials to store for wifi multi (uses lots of ram in the config!) default: 2
+#define SAVE_LOG_TO_SD 1 //if defined, strings sent to the server are also written to the SD (if sendout is successful making it a copy of what should be in the server database)
+//#define EVENT_DB_TO_SD 1 //if defined, the event database is saved to the SD-card instead of SPIFFS (useful if writing events every few seconds, usage of spiffs is fine when writing like once per minute or less, spiffs will last 100 million entries or more)
 
 //extern "C" {
 //#include "user_interface.h" //for light sleep stuff
@@ -188,6 +190,18 @@ void setup() {
   ReadConfig();  // read configuration from eeprom, apply default config if invalid
   // printConfig(); //debug function
   SPIFFS.begin(); //init local file system
+  //print SPIFFS content
+  String str = "";
+  fs::Dir dir = SPIFFS.openDir("/");
+  while (dir.next()) {
+    str += dir.fileName();
+    str += " / ";
+    str += dir.fileSize();
+    str += "\r\n";
+  }
+  Serial.print(str);
+
+
   userDBInit();
 
   //*****************
@@ -261,12 +275,15 @@ void loop() {
       checkButtonState();  // check GPIO0 button state
       checkPostLogoutDelay(); //switch machine off after some time after logout
 
-      if (millis() > postlogoutmillis + 10000) //only check and send data after 10 seconds after logout, wifi is not yet connected
-      {       
+      if (millis() > postlogoutmillis + 10000) //only check and send data after 10 seconds after logout, wifi is not yet connected before
+      {
         UpdateDBfromServer(); //update the user database if necessary
         SDmanager();  // check SD card (and send locally saved eventsDatabase)
-        sendPendingEvents(false);  // send data out (if available in RAM, does not check the SD card)
-        timeManager(false); // check the local time        
+#ifndef EVENT_DB_TO_SD //if using SPIFFS for event database
+        checkEventDB(); //check if there are unsent event in the database (SPIFFS only, if using SD card for events it is checked in SDmanager)
+#endif
+        sendPendingEvents(false);  // send data out (if available in RAM, does not check the events database)
+        timeManager(false); // check the local time
       }
 
     }
@@ -274,8 +291,7 @@ void loop() {
     {
       static uint16_t sendoutcounter;
       uint32_t minutestpassed = (getRtcTimestamp() - userStarttime) / 60;
-      //TODO:
-      //every machine_mininterval write an event '9' to the SD card for tracking in case the user does not logout and just turns off or something else happens
+
       if (minutestpassed >= config.mPeriod)
       {
         uint16_t periodspassed = minutestpassed / config.mPeriod;
@@ -284,8 +300,8 @@ void loop() {
           sendoutcounter++;
           //read currently logged in user from database (userentry contains last used card, not necessarily the current user)
           userdatabase.readRec(currentuser, EDB_REC userentry); //get the currently logged in user entry
-          addEventToQueue(9, userentry.tagid , String(userentry.name) + " running" +String(sendoutcounter)); //event 9 = running (watchdog)
-          sendPendingEvents(true);  //sends data to the SD card since wifi is disconnected during machine use
+          addEventToQueue(9, userentry.tagid , String(userentry.name) + " running" + String(sendoutcounter)); //event 9 = running (watchdog)
+          sendPendingEvents(true);  //sends data to the event database since wifi is disconnected during machine use
         }
       }
       else

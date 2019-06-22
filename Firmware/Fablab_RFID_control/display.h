@@ -274,7 +274,7 @@ void displayUserInfo(void)
     }
     else //after minimum number of periods, start counting periods
     {
-      uint16_t numberofperiods = useminutes/config.mPeriod+1; //example: period = 15min -> 65min => 4+1 period when using integer math
+      uint16_t numberofperiods = (timeinuse/60)/config.mPeriod+1; //example: period = 15min -> 65min => 4+1 period when using integer math
       cost = numberofperiods*(uint16_t)config.mPrice;
     }
     

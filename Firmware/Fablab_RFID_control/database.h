@@ -1,14 +1,13 @@
 /*
    using extended database library, writing to a file in the SPIFFS file system and to the SD card
-
    if a user is found in the database of this machine, the machine is unlocked
-
 
 */
 
-
 #define MAXUSERSINDB 2000
 #define USERDB_TABLE_SIZE 102400 //100kb database, can hold over 2000 user entries  todo: calculate this from MAXUSERSINDB
+
+void SDwriteLogfile(String entry); //function prototype
 
 const char* db_users = "/db/users.db";
 const char* db_users2 = "/db/users2.db"; //backup table, used during server upates to not corrupt the user database in case there is a problem during the update
@@ -61,7 +60,7 @@ void userDBInit(const char* databasepath)
       Serial.print(F("Opening current table... "));
       EDB_Status result = userdatabase.open(0);
       if (result == EDB_OK) {
-        
+
         if (userdatabase.count() > MAXUSERSINDB)
         {
           Serial.println("error: too many users");
@@ -217,10 +216,12 @@ void updateCleanup(bool successful)
     userDBerase(db_users);
     SPIFFS.rename(db_users2, db_users);
     userDBInit(db_users);
+    SDwriteLogfile("UserDB updated");
   }
   else //update unsuccessful: open userdb file (previous database)
   {
     userDBInit(db_users);
+    SDwriteLogfile("UserDB update failed");
   }
 }
 
@@ -230,3 +231,188 @@ void userDBpurge(void)
   userDBerase(db_users);
 }
 
+//////////////////////////////////////////////
+// EVENT DATABASE FOR SPIFFS /////////////////
+//////////////////////////////////////////////
+
+#define EVENTDB_TABLE_SIZE 8192 //event database table size (on SPIFFS or SD card) to store unsent events
+int16_t eventDBentrytosend; //index of the event currently being transmitted from the event database (send one by one to have better database control)
+sendoutpackage eventDBpackage; //buffer for one package to be read from DB and sent out
+
+//function prototypes (todo: need to clean up the header file depedency mess sometime)
+void sendToServer(sendoutpackage* datastruct, bool save, bool enforce);
+
+
+#ifndef EVENT_DB_TO_SD //using SPIFFS for event database
+//SD card database for storing unsent events
+const char* db_events = "events.db"; //file for storing events database
+fs::File eventDBfile; //event database resides in SPIFFS, need to add namespace
+
+void eventDBwriter (unsigned long address, const uint8_t* data, unsigned int datasize) {
+  eventDBfile.seek(address, fs::SeekSet);
+  eventDBfile.write(data, datasize);
+  eventDBfile.flush();
+}
+
+void eventDBreader (unsigned long address, uint8_t* data, unsigned int datasize) {
+  eventDBfile.seek(address, fs::SeekSet);
+  eventDBfile.read(data, datasize);
+}
+
+EDB eventdatabase(&eventDBwriter, &eventDBreader); //create the event database
+
+//open a database file, create it if it does not exist
+void eventDBInit(void)
+{
+  Serial.print(F("EventDB init: "));
+
+  if (SPIFFS.exists(db_events)) {
+    Serial.println(F("Event database file exists"));
+    eventDBfile = SPIFFS.open(db_events, "r+"); //open file for reading and writing
+
+    if (eventDBfile) {
+      Serial.print(F("Opening eventDB table... "));
+      EDB_Status result = eventdatabase.open(0);
+      if (result == EDB_OK) {
+        Serial.println("DONE");
+        return;
+      } else {
+        Serial.println(F("ERROR"));
+        Serial.print(F("Did not find eventDB in the file "));
+        Serial.println(String(db_events));
+        Serial.print(F("Creating new table... "));
+        eventdatabase.create(0, EVENTDB_TABLE_SIZE, (unsigned int)sizeof(eventDBpackage));
+        Serial.println("DONE");
+        return;
+      }
+    } else {
+      Serial.println("Could not open file " + String(db_events));
+      //delete the corrupt file
+      SPIFFS.remove(db_events);
+      //now go on and create a new file with a new table
+    }
+  }
+  Serial.print(F("Creating event database... "));
+  // create table at with starting address 0
+  eventDBfile = SPIFFS.open(db_events, "w+"); //create file, overwrite if it exists (w+)
+  eventdatabase.create(0, EVENTDB_TABLE_SIZE, (unsigned int)sizeof(eventDBpackage));
+  Serial.println(F("DONE"));
+}
+
+
+void eventDBclose(void)
+{
+  if (eventDBfile)  //check if a file is open
+  {
+    eventDBfile.close(); //and close it
+  }
+}
+
+
+void eventDBdeleteentry(uint16_t entryno)
+{
+
+  if (!eventDBfile) //database file not open, so open the database
+  {
+    eventDBInit();
+  }
+
+  Serial.print(F("Deleting entry... "));
+  if (entryno <= eventdatabase.count()) //if entry exists (entries are from 1 to count, not starting at 0!)
+  {
+    EDB_Status result = eventdatabase.deleteRec(entryno);
+    if (result != EDB_OK) DBprintError(result);
+    Serial.println("DONE");
+  }
+  else
+  {
+    Serial.println(F("NOT FOUND"));
+  }
+  eventDBclose();
+
+
+}
+
+//add an entry to the eventDatabase
+bool eventDBaddentry(sendoutpackage* evententry)
+{
+
+  if (!eventDBfile) //database file not open, so open the database
+  {
+    eventDBInit();
+  }
+
+  Serial.print(F("Appending eventDB entry... "));
+  ESP.wdtFeed(); //kick hardware watchdog
+
+  //make sure the package is pending:
+  evententry->pending = true;
+  EDB_Status result = eventdatabase.appendRec(EDB_REC * evententry); //eventDBpackage is passed as a pointer but is dereferenced first, then cast back into a pointer by EDB_REC macro (kind of convoluted... see library definitions for details)
+  if (result != EDB_OK) {
+    DBprintError(result);
+    eventDBclose();
+    return false;
+  }
+  Serial.println(F("DONE"));
+  eventDBclose();
+  //entry is now in the database, remove it from the queue
+  evententry->pending = false;
+  return true;
+
+}
+
+
+//read a single pending event from the database (if any) into the eventDBpackage (can only be called from within this file)
+void eventDBgetpending(void)
+{
+
+  //Serial.println(F("Checking pending events on DB"));
+  if (!eventDBfile) //database file not open, so open the database
+  {
+    eventDBInit();
+  }
+  eventDBpackage.pending = false; //reset pending (use it to check in calling function to check if data was even read)
+  uint16_t i;
+  //Serial.print(F("number of event DB entries: "));
+  //Serial.println(eventdatabase.count());
+  for (i = eventdatabase.count(); i > 0; i--) //start scanning from the end (deleting end entries is faster), also, zero index is not used in EDB
+  {
+    EDB_Status result = eventdatabase.readRec(i, EDB_REC eventDBpackage); //eventDBpackage is passed as a pointer
+    if (result == EDB_OK)
+    {
+      Serial.println(F("read entry from EventDB"));
+      eventDBentrytosend = i;
+      break; //end the for loop now
+    }
+  }
+  eventDBclose();
+
+}
+
+void checkEventDB(void)
+{
+  static unsigned long EVDBchecktime = millis();
+  static bool EVDBeventPending = false; //set to true if events were saved, sendout is then repeated faster
+
+  if (millis() - EVDBchecktime > 10000 || EVDBeventPending) //check for pending events in the database
+  {
+    EVDBchecktime = millis();
+    eventDBgetpending(); //read an entry from the event database (if any) and save it to eventDBpackage struct
+    if (eventDBpackage.pending)
+    {
+      EVDBeventPending = true;
+      sendToServer(&eventDBpackage, false, false); //send to server, do not save again
+      if (eventDBpackage.pending == false) //if sent out successfully, delete this entry from the database (sendout sets pending = false)
+      {
+        eventDBdeleteentry(eventDBentrytosend);
+      }
+    }
+    else
+    {
+      EVDBeventPending = false;
+    }
+  }
+}
+
+
+#endif

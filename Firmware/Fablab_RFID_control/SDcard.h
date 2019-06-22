@@ -31,17 +31,13 @@
 #define SD_REMOVED 4
 #define SD_ACESSFAILED 5
 
-#define EVENTDB_TABLE_SIZE 8192 //event database table size (on SD card) to store unsent events
 
 SdFat SD; //using SdFat instead of SD library, much faster and more stable
 
-//function prototypes (todo: need to clean up the header file depedency mess!)
-void sendToServer(sendoutpackage* datastruct, bool save, bool enforce);
 
 uint8_t SDstate = SD_UNKNOWN;
-int16_t eventDBentrytosend; //index of the event currently being transmitted from the event database (send one by one to have better database control)
-sendoutpackage eventDBpackage; //buffer for one package to be read from DB and sent out
 
+#ifdef EVENT_DB_TO_SD
 //SD card database for storing unsent events
 const char* db_events = "events.db"; //file for storing events database
 File eventDBfile; //event database resides on the SD card (it may be written often, if worn out, the SD card is easy to replace campared to SPIFFs flash on the ESP8266 board)
@@ -104,7 +100,6 @@ void eventDBInit(void)
   }
 }
 
-//note: if the eventDB is initialized over and over again it is corrupted. reson is unknown, for now, just do not close the file.
 
 void eventDBclose(void)
 {
@@ -200,9 +195,7 @@ void eventDBgetpending(void)
   }
 }
 
-
-
-
+#endif
 
 
 //human readable logfile stuff
@@ -252,7 +245,7 @@ void SDwriteLogfile(String entry)
 }
 
 
-void SDwriteNodeDataFileEntry(String data) //writes a string to SD card, one data log file per day
+void SDwriteStringToLog(String data) //writes a string to SD card, one data log file per day
 {
   //the time is logged in UNIX time, seconds since Jan 1. 1970
   //time is read from NTP-server, 'X' is written if no real time is available
@@ -291,7 +284,7 @@ void SDwriteNodeDataFileEntry(String data) //writes a string to SD card, one dat
     {
       File dataFile = SD.open(filename, FILE_WRITE); //create the file
       if (dataFile) {
-        String header = "Lambda Nodes data " + getTimeString();
+        String header = "RFID backup log " + getTimeString();
         dataFile.println(header);
       }
       dataFile.close();
@@ -306,10 +299,10 @@ void SDwriteNodeDataFileEntry(String data) //writes a string to SD card, one dat
       //datatoWrite = getTimeString(); //get a string of current time. function returns 'X' if time not available
       //datatoWrite += "\t";
       //datatoWrite += data; //data string (in JSON format)
-      dataFile.println(data);
+      dataFile.println(data); //since this is used to write the JSON string which is sent also to the server, it contains the timestamp already
       dataFile.close();
       yield();
-      Serial.println(F("data written to SD"));
+      Serial.println(F("data written to SD log"));
     }
     // if the file cannot be opened:
     else {
@@ -319,7 +312,6 @@ void SDwriteNodeDataFileEntry(String data) //writes a string to SD card, one dat
       dataFile.close();
     }
   }
-
 }
 
 
@@ -423,7 +415,8 @@ void SDmanager(void)
           SDcardOK = false;
           SDeventPending = false;
         }
-        else //SD is initialized and ready: check for pending events
+#ifdef EVENT_DB_TO_SD
+        else //SD is initialized and ready: check for pending events (if using SD for events database)
         {
           eventDBgetpending();
           if (eventDBpackage.pending)
@@ -440,6 +433,7 @@ void SDmanager(void)
             SDeventPending = false;
           }
         }
+#endif
         return;
       }
       else if (SDstate == SD_REMOVED)
