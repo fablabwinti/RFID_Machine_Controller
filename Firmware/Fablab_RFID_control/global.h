@@ -5,13 +5,12 @@
 
 #define SD_CSN_PIN 0
 #define SERVERPACKETS 8   // number of server sendout packets (=event packet buffer in ram)
-
+#define MAXKEYSIZE 512 //maximum allowed size of public key (cert.pem) in bytes (should be smaller than 500 bytes, not tested for larger keys)
+#define KEYFILE "/key.pem" //name of the key file
 
 #define DEFAULTSTRINGLENGTH 32 //strings stored in eeprom have this length by default (31 chars + termination)
 #define SERVERCREDENTIALSTRINGLENGTH 55 //string length for server credentials (Cayenne credentials are up to 50 chars long)
 
-#define RFID_SECTORKEY  0x000000000000 //secret access key for first datasector (must be entered upon compiling, never commit to github, not even compiled file)
-#define RFID_SECRETKEY  {0x00000000, 0x00000000, 0x00000000, 0x00000000} //16byte (4x32bit) secret key stored in first sector (block 4) for additional security (can not be copied) key must be inserted before compiling (and never commited to GIThub)
 
 //EEPROM definitions
 #define EEPROMSIZE 1024
@@ -46,8 +45,6 @@
 #define EE_SERVERAPIKEY_ADDR EE_WEBUSER_ADDR+DEFAULTSTRINGLENGTH     //address for key for server API access
 #define EE_SERVERAPIUSER_ADDR EE_SERVERAPIKEY_ADDR+DEFAULTSTRINGLENGTH     //address for username for server API access
 
-
-
 #define EE_END EE_SERVERAPIUSER_ADDR+DEFAULTSTRINGLENGTH             //address reserved
 
 //additional config stuff needed:
@@ -67,6 +64,7 @@ void wifiAddAP(String name, String password);
 time_t getRtcTimestamp(void);
 void userDBpurge(void);
 bool handleHTTPRequest(String path);
+void handleFileUpload();
 void webSocketEvent(uint8_t num, WStype_t type, uint8_t * payload, size_t lenght);
 
 
@@ -337,6 +335,7 @@ void ReadConfig() {
 void WebServerinit(void)
 {
 
+
   webserver_active = true;
   display.clearDisplay();
   display.setFont(&g9regularFont);
@@ -359,15 +358,31 @@ void WebServerinit(void)
       return server.requestAuthentication();
     if (!handleHTTPRequest("/index.htm")) server.send(404, "text/plain", "FileNotFound");
   });
+
+   server.on("/test", HTTP_GET, []() {
+      server.sendHeader("Connection", "close");
+      server.sendHeader("Access-Control-Allow-Origin", "*");
+      server.send(200, "text/html", "<form method='POST' action='/upload' enctype='multipart/form-data'><input type='file' name='update'><input type='submit' value='Update'></form>");
+    });
+
+//note: upload through form did not work, changed it to websocket binary upload
+//  server.onFileUpload(handleFileUpload);
+//  //post to '/upload' means the webpage is uploading a new public key for the server
+//  server.on("/key", HTTP_POST, []() {
+//    server.send(200);                      // Send status 200 (OK) to tell the client we are ready to receive
+//    Serial.println("file upload ready");
+//  });                                  // Receive and save the key file
+
+
   server.onNotFound([]() { // handle page not found: check if file or path is available on SPIFFS
     if (!handleHTTPRequest(server.uri()))
       server.send(404, "text/plain", "FileNotFound");
   });
 
-
   server.begin();  // start webserver
   webSocket.begin(); //todo: check if this can lead to memory leaks if called multiple times
   webSocket.onEvent(webSocketEvent);
+
 
 }
 

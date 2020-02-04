@@ -49,6 +49,66 @@ bool handleHTTPRequest(String path) {
   return false;
 }
 
+
+/*
+ non-working file upload through html form (may be fucked up by jquery? it works on non-jquery webpage)
+ //file upload example https://tttapa.github.io/ESP8266/Chap12%20-%20Uploading%20to%20Server.html
+
+  void handleFileUpload() { // upload a new file to the SPIFFS (key file)
+  static fs::File uploadFile; //file to write to during file upload
+  Serial.println(F("Upload"));
+  if (server.uri() != "/key") {
+    Serial.println(F("uri error"));
+    return;
+  }
+
+  ESP.wdtFeed(); //kick hardware watchdog
+
+  HTTPUpload& upload = server.upload();
+  Serial.print(F("total size: "));
+  Serial.println(upload.totalSize);
+  Serial.print(F("chunk size: "));
+  Serial.println(upload.currentSize);
+  if (upload.status == UPLOAD_FILE_START) {
+    Serial.print(F("Upload Name: ")); Serial.println(upload.filename);
+    uploadFile = SPIFFS.open(KEYFILE, "w"); //open the key file, overwrite if it exists, create it if not
+  }
+  if (upload.status == UPLOAD_FILE_WRITE) {
+
+    if (uploadFile)
+    {
+      if (upload.totalSize + upload.currentSize <= MAXKEYSIZE + 200)
+      {
+        uploadFile.write(upload.buf, upload.currentSize);
+      }
+      else
+      {
+        server.send(500, "text/plain", "File too large! Selected wrong file?");
+        Serial.println(F("error: File too large"));
+        uploadFile.close();
+        //delete the key file:
+        SPIFFS.remove(KEYFILE);
+      }
+    }
+    else
+    {
+      server.send(500, "text/plain", "500: couldn't create file");
+    }
+  }
+  if (upload.status == UPLOAD_FILE_END) {
+    if (uploadFile)
+    {
+      uploadFile.close();
+      Serial.println("Key Upload Successful");
+      server.send(201, "text/plain", "File uploaded successfully");
+      server.send(200, "text/plain", "File uploaded successfully");
+
+    } else {
+      server.send(500, "text/plain", "500: couldn't create file");
+    }
+  }
+  }*/
+
 //print a message to the webpage through websockets
 void WS_print(const String &s)
 {
@@ -86,7 +146,7 @@ void webSocketEvent(uint8_t num, WStype_t type, uint8_t * payload, size_t lenght
   ESP.wdtFeed(); //kick hardware watchdog
   switch (type) {
     case WStype_DISCONNECTED:
-      Serial.println("Disconnected!");
+      Serial.println(F("Disconnected!"));
       websocket_connected--;
       break;
     case WStype_CONNECTED:
@@ -95,7 +155,7 @@ void webSocketEvent(uint8_t num, WStype_t type, uint8_t * payload, size_t lenght
         websocket_connected++;
         IPAddress ip = webSocket.remoteIP(num);
         // Serial.printf("[%u] Connected from %d.%d.%d.%d url: %s\n", num, ip[0], ip[1], ip[2], ip[3], payload);
-        Serial.println("Client Connected");
+        Serial.println(F("Client Connected"));
         //update client webpage content:
 
         //    String websocketStatusMessage = "H" + String(myHue) + ",S" + String(mySaturation) + ",V" + String(myValue) + ",W" + String(myWhiteLedValue); //Sends a string with the HSV and white led  values to the client website when the conection gets established
@@ -405,7 +465,7 @@ void webSocketEvent(uint8_t num, WStype_t type, uint8_t * payload, size_t lenght
           else
             Serial.println(F("RFID code json parsing failed"));
         }
-        else if (text.indexOf("APIKEY") != -1)
+        else if (text.indexOf("APIKEY") != -1) //access to the web configpage
         {
           //API access settings
           //parse the json text
@@ -480,10 +540,46 @@ void webSocketEvent(uint8_t num, WStype_t type, uint8_t * payload, size_t lenght
       break;
 
     case WStype_BIN:
-      //USE_SERIAL.printf("[%u] get binary lenght: %u\n", num, lenght);
-      // hexdump(payload, lenght);
-      // send message to client
-      // webSocket.sendBIN(num, payload, lenght);
+      {
+        Serial.println(F("receiving binary WS data:"));
+        Serial.write(payload, lenght);
+        Serial.println("");
+
+        static fs::File uploadFile; //file to write to
+        ESP.wdtFeed(); //kick hardware watchdog
+        Serial.print(F("size:"));
+        Serial.println(lenght);
+        uploadFile = SPIFFS.open(KEYFILE, "w"); //open the key file, overwrite if it exists, create it if not
+        if (uploadFile)
+        {
+          if (lenght <= MAXKEYSIZE)
+          {
+            uploadFile.write(payload, lenght);
+            WS_print(F("KEY file saved\r\n"));
+          }
+          else
+          {
+            WS_print(F("file too big"));
+            Serial.println(F("File too large"));
+            uploadFile.close();
+            //delete the key file:
+            SPIFFS.remove(KEYFILE);
+          }
+
+          uploadFile.close();
+
+        }
+        else
+        {
+          WS_print(F("ERROR: create failed\r\n"));
+          SPIFFS.remove(KEYFILE); //remove the file if it exists (it may be corrupted?)
+        }
+
+        //USE_SERIAL.printf("[%u] get binary lenght: %u\n", num, lenght);
+        // hexdump(payload, lenght);
+        // send message to client
+        // webSocket.sendBIN(num, payload, lenght);
+      }
       break;
   }
 }

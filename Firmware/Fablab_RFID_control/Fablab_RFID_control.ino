@@ -1,6 +1,6 @@
 
 /*
-  Hardare: Use only ESP8266 with 4M of flash, then select 4M (with 3M SPIFFS)
+  Hardare: Use only ESP8266 with 4M of flash, then select 4M (with 2M SPIFFS) (need extras sketch space to enable update throug webpage and future increases, 2M SPIFFS is plenty)
 
   TODO: add license here ( GNU LGPL Version 3 ), also add license to GIT repo
 

@@ -1,10 +1,11 @@
 
-#define MAXKEYSIZE 512 //maximum size of public key in bytes (should be smaller than 500 bytes, not tested for larger keys)
+
 unsigned long serverUpdateTime = 0;  // used to control when data is sent out (must not do it faster than every x seconds)
 
 //public key used by the server used to verify we are talking to the correct server
 // Extracted by: openssl x509 -pubkey -noout -in cert.pem
-const char* keyfile = "/cert.pem"; //file uploaded to spiffs containing the public key
+//run the command in the /access_auth_server/keys folder
+const char* keyfile = KEYFILE; //file uploaded to spiffs containing the public key (default is "key.pem")
 
 
 /*= R"KEY(
@@ -40,6 +41,14 @@ bool readKeyfromSPIFFS(uint8_t* charbuffer, uint16_t buffersize)
       Serial.println(F("key file opened"));
       publicKeyFile.read((uint8_t*)charbuffer, buffersize);
       publicKeyFile.close(); //close the databasefile if it is open
+
+      Serial.println(F("key dump:"));
+      Serial.println(F("********************"));
+      //print uploaded file to console
+
+      Serial.write(charbuffer, MAXKEYSIZE);
+      Serial.println(F("********************"));
+
       return true;
     }
     else
@@ -64,7 +73,9 @@ void sendToServer(sendoutpackage* datastruct, bool saveiffail, bool enforce) {
 
   // Use WiFiClient class to create TCP connections
   //WiFiClient client;
-  if (readKeyfromSPIFFS((uint8_t*) pubkey, MAXKEYSIZE) == false) return;
+  if (readKeyfromSPIFFS((uint8_t*) pubkey, MAXKEYSIZE) == false) return; //read public key from spiffs (upload through webpage)
+
+
 
   BearSSL::WiFiClientSecure client;
   BearSSL::PublicKey key(pubkey);
@@ -443,7 +454,15 @@ void UpdateDBfromServer(void) {
         config.mPrice =  (uint16_t)(price * 100); //price is a float, multiply by 100 to get cents
         config.mPeriod = machinesettings["period"];
         config.mMinPeriods = machinesettings["min_periods"];
-        config.mSwitchoffDelay = 100; //TODO: add this from server info
+        //TDODO should be called 'offdelay'
+        if (machinesettings["nachlauf"].success())
+        {
+          config.mSwitchoffDelay = machinesettings["nachlauf"];
+        }
+        else
+        {
+          config.mSwitchoffDelay = 120; //default delay is 120 seconds
+        }
         WriteConfig();
         Serial.println(F("Machine Settings updated\r\n"));
         machineInfoUpdated = true;

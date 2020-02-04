@@ -186,7 +186,23 @@
         console.log(JSON.stringify(obj));
         connection.send(JSON.stringify(obj));
         return false; //prevent form being posted (we use websocket)
-    };        
+    };  
+
+	function sendKeyFile() {
+
+        var file = document.getElementById('keyfilename').files[0];
+        var reader = new FileReader();
+
+            var rawData = new ArrayBuffer();            
+            reader.loadend = function() { 
+			}
+            reader.onload = function(e) {
+                rawData = e.target.result;
+                ws.send(rawData);
+                alert("the File has been transferred.")
+            }
+            reader.readAsArrayBuffer(file);
+        }	
     
 
     function updateFirmware() {
@@ -385,21 +401,13 @@
         </div>
         <BR>
 		<div data-role="collapsible" data-collapsed="false">
-                <h4>API Access</h4>                             
-            <form action="" method="post" id="APIConfig" onsubmit="return submitAPI()">
-             <h5>Access credentials for the API of the server</h5> 
-                <div data-role="fieldcontain">
-                    <div data-role="fieldcontain">
-                        <label for="APIuser">API User</label>
-                        <input type="text" id="APIuser" required maxlength="31"> 
-                    </div>
-                    <div data-role="fieldcontain">
-                        <label for="APIkey">API Key</label>
-                        <input type="text" id="APIkey" required maxlength="31">
-                    </div>
-                    <BR>
-                    <input type="submit" value="Save to Controller" data-icon="refresh">
-                </div>
+                <h4>Server public key</h4>                             
+             <h5>Access key for the API of the server. The file must contain the public key from the server (see key.pem file in firmware folder for an example). The file must be smaller than 512bytes. It can be extracted from the server certificate with openssl. Example command: 'openssl x509 -pubkey -noout -in cert.pem'</h5> 
+            <input type="file" id="keyfilename">
+			<input type="button" value="Upload Key" onclick="sendKeyFile()" >
+			
+			<form method='POST' enctype='multipart/form-data'><input type='file' name='key'><input type='submit' value='Upload File'>  
+             
             </form>
     	</div>
 		<BR>
@@ -424,7 +432,7 @@
 		<BR>
 		<div data-role="collapsible" data-collapsed="false">
                 <h4>Admin RFID tag</h4>                             
-            <form action="" method="post" id="APIConfig" onsubmit="return submitUID()">
+            <form action="" method="post" id="APIConfigUID" onsubmit="return submitUID()">
              <h5>This 32bit UID has unlimited access and works even after a full config reset. Enter it as a integer number.</h5> 
                 <div data-role="fieldcontain">
                     <div data-role="fieldcontain">
@@ -443,7 +451,7 @@
         ipValue = localIP;
 
         connection = new WebSocket(ipValue);
-
+		connection.binaryType = "arraybuffer";
         connection.onerror = function(event) { console.log("Websocket Error! Need Websocket support for this page to work") }
         /*incoming websocket message handling*/
         connection.onmessage = function(evt) {
