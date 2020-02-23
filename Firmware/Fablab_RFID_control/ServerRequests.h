@@ -41,14 +41,14 @@ bool readKeyfromSPIFFS(uint8_t* charbuffer, uint16_t buffersize)
       Serial.println(F("key file opened"));
       publicKeyFile.read((uint8_t*)charbuffer, buffersize);
       publicKeyFile.close(); //close the databasefile if it is open
+      /*
+            Serial.println(F("key dump:"));
+            Serial.println(F("********************"));
+            //print uploaded file to console
 
-      Serial.println(F("key dump:"));
-      Serial.println(F("********************"));
-      //print uploaded file to console
-
-      Serial.write(charbuffer, MAXKEYSIZE);
-      Serial.println(F("********************"));
-
+            Serial.write(charbuffer, MAXKEYSIZE);
+            Serial.println(F("********************"));
+      */
       return true;
     }
     else
@@ -115,8 +115,8 @@ void sendToServer(sendoutpackage* datastruct, bool saveiffail, bool enforce) {
       if (datastruct->pending)  // if sendout flag is set (just double checking)
       {
         needupdate = 1;
-        DynamicJsonBuffer jsonBuffer(256); //crate a buffer for one event
-        JsonObject& event = jsonBuffer.createObject();
+
+        DynamicJsonDocument event(256);//crate a buffer
         event["timestamp"] = convertToTimestring(datastruct->timestamp); //datastruct->timestamp;
         event["mid"] = config.mid;
         event["eid"] = datastruct->event;
@@ -125,7 +125,7 @@ void sendToServer(sendoutpackage* datastruct, bool saveiffail, bool enforce) {
           event["tid"] = datastruct->tid;
         }
         event["remarks"] = datastruct->remarks;
-        event.printTo(payload);
+        serializeJson(event, payload);
       }
 
 
@@ -315,9 +315,8 @@ void UpdateDBfromServer(void) {
     client.readStringUntil('['); //discard the rest of the header and the inital bracket
     while (client.available() > 0)
     {
-      ESP.wdtFeed(); //kick hardware watchdog
       delay(1); //wait for more data and make way for background activity if needed
-      DynamicJsonBuffer jsonBuffer(512); //crate a buffer for 5 database entries (todo: could optimize ram usage if necessary by making this buffer smaller)
+
       str = "["; //add initial array bracket
       for (uint8_t i = 0; i < 5; i++)
       {
@@ -328,8 +327,11 @@ void UpdateDBfromServer(void) {
       str += "]";  //add terminating array bracket
       //Serial.println(str);
       delay(1); //run background functions
-      JsonArray& root = jsonBuffer.parseArray(str); //parse the array
-      if (!root.success()) {
+
+      DynamicJsonDocument root(512);//crate a buffer
+      DeserializationError jsonerror = deserializeJson(root, str); //parse the text
+
+      if (jsonerror) {
         Serial.println("JSON parsing failed!");
         client.stop();
         {
@@ -339,7 +341,7 @@ void UpdateDBfromServer(void) {
         }
       }
 
-      root.prettyPrintTo(Serial);
+      serializeJsonPretty(root, Serial);//debug!!!
       Serial.println(".");
       ESP.wdtFeed(); //kick hardware watchdog
       delay(1); //run background functions
@@ -350,20 +352,23 @@ void UpdateDBfromServer(void) {
         Serial.println(" ");
 
         //check if received database entry is fully defined (i.e. all required fields exist)
-        if (root[i]["tid"].success() && root[i]["uid"].success() && root[i]["name"].success() && root[i]["start"].success() && root[i]["end"].success())
+        //if a key does not exists it is 'null' or zero if it is an integer. the .containsKey("x") is not applicable for arrays, only for objects
+        //none of the numbers can be zero (lowest tid and uid is 1, 0 is reserved for admin tag)
+        uint16_t tid = root[i]["tid"];
+        uint32_t uid = root[i]["uid"];
+        const char* name = root[i]["name"];
+        uint32_t start = root[i]["start"];
+        uint32_t end = root[i]["end"];
+        
+        if (name && tid > 0 && uid > 0 && start > 0 && end > 0) //if name checks if the pointer is nullpointer
         {
-          uint16_t tid = root[i]["tid"];
-          uint32_t uid = root[i]["uid"];
-          const char* name = root[i]["name"];
-          uint32_t start = root[i]["start"];
-          uint32_t end = root[i]["end"];
-
-          Serial.println(tid);
-          Serial.println(root[i]["name"].asString());
-          Serial.println(uid);
-          Serial.println(start);
-          Serial.println(end);
-
+           Serial.println(F("adding valid user entry"));
+//          Serial.println(tid);
+//          Serial.println(root[i]["name"].as<String>());
+//          Serial.println(uid);
+//          Serial.println(start);
+//          Serial.println(end);
+      
           delay(50); //wait for more data to arrive
 
           if (userDBaddentry(tid, uid, start, end, name) == false)
@@ -371,6 +376,10 @@ void UpdateDBfromServer(void) {
             updateCleanup(false); //cleanup the database, unsuccessful update
             return;
           }
+        }
+        else
+        {
+          Serial.println(F("user entry invalid (JSON key missing)"));
         }
       }
 
@@ -414,7 +423,7 @@ void UpdateDBfromServer(void) {
       }
 
       String str = client.readStringUntil('\r');  //read first line of response (contains error code)
-      Serial.print(str);
+      //Serial.print(str);
       if (str.indexOf("200 OK") != -1) {
         Serial.println(F(" - Server response OK"));
       }
@@ -432,32 +441,38 @@ void UpdateDBfromServer(void) {
 
       ESP.wdtFeed(); //kick hardware watchdog
       delay(10); //wait for more data and make way for background activity if needed
-      DynamicJsonBuffer jsonBuffer(150); //crate a buffer for info data (usually about 100 chars long)
+
       str = ""; //clear string
       str += client.readStringUntil(']'); //read full json string
       Serial.println(str);
-      JsonObject& machinesettings = jsonBuffer.parseObject(str);
 
-      if (!machinesettings.success()) {
+      DynamicJsonDocument machinesettings(256);//crate a buffer
+
+      //ReadLoggingStream loggingStream(client, Serial);
+      DeserializationError jsonerror = deserializeJson(machinesettings, str);
+
+      if (jsonerror) {
         Serial.println("JSON parsing failed!");
+        Serial.println(jsonerror.c_str());
         client.stop();
         return; //parsing failed for some reason (incomplete stream?)
       }
-      machinesettings.prettyPrintTo(Serial);
+      serializeJsonPretty(machinesettings, Serial);//debug!!!
       ESP.wdtFeed(); //kick hardware watchdog
       delay(1); //run background functions
-      if (machinesettings["name"].success() && machinesettings["price"].success() && machinesettings["period"].success() && machinesettings["min_periods"].success())
+      if (machinesettings.containsKey("name") && machinesettings.containsKey("price") && machinesettings.containsKey("period") && machinesettings.containsKey("min_periods"))
       {
-        config.MachineName = machinesettings["name"].asString();
+        config.MachineName = machinesettings["name"].as<String>();
         config.DeviceName = config.MachineName; //also set accesspoint name
         float price = machinesettings["price"]; //read into a float
         config.mPrice =  (uint16_t)(price * 100); //price is a float, multiply by 100 to get cents
         config.mPeriod = machinesettings["period"];
         config.mMinPeriods = machinesettings["min_periods"];
-        //TDODO should be called 'offdelay'
-        if (machinesettings["nachlauf"].success())
+
+
+        if (machinesettings.containsKey("offdelay"))
         {
-          config.mSwitchoffDelay = machinesettings["nachlauf"];
+          config.mSwitchoffDelay = machinesettings["offdelay"];
         }
         else
         {

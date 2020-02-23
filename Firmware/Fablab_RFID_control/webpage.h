@@ -51,8 +51,8 @@ bool handleHTTPRequest(String path) {
 
 
 /*
- non-working file upload through html form (may be fucked up by jquery? it works on non-jquery webpage)
- //file upload example https://tttapa.github.io/ESP8266/Chap12%20-%20Uploading%20to%20Server.html
+  non-working file upload through html form (may be fucked up by jquery? it works on non-jquery webpage)
+  //file upload example https://tttapa.github.io/ESP8266/Chap12%20-%20Uploading%20to%20Server.html
 
   void handleFileUpload() { // upload a new file to the SPIFFS (key file)
   static fs::File uploadFile; //file to write to during file upload
@@ -319,9 +319,11 @@ void webSocketEvent(uint8_t num, WStype_t type, uint8_t * payload, size_t lenght
         else if (text.indexOf("SSID") != -1) //add a new wifi connection (sent as JSON, containing SSID and PASS, example {"SSID": "xxx", "PASS": "xxx"}
         {
           //parse the json text
-          DynamicJsonBuffer jsonBuffer(150); //crate a buffer
-          JsonObject& wifidata = jsonBuffer.parseObject(text);
-          if (wifidata.success())
+          DynamicJsonDocument wifidata(150);//crate a buffer
+          DeserializationError jsonerror = deserializeJson(wifidata, text); //parse the text
+          serializeJsonPretty(wifidata, Serial); //debug!!!
+
+          if (!jsonerror) //no error
           {
             if (wifidata.containsKey("SSID") && wifidata.containsKey("PASS"))
             {
@@ -341,21 +343,22 @@ void webSocketEvent(uint8_t num, WStype_t type, uint8_t * payload, size_t lenght
         else if (text.indexOf("DHCP") != -1) //IP & DHCP settings (sent as JSON, containing IP, MASK, GATE and DHCP example {"IP": "192.168.1.55", "MASK": "255.255.255.0","GATE": "192.168.1.1","DHCP": "off"} (DHCP can also be "on")
         {
           //parse the json text
-          DynamicJsonBuffer jsonBuffer(150); //crate a buffer
-          JsonObject& ipsettings = jsonBuffer.parseObject(text);
-          if (ipsettings.success())
+          DynamicJsonDocument ipsettings(150);//crate a buffer
+          DeserializationError jsonerror = deserializeJson(ipsettings, text); //parse the text
+          serializeJsonPretty(ipsettings, Serial);//debug!!!
+          if (!jsonerror) //no error
           {
             if (ipsettings.containsKey("IP"))
             {
-              config.IP.fromString(ipsettings["IP"].asString());
+              config.IP.fromString(ipsettings["IP"].as<String>());
             }
             if (ipsettings.containsKey("MASK"))
             {
-              config.Netmask.fromString(ipsettings["MASK"].asString());
+              config.Netmask.fromString(ipsettings["MASK"].as<String>());
             }
             if (ipsettings.containsKey("GATE"))
             {
-              config.Gateway.fromString(ipsettings["GATE"].asString());
+              config.Gateway.fromString(ipsettings["GATE"].as<String>());
             }
             if (ipsettings.containsKey("DHCP"))
             {
@@ -370,11 +373,11 @@ void webSocketEvent(uint8_t num, WStype_t type, uint8_t * payload, size_t lenght
                 config.useDHCP = false;
                 WS_print(F("NOT using DHCP\r\n"));
                 WS_print(F("IP = "));
-                WS_print(ipsettings["IP"].asString());
+                WS_print(ipsettings["IP"].as<String>());
                 WS_print(F("\r\nNetmask = "));
-                WS_print(ipsettings["MASK"].asString());
+                WS_print(ipsettings["MASK"].as<String>());
                 WS_print(F("\r\nGateway = "));
-                WS_print(ipsettings["GATE"].asString());
+                WS_print(ipsettings["GATE"].as<String>());
                 WS_print(F("\r\n"));
               }
 
@@ -390,14 +393,14 @@ void webSocketEvent(uint8_t num, WStype_t type, uint8_t * payload, size_t lenght
         {
           //node settings
           //parse the json text
-          DynamicJsonBuffer jsonBuffer(150); //crate a buffer
-          JsonObject& nodesettings = jsonBuffer.parseObject(text);
-          nodesettings.prettyPrintTo(Serial); //debug!!!
-          if (nodesettings.success())
+          DynamicJsonDocument nodesettings(150);//crate a buffer
+          DeserializationError jsonerror = deserializeJson(nodesettings, text); //parse the text
+          serializeJsonPretty(nodesettings, Serial); //debug!!!
+          if (!jsonerror) //no error
           {
             if (nodesettings.containsKey("NDC_MNAME"))
             {
-              config.MachineName = nodesettings["NDC_MNAME"].asString();
+              config.MachineName = nodesettings["NDC_MNAME"].as<String>();
               config.DeviceName = config.MachineName; //also set accesspoint name
             }
             if (nodesettings.containsKey("NDC_MID"))
@@ -406,7 +409,7 @@ void webSocketEvent(uint8_t num, WStype_t type, uint8_t * payload, size_t lenght
             }
             if (nodesettings.containsKey("NDC_SADD"))
             {
-              config.serverAddress = nodesettings["NDC_SADD"].asString();
+              config.serverAddress = nodesettings["NDC_SADD"].as<String>();
             }
             if (nodesettings.containsKey("NDC_PORT"))
             {
@@ -421,10 +424,10 @@ void webSocketEvent(uint8_t num, WStype_t type, uint8_t * payload, size_t lenght
         else if (text.indexOf("RFIDKEY") != -1) //RFID card codes
         {
           //RFID access settings
-          DynamicJsonBuffer jsonBuffer(80); //crate a buffer
-          JsonObject& RFIDcodes = jsonBuffer.parseObject(text);
-          RFIDcodes.prettyPrintTo(Serial); //debug!!!
-          if (RFIDcodes.success())
+          DynamicJsonDocument RFIDcodes(80);//crate a buffer
+          DeserializationError jsonerror = deserializeJson(RFIDcodes, text); //parse the text
+          serializeJsonPretty(RFIDcodes, Serial); //debug!!!
+          if (!jsonerror) //no error
           {
             if (RFIDcodes.containsKey("RFIDKEY"))
             {
@@ -432,7 +435,7 @@ void webSocketEvent(uint8_t num, WStype_t type, uint8_t * payload, size_t lenght
               //need to extract the bytes from the string
               char hexbyte[3]; //char string for one byte of hex code (plus termination)
               hexbyte[2] = 0; //null termination of char string
-              String hexnumber = RFIDcodes["RFIDKEY"].asString();
+              String hexnumber = RFIDcodes["RFIDKEY"].as<String>();
               Serial.print("got key: (LSB first) ");
               for (i = 0; i < 6; i++)
               {
@@ -447,7 +450,7 @@ void webSocketEvent(uint8_t num, WStype_t type, uint8_t * payload, size_t lenght
             }
             if (RFIDcodes.containsKey("RFIDCODE"))
             {
-              String code = RFIDcodes["RFIDCODE"].asString();
+              String code = RFIDcodes["RFIDCODE"].as<String>();
               config.RFIDcode[15] = 'X'; //debug only
 
               Serial.println(" ");
@@ -469,18 +472,18 @@ void webSocketEvent(uint8_t num, WStype_t type, uint8_t * payload, size_t lenght
         {
           //API access settings
           //parse the json text
-          DynamicJsonBuffer jsonBuffer(150); //crate a buffer
-          JsonObject& apiconfig = jsonBuffer.parseObject(text);
-          apiconfig.prettyPrintTo(Serial); //debug!!!
-          if (apiconfig.success())
+          DynamicJsonDocument apiconfig(150);//crate a buffer
+          DeserializationError jsonerror = deserializeJson(apiconfig, text); //parse the text
+          serializeJsonPretty(apiconfig, Serial); //debug!!!
+          if (!jsonerror) //no error
           {
             if (apiconfig.containsKey("APIKEY"))
             {
-              config.APIkey = apiconfig["APIKEY"].asString();
+              config.APIkey = apiconfig["APIKEY"].as<String>();
             }
             if (apiconfig.containsKey("APIUSER"))
             {
-              config.APIuser = apiconfig["APIUSER"].asString();
+              config.APIuser = apiconfig["APIUSER"].as<String>();
             }
 
             WriteConfig();
@@ -493,18 +496,18 @@ void webSocketEvent(uint8_t num, WStype_t type, uint8_t * payload, size_t lenght
         {
           //API access settings
           //parse the json text
-          DynamicJsonBuffer jsonBuffer(150); //crate a buffer
-          JsonObject& webaccess = jsonBuffer.parseObject(text);
-          webaccess.prettyPrintTo(Serial); //debug!!!
-          if (webaccess.success())
+          DynamicJsonDocument webaccess(150);//crate a buffer
+          DeserializationError jsonerror = deserializeJson(webaccess, text); //parse the text
+          serializeJsonPretty(webaccess, Serial); //debug!!!
+          if (!jsonerror) //no error
           {
             if (webaccess.containsKey("WEBUSER"))
             {
-              config.webUser = webaccess["WEBUSER"].asString();
+              config.webUser = webaccess["WEBUSER"].as<String>();
             }
             if (webaccess.containsKey("WEBPASS"))
             {
-              config.webPW = webaccess["WEBPASS"].asString();
+              config.webPW = webaccess["WEBPASS"].as<String>();
             }
 
             WriteConfig();
@@ -517,10 +520,10 @@ void webSocketEvent(uint8_t num, WStype_t type, uint8_t * payload, size_t lenght
         {
           //API access settings
           //parse the json text
-          DynamicJsonBuffer jsonBuffer(150); //crate a buffer
-          JsonObject& uiddata = jsonBuffer.parseObject(text);
-          uiddata.prettyPrintTo(Serial); //debug!!!
-          if (uiddata.success())
+          DynamicJsonDocument uiddata(150);//crate a buffer
+          DeserializationError jsonerror = deserializeJson(uiddata, text); //parse the text
+          serializeJsonPretty(uiddata, Serial); //debug!!!
+          if (!jsonerror) //no error
           {
             if (uiddata.containsKey("UID"))
             {
@@ -530,56 +533,56 @@ void webSocketEvent(uint8_t num, WStype_t type, uint8_t * payload, size_t lenght
               Serial.print(F("got UID: "));
               Serial.println(config.adminUID);
             }
+
+            WriteConfig();
+            WS_print(F("Admin UID saved\r\n"));
           }
-          WriteConfig();
-          WS_print(F("Admin UID saved\r\n"));
+          else
+            Serial.println(F("webaccess settings json parsing failed"));
         }
-        else
-          Serial.println(F("webaccess settings json parsing failed"));
       }
-      break;
-
-    case WStype_BIN:
-      {
-        Serial.println(F("receiving binary WS data:"));
-        Serial.write(payload, lenght);
-        Serial.println("");
-
-        static fs::File uploadFile; //file to write to
-        ESP.wdtFeed(); //kick hardware watchdog
-        Serial.print(F("size:"));
-        Serial.println(lenght);
-        uploadFile = SPIFFS.open(KEYFILE, "w"); //open the key file, overwrite if it exists, create it if not
-        if (uploadFile)
+        break;
+      case WStype_BIN:
         {
-          if (lenght <= MAXKEYSIZE)
+          Serial.println(F("receiving binary WS data:"));
+          Serial.write(payload, lenght);
+          Serial.println("");
+
+          static fs::File uploadFile; //file to write to
+          ESP.wdtFeed(); //kick hardware watchdog
+          Serial.print(F("size:"));
+          Serial.println(lenght);
+          uploadFile = SPIFFS.open(KEYFILE, "w"); //open the key file, overwrite if it exists, create it if not
+          if (uploadFile)
           {
-            uploadFile.write(payload, lenght);
-            WS_print(F("KEY file saved\r\n"));
+            if (lenght <= MAXKEYSIZE)
+            {
+              uploadFile.write(payload, lenght);
+              WS_print(F("KEY file saved\r\n"));
+            }
+            else
+            {
+              WS_print(F("file too big"));
+              Serial.println(F("File too large"));
+              uploadFile.close();
+              //delete the key file:
+              SPIFFS.remove(KEYFILE);
+            }
+
+            uploadFile.close();
+
           }
           else
           {
-            WS_print(F("file too big"));
-            Serial.println(F("File too large"));
-            uploadFile.close();
-            //delete the key file:
-            SPIFFS.remove(KEYFILE);
+            WS_print(F("ERROR: create failed\r\n"));
+            SPIFFS.remove(KEYFILE); //remove the file if it exists (it may be corrupted?)
           }
 
-          uploadFile.close();
-
+          //USE_SERIAL.printf("[%u] get binary lenght: %u\n", num, lenght);
+          // hexdump(payload, lenght);
+          // send message to client
+          // webSocket.sendBIN(num, payload, lenght);
         }
-        else
-        {
-          WS_print(F("ERROR: create failed\r\n"));
-          SPIFFS.remove(KEYFILE); //remove the file if it exists (it may be corrupted?)
-        }
-
-        //USE_SERIAL.printf("[%u] get binary lenght: %u\n", num, lenght);
-        // hexdump(payload, lenght);
-        // send message to client
-        // webSocket.sendBIN(num, payload, lenght);
+        break;
       }
-      break;
   }
-}

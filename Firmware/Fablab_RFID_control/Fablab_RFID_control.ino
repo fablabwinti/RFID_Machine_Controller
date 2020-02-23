@@ -45,6 +45,30 @@
     -the webpage can be activeted only by pressing the function button on the hardware (after bootup)
     -
 
+    Tested on Arduino 1.8.9 and 1.8.12
+    ESP version 2.5.2 (Not working with 2.6.x !!! something changed in the wifisecure library)
+
+    Libraries used:
+    Using library EDB at version 1.0.6
+  Using library SPI at version 1.0
+  Using library MRFC522 at version 1.3.6
+  Using library FastLED at version 3.2.1
+  Using library Time at version 1.5
+  Using library Rtc_by_Makuna at version 2.0.2
+  Using library Adafruit_SSD1306 at version 1.1.2
+  Using library Adafruit_GFX at version 1.2.3
+  Using library ESP8266WiFi at version 1.0
+  Using library ESP8266WebServer at version 1.0
+  Using library ESP8266HTTPClient at version 1.2
+  Using library ESP8266httpUpdate at version 1.3
+  Using library EEPROM at version 1.0
+  Using library Wire at version 1.0
+  Using library ESP8266SdFat at version 1.0.16
+  Using library ESP8266mDNS at version 1.2
+  Using library WebSockets at version 2.0.9
+  Using library ArduinoJson at version 6.12.0
+  Using library Hash at version 1.0
+
  * */
 
 //set these compile time parameters to fit your needs
@@ -60,6 +84,7 @@
 //}
 #define FS_NO_GLOBALS //allow spiffs to coexist with SD card
 #define FASTLED_ESP8266_RAW_PIN_ORDER
+
 #include <FS.h> //spiff file system
 #include <EDB.h> //use version 1.0.6 https://github.com/jwhiddon/EDB
 #include <SPI.h>
@@ -76,9 +101,6 @@
 #include <ESP8266WebServer.h>
 #include <ESP8266HTTPClient.h>
 #include <ESP8266httpUpdate.h>
-
-//#include <ESPAsyncTCP.h>
-//#include <ESPAsyncWebServer.h>
 #include <EEPROM.h>
 #include <WiFiUdp.h>
 #include <IPAddress.h>
