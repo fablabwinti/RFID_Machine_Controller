@@ -29,8 +29,10 @@ boolean getRFIDdata(MFRC522::MIFARE_Key *key, uint8_t block, uint8_t* RFIDblockb
   // Serial.println(F("Authenticating using key A..."));
   status = mfrc522.PCD_Authenticate(MFRC522::PICC_CMD_MF_AUTH_KEY_A, block, key, &(mfrc522.uid));
   if (status != MFRC522::STATUS_OK) {
+#ifdef SERIALDEBUG
     Serial.print(F("PCD_Authenticate() failed: "));
     Serial.println(mfrc522.GetStatusCodeName(status));
+#endif
     return false;
   }
 
@@ -38,17 +40,19 @@ boolean getRFIDdata(MFRC522::MIFARE_Key *key, uint8_t block, uint8_t* RFIDblockb
   byte byteCount = 18; //get 16 bytes of data, two extra bytes are needed as the library adds the read command to the buffer), the returned 16 bytes start at buffer[0]
   status = mfrc522.MIFARE_Read(block, RFIDblockbuffer, &byteCount);
   if (status != MFRC522::STATUS_OK) {
+#ifdef SERIALDEBUG
     Serial.print(F("MIFARE_Read() failed: "));
     Serial.println(mfrc522.GetStatusCodeName(status));
+#endif
   }
   else {
     // Successful read
     result = true;
-    //  Serial.println(F("Success"));
+#ifdef SERIALDEBUG
+    Serial.println(F("Success"));
+#endif
 
   }
-  // Serial.println();
-
 
   return result;
 }
@@ -61,20 +65,28 @@ boolean writeRFIDdata(MFRC522::MIFARE_Key *key, uint8_t block, uint8_t* RFIDbloc
   //Serial.println(F("Authenticating using key A..."));
   status = mfrc522.PCD_Authenticate(MFRC522::PICC_CMD_MF_AUTH_KEY_A, block, key, &(mfrc522.uid));
   if (status != MFRC522::STATUS_OK) {
+#ifdef SERIALDEBUG
     Serial.print(F("PCD_Authenticate() failed: "));
     Serial.println(mfrc522.GetStatusCodeName(status));
+#endif
     return false;
   }
-  else Serial.println(F("PCD_Authenticate() success: "));
+#ifdef SERIALDEBUG
+  else Serial.println(F("PCD_Authenticate() success"));
+#endif
 
   // Write block of 16 bytes
   status = mfrc522.MIFARE_Write(block, RFIDblockbuffer, 16);
   if (status != MFRC522::STATUS_OK) {
+#ifdef SERIALDEBUG
     Serial.print(F("MIFARE_Write() failed: "));
     Serial.println(mfrc522.GetStatusCodeName(status));
+#endif
     return false;
   }
+#ifdef SERIALDEBUG
   else Serial.println(F("MIFARE_Write() success: "));
+#endif
 
   return true;
 }
@@ -135,7 +147,9 @@ void programRFIDkeys(void)
     {
       //now write the code into block 4 using the newly written key to access
       for (i = 0; i < 6; i++) key.keyByte[i] = config.RFIDkey[i];
+#ifdef SERIALDEBUG
       Serial.println(F("Writing block 4 using NEW key .... "));
+#endif
       if (writeRFIDdata(&key, sector * 4, config.RFIDcode))
       {
         //if successful, verify the data
@@ -159,7 +173,9 @@ void programRFIDkeys(void)
               WS_println(info);
             }
             playLogin();
+#ifdef SERIALDEBUG
             Serial.println(F("Code Verified, tag is written"));
+#endif
             return;
           }
         }
@@ -181,7 +197,9 @@ void programRFIDkeys(void)
     {
       //now write blank code into block 4
       for (i = 0; i < 6; i++) key.keyByte[i] = 0xFF;
+#ifdef SERIALDEBUG
       Serial.println(F("Writing block 4 using blank key .... "));
+#endif
       if (writeRFIDdata(&key, sector * 4, blankdata))
       {
         if (websocket_connected)
@@ -190,7 +208,9 @@ void programRFIDkeys(void)
           WS_println(info);
         }
         playLogin();
+#ifdef SERIALDEBUG
         Serial.println(F("tag is now blank"));
+#endif
         return;
 
       }
@@ -210,7 +230,9 @@ void programRFIDkeys(void)
 void authenticationFail(uint8_t reason)
 {
   displayDenied(reason);
+#ifdef SERIALDEBUG
   Serial.println(F("ACCESS DENIED!"));
+#endif
   playDenied();
   delay(500); //wait while displaying the reason
 }
@@ -219,7 +241,9 @@ void authenticationFail(uint8_t reason)
 void authenticationSuccess(void)
 {
   displayLogin();
+#ifdef SERIALDEBUG
   Serial.println(F("AUTHENTICATED, ACCESS GRANTED"));
+#endif
   playLogin();
   releaseMachine();
   sendPendingEvents(true);  // send data out immediately (enforced sendout) (no data is sent while user is logged in)
@@ -244,8 +268,9 @@ void verifyRFIDdata() {
   }
 
   uint32_t uid = mfrc522.uid.uidByte[0] | (mfrc522.uid.uidByte[1] << 8) | (mfrc522.uid.uidByte[2] << 16) | (mfrc522.uid.uidByte[3] << 24); //direct typecast is dangerous due to memory alignment, better to do it this way
-
+#ifdef SERIALDEBUG
   Serial.println(uid, DEC);
+#endif
   if (websocket_connected)
   {
     String info = String(F("RFID Card detected: UID = "));
@@ -255,13 +280,16 @@ void verifyRFIDdata() {
 
   //verify the cards data contents agains the config settings
   for (byte i = 0; i < 6; i++) key.keyByte[i] = config.RFIDkey[i];  //prepare the key
-
+#ifdef SERIALDEBUG
   Serial.print(F("Reading block 4 using NEW key .... "));
+#endif
   uint8_t databuffer[18]; //need 18byte buffer for the 16 data bytes (two additional for command. its kind of a stupid implementation in the lib)
   uint8_t block = 4;
   if (getRFIDdata(&key, block, (uint8_t*)databuffer)) //read the buffer
   {
+#ifdef SERIALDEBUG
     Serial.println(F("key is ok"));
+#endif
     //verify if the buffer contents is correct
     for (uint8_t i = 0; i < 16; i++)
     {
@@ -350,18 +378,22 @@ void verifyRFIDdata() {
     if (dbentryno > 0 && localTimeValid) //if entry found in database and local RTC time is valid (time is needed to veryfy if tag has expired)
     {
       RtcDateTime RTCtime  = RTC.GetDateTime();
+#ifdef SERIALDEBUG
       Serial.print(F("Tag valid from "));
       Serial.println(userentry.ts_validfrom);
       Serial.print(F("Tag valid until "));
       Serial.println(userentry.ts_validuntil);
       Serial.print(F("Current Time: "));
       Serial.println(RTCtime.Epoch32Time());
+#endif
       //time verification, check if user's time is already valid and not yet expired
       if (userentry.ts_validfrom > RTCtime.Epoch32Time() || userentry.ts_validuntil < RTCtime.Epoch32Time())
       {
         authenticationFail(0); //access is denied, tag not valid yet or expired (entry is be removed on next database sync)
         addEventToQueue(6, userentry.tagid, "expired"); //event 6 = tag_error
+#ifdef SERIALDEBUG
         Serial.println(F("Tag Accepted but tag time invalid"));
+#endif
         return;
       }
 
@@ -378,7 +410,7 @@ void verifyRFIDdata() {
           sendPendingEvents(true);  // send data to SD card since wifi is not ready yet
           lockMachine();
           delay(2000); //wait to show logout
-          
+
         }
         else
         {
@@ -421,7 +453,9 @@ void checkRFID(void)
   if ( ! mfrc522.PICC_ReadCardSerial()) {
     return;
   }
+#ifdef SERIALDEBUG
   Serial.println(F("Tag Detected"));
+#endif
 
   if (RFIDtagprogrogramming == 0)
   {
@@ -441,17 +475,7 @@ void checkRFID(void)
 
 
 
-
-void initRFID(void)
-{
-
-  mfrc522.PCD_Init();
-  //mfrc522.PCD_SetAntennaGain(0x07 << 4); //increase RX gain to maximum (increases range by about 0.5cm)
-  display.println(F("RFID initialized"));
-  display.display();
-}
-
-/*gain settings:
+/*RFID gain settings:
    RxGain_18dB       = 0x00 << 4,  // 000b - 18 dB, minimum
     RxGain_23dB       = 0x01 << 4,  // 001b - 23 dB
     RxGain_18dB_2     = 0x02 << 4,  // 010b - 18 dB, it seems 010b is a duplicate for 000b
@@ -463,5 +487,13 @@ void initRFID(void)
     RxGain_min        = 0x00 << 4,  // 000b - 18 dB, minimum, convenience for RxGain_18dB
     RxGain_avg        = 0x04 << 4,  // 100b - 33 dB, average, convenience for RxGain_33dB
     RxGain_max        = 0x07 << 4   // 111b - 48 dB, maximum, convenience for RxGain_48dB
-  };
 */
+
+void initRFID(void)
+{
+
+  mfrc522.PCD_Init();
+  //mfrc522.PCD_SetAntennaGain(0x07 << 4); //increase RX gain to maximum (increases range by about 0.5cm), currently not used
+  display.println(F("RFID initialized"));
+  display.display();
+}

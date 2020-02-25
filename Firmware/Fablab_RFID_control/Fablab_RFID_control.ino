@@ -49,7 +49,7 @@
     ESP version 2.5.2 (Not working with 2.6.x !!! something changed in the wifisecure library)
 
     Libraries used:
-    Using library EDB at version 1.0.6
+  Using library EDB at version 1.0.6
   Using library SPI at version 1.0
   Using library MRFC522 at version 1.3.6
   Using library FastLED at version 3.2.1
@@ -72,6 +72,7 @@
  * */
 
 //set these compile time parameters to fit your needs
+#define SERIALDEBUG //define this to get serial console output, LED is disabled if serial output is used
 
 #define TIMEZONE 1 //GMT +1  adjust to your timezone if needed, can be negative
 #define SERVERMININTERVAL 1000  // minimum interval (in ms) between server sendouts (where a pending event is sent) default: 1000
@@ -188,12 +189,13 @@ using namespace sdfat;
 
 void setup() {
   delay(400);  // wait for power to stabilize
+  #ifdef SERIALDEBUG
   Serial.begin(115200); //comment the led init below if using serial
   Serial.println(F("\r\n\r\n*******************************"));  // todo: add actual build info here
   Serial.println(F("** Fablab Winti RFID CONTROL **"));  // todo: add actual build info here
   Serial.println(F("*******************************"));  // todo: add actual build info here
   Serial.println(F("\r\n\r\n"));  // todo: add actual build info here
-
+  #endif
   //**********************
   //FAILSAFE FACTORY RESET
   //**********************
@@ -210,9 +212,12 @@ void setup() {
   localTimeValid = false;  // set true once the time is set from NTP server
   //writeDefaultConfig();
   ReadConfig();  // read configuration from eeprom, apply default config if invalid
-  // printConfig(); //debug function
+  #ifdef SERIALDEBUG
+  printConfig(); //debug function
+  #endif
   SPIFFS.begin(); //init local file system
   //print SPIFFS content
+  #ifdef SERIALDEBUG
   String str = "";
   fs::Dir dir = SPIFFS.openDir("/");
   while (dir.next()) {
@@ -222,7 +227,7 @@ void setup() {
     str += "\r\n";
   }
   Serial.print(str);
-
+  #endif
 
   userDBInit();
 
@@ -234,8 +239,9 @@ void setup() {
   displayinit(); //show bootup screen
   ConfigureWifi();  //connect to wifi
   RTCinit(); //init the local time from RTC
-  //LEDinit(); //intialize WS2812 fastled library (comment this line if using Serial debugging output)
-  Serial.println("SD init");
+  #ifndef SERIALDEBUG //cannot use LED when using serial out (hardware pin conflict)
+  LEDinit(); //intialize WS2812 fastled library (comment this line if using Serial debugging output)
+  #endif
   delay(100);
   SDmanager();  // initialize SD card if present
   SDwriteLogfile("Boot");
@@ -255,8 +261,8 @@ void setup() {
 
   delay(800);
 
-
   //test search speed:
+  #ifdef SERIALDEBUG
   Serial.println(F("full DB searchtest"));
   uint32_t starttime = millis();
   uint32_t uidtofind = 456;
@@ -265,10 +271,11 @@ void setup() {
   Serial.print(F("it took "));
   Serial.print(endtime - starttime);
   Serial.println(F("ms"));
-
+  #endif
   //print full user database:
-  //userDBprintout();
-
+  #ifdef SERIALDEBUG
+  userDBprintout();
+  #endif
   addEventToQueue(1, "" ); //send 'controller start' event
 }
 /*

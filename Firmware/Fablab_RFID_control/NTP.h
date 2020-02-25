@@ -37,17 +37,16 @@ unsigned long sendNTPpacket(IPAddress& address, uint32_t* timestamp, byte* packe
 int NTP_gettime(uint32_t* t)
 {
   byte packetBuffer[NTP_PACKET_SIZE]; //buffer to hold incoming and outgoing packets
+#ifdef SERIALDEBUG
   Serial.print(F("NTP Sync "));
+#endif
   uint32_t NTP_start_time; //local timestamp to measure network roundtrip time
   uint32_t NTP_end_time; //local timestamp when data is received to measure roundtrip delay
   uint32_t timeout = millis();
   uint8_t errorcounter = 0;
   int gotresponse = 0;
 
-  // Serial.println("Starting UDP");
   udp.begin(UDPlocalPort);
-  // Serial.print("Local port: ");
-  // Serial.println(udp.localPort());
 
   WiFi.hostByName(config.ntpServerName.c_str(), timeServerIP); //get ip for timeserver to use
   timeout = millis();
@@ -82,13 +81,17 @@ int NTP_gettime(uint32_t* t)
     // combine the four bytes (two words) into a long integer
     // this is NTP time (seconds since Jan 1 1900)
     *t = secsSince1900 - 2208988800UL; //return value, time as unix timestamp
+#ifdef SERIALDEBUG
     Serial.print(F(" OK: "));
     Serial.println(*t); //print in unix time
+#endif
 
   }
   else {
     udp.stop();
-    //Serial.println(F(" FAIL2"));
+#ifdef SERIALDEBUG
+    Serial.println(F(" FAIL: wrong response"));
+#endif
     return -999;
   }
   return NTP_end_time - NTP_start_time;
@@ -127,7 +130,9 @@ void timeManager(bool forceupdate)
       if (errorcounter < 6) {
         localTimeValid = true;
         setTime(NTPtime); //initialize the time with epoch timestamp
+#ifdef SERIALDEBUG
         Serial.print(F("Synchronizing RTC with NTP... "));
+#endif
         syncRTC(NTPtime); //check sync of local RTC
       }
       NTPupdate = millis(); //update again in a few minutes

@@ -58,11 +58,15 @@ EDB eventdatabase(&eventDBwriter, &eventDBreader); //create the event database
 //open a database file, create it if it does not exist
 void eventDBInit(void)
 {
+#ifdef SERIALDEBUG
   Serial.print(F("EventDB init: "));
+#endif
   if (SDstate == SD_INITIALIZED)
   {
     if (SD.exists(db_events)) {
-      Serial.println(F("SD database file exists")); //!!!
+#ifdef SERIALDEBUG
+      Serial.println(F("SD database file exists"));
+#endif
       eventDBfile = SD.open(db_events, FILE_WRITE); //open file for reading and writing
 
       if (!eventDBfile) //if open fails, try once more
@@ -71,32 +75,46 @@ void eventDBInit(void)
       }
 
       if (eventDBfile) {
+#ifdef SERIALDEBUG
         Serial.print(F("Opening eventDB table... "));
+#endif
         EDB_Status result = eventdatabase.open(0);
         if (result == EDB_OK) {
+#ifdef SERIALDEBUG
           Serial.println("DONE");
+#endif
           return;
         } else {
+#ifdef SERIALDEBUG
           Serial.println(F("ERROR"));
           Serial.print(F("Did not find eventDB in the file "));
           Serial.println(String(db_events));
           Serial.print(F("Creating new table... "));
+#endif
           eventdatabase.create(0, EVENTDB_TABLE_SIZE, (unsigned int)sizeof(eventDBpackage));
+#ifdef SERIALDEBUG
           Serial.println("DONE");
+#endif
           return;
         }
       } else {
+#ifdef SERIALDEBUG
         Serial.println("Could not open file " + String(db_events));
+#endif
         //delete the corrupt file
         SD.remove(db_events);
         //now go on and create a new file with a new table
       }
     }
+#ifdef SERIALDEBUG
     Serial.print(F("Creating event database... "));
+#endif
     // create table at with starting address 0
     eventDBfile = SD.open(db_events, FILE_WRITE); //create file, overwrite if it exists (w+)
     eventdatabase.create(0, EVENTDB_TABLE_SIZE, (unsigned int)sizeof(eventDBpackage));
+#ifdef SERIALDEBUG
     Serial.println(F("DONE"));
+#endif
   }
 }
 
@@ -118,18 +136,23 @@ void eventDBdeleteentry(uint16_t entryno)
     {
       eventDBInit();
     }
-
+#ifdef SERIALDEBUG
     Serial.print(F("Deleting entry... "));
+#endif
     if (entryno <= eventdatabase.count()) //if entry exists (entries are from 1 to count, not starting at 0!)
     {
       EDB_Status result = eventdatabase.deleteRec(entryno);
       if (result != EDB_OK) DBprintError(result);
+#ifdef SERIALDEBUG
       Serial.println("DONE");
+#endif
     }
+#ifdef SERIALDEBUG
     else
     {
       Serial.println(F("NOT FOUND"));
     }
+#endif
     eventDBclose();
   }
 
@@ -145,8 +168,9 @@ bool eventDBaddentry(sendoutpackage* evententry)
       eventDBInit();
     }
 
-
+#ifdef SERIALDEBUG
     Serial.print(F("Appending eventDB entry... "));
+#endif
     ESP.wdtFeed(); //kick hardware watchdog
 
     //make sure the package is pending:
@@ -157,13 +181,17 @@ bool eventDBaddentry(sendoutpackage* evententry)
       eventDBclose();
       return false;
     }
+#ifdef SERIALDEBUG
     Serial.println(F("DONE"));
+#endif
     eventDBclose();
     //entry is now in the database, remove it from the queue
     evententry->pending = false;
     return true;
   }
+#ifdef SERIALDEBUG
   Serial.print(F("Error saving to SD card, event not saved!"));
+#endif
 }
 
 
@@ -186,7 +214,9 @@ void eventDBgetpending(void)
       EDB_Status result = eventdatabase.readRec(i, EDB_REC eventDBpackage); //eventDBpackage is passed as a pointer
       if (result == EDB_OK)
       {
+#ifdef SERIALDEBUG
         Serial.println(F("read entry from EventDB"));
+#endif
         eventDBentrytosend = i;
         break; //end the for loop now
       }
@@ -202,7 +232,9 @@ void eventDBgetpending(void)
 
 void SDwriteLogfile(String entry)
 {
+#ifdef SERIALDEBUG
   Serial.println(F("writing to log"));
+#endif
   if (SDstate == SD_INITIALIZED)
   {
 
@@ -233,7 +265,9 @@ void SDwriteLogfile(String entry)
       dataFile.println(datatoWrite);
       dataFile.close();
       yield();
+#ifdef SERIALDEBUG
       Serial.println("Logfile Written");
+#endif
     }
     else
     {
@@ -273,8 +307,10 @@ void SDwriteStringToLog(String data) //writes a string to SD card, one data log 
     sprintf(daystring, "%03u", day); //fixed length number (002, 073, etc)
 
     String sfilename = String(year) + String(daystring) + ".txt";
-    // Serial.print("Filename: ");
-    // Serial.println(sfilename);
+#ifdef SERIALDEBUG
+    Serial.print("Filename: ");
+    Serial.println(sfilename);
+#endif
 
 
     char filename[sizeof(sfilename)];
@@ -302,11 +338,15 @@ void SDwriteStringToLog(String data) //writes a string to SD card, one data log 
       dataFile.println(data); //since this is used to write the JSON string which is sent also to the server, it contains the timestamp already
       dataFile.close();
       yield();
+#ifdef SERIALDEBUG
       Serial.println(F("data written to SD log"));
+#endif
     }
     // if the file cannot be opened:
     else {
+#ifdef SERIALDEBUG
       Serial.println(F("error opening SD file"));
+#endif
       yield();
       SDstate = SD_ACESSFAILED;
       dataFile.close();
@@ -317,6 +357,7 @@ void SDwriteStringToLog(String data) //writes a string to SD card, one data log 
 
 //from SD library example:
 void printDirectory(sdfat::File dir, int numTabs) {
+#ifdef SERIALDEBUG
   if (SDstate == SD_INITIALIZED)
   {
     while (true) {
@@ -340,6 +381,7 @@ void printDirectory(sdfat::File dir, int numTabs) {
       entry.close();
     }
   }
+#endif
 }
 
 

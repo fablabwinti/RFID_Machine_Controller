@@ -74,7 +74,7 @@ void syncRTC(uint32_t epochtime)
     RTC.SetDateTime(RTCtime);
     //read back the time from the RTC to check if it is valid
     RTCtime  = RTC.GetDateTime();
-
+#ifdef SERIALDEBUG
     Serial.print(F("RTC set: "));
     Serial.print(RTCtime.Year());
     Serial.print(" ");
@@ -87,7 +87,7 @@ void syncRTC(uint32_t epochtime)
     Serial.print(RTCtime.Minute());
     Serial.print(":");
     Serial.println(RTCtime.Second());
-
+#endif
     if (RTCtime.Epoch32Time() == epochtime) //check if RTC was set properly
     {
       RTCTimeValid = true;
@@ -103,8 +103,14 @@ void syncRTC(uint32_t epochtime)
   }
 
 
-  if (RTCTimeValid) Serial.println(F("OK"));
-  updatelocaltimefromRTC(); //sync local time to RTC
+  if (RTCTimeValid)
+  {
+#ifdef SERIALDEBUG
+    Serial.println(F("OK"));
+#endif
+    updatelocaltimefromRTC(); //sync local time to RTC
+  }
+
 
 }
 
@@ -114,7 +120,9 @@ time_t getRtcTimestamp(void)
   if (RTCTimeValid)
   {
     RtcDateTime RTCtime = RTC.GetDateTime();
+#ifdef SERIALDEBUG
     //Serial.println(RTCtime.Epoch32Time());
+#endif
     return RTCtime.Epoch32Time();
   }
   else return 0;
@@ -123,8 +131,9 @@ time_t getRtcTimestamp(void)
 
 void RTCinit(void)
 {
+#ifdef SERIALDEBUG
   Serial.print(F("RTC init..."));
-
+#endif
 
   display.print(F("RTC init..."));
   display.display();
@@ -138,25 +147,28 @@ void RTCinit(void)
   if (RTCtime.Epoch32Time() > 1496578319 && RTC.GetIsRunning()) //check if RTC could be valid
   {
     RTCTimeValid = true;
-
+#ifdef SERIALDEBUG
     Serial.println(F("OK"));
-
+#endif
     display.println(F("OK"));
     display.display();
   }
   else
   {
+#ifdef SERIALDEBUG
     Serial.println(F("Failed"));
+#endif
     display.println(F("Failed"));
     display.display();
     RTCTimeValid = false;
     createErrorEvent("RTC Error (battery empty?)");
   }
-  Serial.print(F("Local time is "));
+
+#ifdef SERIALDEBUG
   String timenow = getTimeString();
-
+  Serial.print(F("Local time is "));
   Serial.println(timenow); //updates local time from RTC
-
+#endif
   //display.print(F("RTC Time: "));
   //display.println(timenow);
   //display.display();
@@ -195,11 +207,11 @@ String getTimeString()
 //convert a timestamp to a time string (timestamp as unix time string in the format "2000-06-08T22:24:15"
 String convertToTimestring(time_t timestamp)
 {
- // Serial.print("converting ");
- // Serial.println(timestamp);
+  // Serial.print("converting ");
+  // Serial.println(timestamp);
   String datetime;
   RtcDateTime RTCtime;
-  if(timestamp < 1394766855) timestamp = 1394766855; //add a dummy time so server accepts it (pi day 2014)
+  if (timestamp < 1394766855) timestamp = 1394766855; //add a dummy time so server accepts it (pi day 2014)
   RTCtime.InitWithEpoch32Time(timestamp);
   char temparr[5];
   sprintf(temparr, "%02u", RTCtime.Month()); //need a fixed length, easiest using sprintf
@@ -215,7 +227,7 @@ String convertToTimestring(time_t timestamp)
 
   datetime = String(RTCtime.Year()) + "-" + monthstr + "-" + daystr + "T" + hourstr + ":" + minutestr + ":" + secondstr;
 
-//format: "2017-06-08 22:24:15"
+  //format: "2017-06-08 22:24:15"
   return datetime;
 }
 
