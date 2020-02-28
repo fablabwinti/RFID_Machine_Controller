@@ -424,7 +424,7 @@ void webSocketEvent(uint8_t num, WStype_t type, uint8_t * payload, size_t lenght
         else if (text.indexOf("RFIDKEY") != -1) //RFID card codes
         {
           //RFID access settings
-          DynamicJsonDocument RFIDcodes(80);//crate a buffer
+          DynamicJsonDocument RFIDcodes(128);//crate a buffer
           DeserializationError jsonerror = deserializeJson(RFIDcodes, text); //parse the text
           serializeJsonPretty(RFIDcodes, Serial); //debug!!!
           if (!jsonerror) //no error

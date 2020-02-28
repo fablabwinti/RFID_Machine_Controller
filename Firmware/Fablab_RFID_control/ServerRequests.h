@@ -38,28 +38,34 @@ bool readKeyfromSPIFFS(uint8_t* charbuffer, uint16_t buffersize)
     publicKeyFile = SPIFFS.open(keyfile, "r"); //open readonly
     if (publicKeyFile)
     {
+      #ifdef SERIALDEBUG
       Serial.println(F("key file opened"));
+      #endif
       publicKeyFile.read((uint8_t*)charbuffer, buffersize);
       publicKeyFile.close(); //close the databasefile if it is open
-      /*
+      #ifdef SERIALDEBUG
             Serial.println(F("key dump:"));
             Serial.println(F("********************"));
             //print uploaded file to console
 
             Serial.write(charbuffer, MAXKEYSIZE);
             Serial.println(F("********************"));
-      */
+      #endif
       return true;
     }
     else
     {
+      #ifdef SERIALDEBUG
       Serial.println(F("Error opening key file"));
+      #endif
       return false;
     }
   }
   else
   {
+    #ifdef SERIALDEBUG
     Serial.println(F("key file not found"));
+    #endif
     return false;
   }
 }
@@ -94,7 +100,9 @@ void sendToServer(sendoutpackage* datastruct, bool saveiffail, bool enforce) {
       {
         if (enforce && saveiffail)
         {
+          #ifdef SERIALDEBUG
           Serial.println(F("writing entry to database"));
+          #endif
           eventDBaddentry(datastruct); //transfer this event over to the event database (pending flag is removed there so it will not be sent from queue)
         }
 
@@ -131,14 +139,16 @@ void sendToServer(sendoutpackage* datastruct, bool saveiffail, bool enforce) {
 
       if (needupdate == 0)
         return;
-
+#ifdef SERIALDEBUG
       Serial.println("Sendoutdata: ");
-
       Serial.println(payload);
+      #endif
       char serveradd[32];
       config.serverAddress.toCharArray(serveradd, 32);
       while (!client.connect(serveradd, config.serverPort)) { //enforces a connection
+        #ifdef SERIALDEBUG
         Serial.println(F("Server connect failed"));
+        #endif
         delay(1); //run background stuff
         ESP.wdtFeed(); //kick hardware watchdog
         LED_blink_once(20);

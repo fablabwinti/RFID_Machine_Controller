@@ -72,7 +72,7 @@
  * */
 
 //set these compile time parameters to fit your needs
-#define SERIALDEBUG //define this to get serial console output, LED is disabled if serial output is used
+//#define SERIALDEBUG //define this to get serial console output, LED is disabled if serial output is used
 
 #define TIMEZONE 1 //GMT +1  adjust to your timezone if needed, can be negative
 #define SERVERMININTERVAL 1000  // minimum interval (in ms) between server sendouts (where a pending event is sent) default: 1000
