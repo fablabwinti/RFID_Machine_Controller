@@ -263,7 +263,7 @@ void displayUserInfo(void)
   // config.mPrice //price per period in cents
   // config.mPeriod //pricing period in minutes
   //config.mMinPeriods /minimum periods that are billed
-  //to not bill accidental login, the first 10 seconds are free
+  //to not bill accidental login, the first 30 seconds are free
 
   uint16_t cost = 0; //cost in cents
   if(timeinuse > 30) //after 30 seconds, start counting cost, bill the minimum amount, then increase by pricing period
