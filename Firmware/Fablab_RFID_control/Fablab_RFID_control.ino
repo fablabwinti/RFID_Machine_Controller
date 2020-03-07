@@ -189,13 +189,13 @@ using namespace sdfat;
 
 void setup() {
   delay(400);  // wait for power to stabilize
-  #ifdef SERIALDEBUG
+#ifdef SERIALDEBUG
   Serial.begin(115200); //comment the led init below if using serial
   Serial.println(F("\r\n\r\n*******************************"));  // todo: add actual build info here
   Serial.println(F("** Fablab Winti RFID CONTROL **"));  // todo: add actual build info here
   Serial.println(F("*******************************"));  // todo: add actual build info here
   Serial.println(F("\r\n\r\n"));  // todo: add actual build info here
-  #endif
+#endif
   //**********************
   //FAILSAFE FACTORY RESET
   //**********************
@@ -210,14 +210,13 @@ void setup() {
 
   ESP.wdtDisable(); //disable the standard software watchdog (hardware watchdog still running)it did sometimes reset when disabling wifi due to long timeouts
   localTimeValid = false;  // set true once the time is set from NTP server
-  //writeDefaultConfig();
   ReadConfig();  // read configuration from eeprom, apply default config if invalid
-  #ifdef SERIALDEBUG
+#ifdef SERIALDEBUG
   printConfig(); //debug function
-  #endif
+#endif
   SPIFFS.begin(); //init local file system
   //print SPIFFS content
-  #ifdef SERIALDEBUG
+#ifdef SERIALDEBUG
   String str = "";
   fs::Dir dir = SPIFFS.openDir("/");
   while (dir.next()) {
@@ -227,7 +226,7 @@ void setup() {
     str += "\r\n";
   }
   Serial.print(str);
-  #endif
+#endif
 
   userDBInit();
 
@@ -239,9 +238,9 @@ void setup() {
   displayinit(); //show bootup screen
   ConfigureWifi();  //connect to wifi
   RTCinit(); //init the local time from RTC
-  #ifndef SERIALDEBUG //cannot use LED when using serial out (hardware pin conflict)
+#ifndef SERIALDEBUG //cannot use LED when using serial out (hardware pin conflict)
   LEDinit(); //intialize WS2812 fastled library (comment this line if using Serial debugging output)
-  #endif
+#endif
   delay(100);
   SDmanager();  // initialize SD card if present
   SDwriteLogfile("Boot");
@@ -262,7 +261,7 @@ void setup() {
   delay(800);
 
   //test search speed:
-  #ifdef SERIALDEBUG
+#ifdef SERIALDEBUG
   Serial.println(F("full DB searchtest"));
   uint32_t starttime = millis();
   uint32_t uidtofind = 456;
@@ -271,11 +270,11 @@ void setup() {
   Serial.print(F("it took "));
   Serial.print(endtime - starttime);
   Serial.println(F("ms"));
-  #endif
+#endif
   //print full user database:
-  #ifdef SERIALDEBUG
+#ifdef SERIALDEBUG
   userDBprintout();
-  #endif
+#endif
   addEventToQueue(1, "" ); //send 'controller start' event
 }
 /*
@@ -291,7 +290,8 @@ void loop() {
   yield();
   ESP.wdtFeed(); //kick hardware watchdog (usually done in software watchdog interrupt which is disabled in setup)
   checkRFID();
-
+  updateLED();  // update LED output
+  
   if (webserver_active == false)
   {
 
@@ -300,7 +300,7 @@ void loop() {
     if (machineLocked) //only run wifi accessing stuff if user is NOT logged in (wifi is not 100% stable or has long timeouts)
     {
       wifiCheckConnection();
-      updateLED();  // update LED output
+
       checkButtonState();  // check GPIO0 button state
       checkPostLogoutDelay(); //switch machine off after some time after logout
 

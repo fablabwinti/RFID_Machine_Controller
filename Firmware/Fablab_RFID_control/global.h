@@ -162,7 +162,9 @@ bool eventDBaddentry(sendoutpackage* evententry);
 void WriteConfig() {
   uint8_t i;
   EEPROM.begin(EEPROMSIZE);
+#ifdef SERIALDEBUG
   Serial.println("Writing Config");
+#endif
   EEPROM.write(0, 'C');
   EEPROM.write(1, 'F');
   EEPROM.write(2, 'G');
@@ -268,15 +270,21 @@ void writeDefaultConfig(void) {
   //note: do not overwrite the admin UID nor the access codes for the RFID card so a reset does not require to set them again
 
   WriteConfig();
+#ifdef SERIALDEBUG
   Serial.println(F("Standard config applied"));
+#endif
 }
 
 void ReadConfig() {
   uint8_t i;
   EEPROM.begin(EEPROMSIZE);
+#ifdef SERIALDEBUG
   Serial.println("Reading Configuration");
+#endif
   if (EEPROM.read(0) == 'C' && EEPROM.read(1) == 'F' && EEPROM.read(2) == 'G') {
+#ifdef SERIALDEBUG
     Serial.println("Configurarion Found!");
+#endif
 
     for (i = 0; i < MULTIWIFIS ; i++)
     {
@@ -325,7 +333,9 @@ void ReadConfig() {
 
 
   } else {
+#ifdef SERIALDEBUG
     Serial.println(F("Configurarion NOT FOUND!"));
+#endif
     writeDefaultConfig();
   }
   EEPROM.end();
@@ -359,19 +369,21 @@ void WebServerinit(void)
     if (!handleHTTPRequest("/index.htm")) server.send(404, "text/plain", "FileNotFound");
   });
 
-   server.on("/test", HTTP_GET, []() {
-      server.sendHeader("Connection", "close");
-      server.sendHeader("Access-Control-Allow-Origin", "*");
-      server.send(200, "text/html", "<form method='POST' action='/upload' enctype='multipart/form-data'><input type='file' name='update'><input type='submit' value='Update'></form>");
-    });
+  server.on("/test", HTTP_GET, []() {
+    server.sendHeader("Connection", "close");
+    server.sendHeader("Access-Control-Allow-Origin", "*");
+    server.send(200, "text/html", "<form method='POST' action='/upload' enctype='multipart/form-data'><input type='file' name='update'><input type='submit' value='Update'></form>");
+  });
 
-//note: upload through form did not work, changed it to websocket binary upload
-//  server.onFileUpload(handleFileUpload);
-//  //post to '/upload' means the webpage is uploading a new public key for the server
-//  server.on("/key", HTTP_POST, []() {
-//    server.send(200);                      // Send status 200 (OK) to tell the client we are ready to receive
-//    Serial.println("file upload ready");
-//  });                                  // Receive and save the key file
+  //note: upload through form did not work, changed it to websocket binary upload
+  //  server.onFileUpload(handleFileUpload);
+  //  //post to '/upload' means the webpage is uploading a new public key for the server
+  //  server.on("/key", HTTP_POST, []() {
+  //    server.send(200);                      // Send status 200 (OK) to tell the client we are ready to receive
+  // #ifdef SERIALDEBUG
+  //    Serial.println("file upload ready");
+  //#endif
+  //  });                                  // Receive and save the key file
 
 
   server.onNotFound([]() { // handle page not found: check if file or path is available on SPIFFS
@@ -452,7 +464,9 @@ bool checkButtonState(void) {
     if (millis() - buttontimestamp > 2000 && APactive < 2)
     {
       APactive = 1;  // activate accesspoint
+#ifdef SERIALDEBUG
       Serial.println(F("accesspoint triggered"));
+#endif
       display.println(F("Accesspoint Started:"));
       display.println(config.DeviceName);
       display.print(F("Pass: "));
@@ -475,6 +489,7 @@ bool checkButtonState(void) {
 
 void printConfig(void) {
   uint8_t i;
+#ifdef SERIALDEBUG
   Serial.println("config content:");
   Serial.println(config.useDHCP);
   Serial.println(config.IP[0]);
@@ -498,6 +513,7 @@ void printConfig(void) {
   Serial.println(config.DeviceName);
   Serial.println(config.DevicePW);
   //  Serial.println(config.APIkey);
+#endif
 }
 
 
@@ -506,7 +522,9 @@ void printConfig(void) {
 void addEventToQueue(uint8_t logevent, int16_t tagID, String remarkstr)
 {
   sendoutpackage tempevent; //create a temporary data struct
+#ifdef SERIALDEBUG
   Serial.print(F("Event "));
+#endif
   //fill in the data, add current time for timestamp
   tempevent.pending = true;
   tempevent.timestamp = getRtcTimestamp(); //get current timestamp from the RTC (returns 0 if RTC time is invalid due to hardware fault)
@@ -534,10 +552,11 @@ void addEventToQueue(uint8_t logevent, int16_t tagID, String remarkstr)
   {
     eventDBaddentry(&tempevent);
   }
+#ifdef SERIALDEBUG
   Serial.println(F("queued"));
+#endif
 }
 
-//create log event without tagid (logevent: 0 = controller_start, 1 = controller_ok, 2 = controller_error, 3 = tag_login,4 = tag_logout)
 void addEventToQueue(uint8_t logevent, String remarkstr)
 {
   addEventToQueue(logevent, -1, remarkstr); //if no tid provided, tid is set negative (and not sent out)

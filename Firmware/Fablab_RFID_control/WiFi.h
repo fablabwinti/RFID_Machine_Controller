@@ -30,7 +30,9 @@ void wifiHostAP()
   //IPAddress apIP(192, 168, 4, 1);
   WiFi.disconnect(true);
   delay(100);
+#ifdef SERIALDEBUG
   Serial.print(F("Starting access point. "));
+#endif
   WiFi.mode(WIFI_AP); //accesspoint is very unstable if STA mode is on and no wifi connection is available
   WiFi.softAP(config.DeviceName.c_str(), config.DevicePW.c_str());
   //dnsServer.setErrorReplyCode(DNSReplyCode::NoError);
@@ -48,13 +50,17 @@ void wifiConnect(void)
 {
   wifiConnected = 0; //if this function is called, we are not yet or no more connected
   uint8_t i;
+#ifdef SERIALDEBUG
   Serial.println(F("Connecting to WIFI"));
+#endif
   //add all known connections in config to wifi multi:
   for (i = 0; i < MULTIWIFIS ; i++)
   {
     wifiMulti.addAP(config.ssid[i].c_str(), config.wifipass[i].c_str());
+#ifdef SERIALDEBUG
     Serial.print(F("Adding Network: "));
     Serial.println(config.ssid[i]);
+#endif
   }
 
   wifiMulti.run(); //connect to wifi (starts the network scan on first call, tries to connect on further calls (in checkconnection function)
@@ -65,7 +71,9 @@ void wifiAddAP(String name, String password)
 {
   uint8_t success = 1;
   uint8_t i;
+#ifdef SERIALDEBUG
   Serial.println(name + " " + password);
+#endif
   for (i = 0; i < MULTIWIFIS ; i++)
   {
     if (config.ssid[i] == name) //already known,maybe an updated password?
@@ -88,7 +96,9 @@ void wifiAddAP(String name, String password)
     config.wifipass[config.nextmultiwifitowrite] = password;
     config.nextmultiwifitowrite = (config.nextmultiwifitowrite + 1) % MULTIWIFIS;
     WriteConfig();
+#ifdef SERIALDEBUG
     Serial.println(F("wifi saved"));
+#endif
   }
 }
 
@@ -126,12 +136,15 @@ void wifiCheckConnection()
       wifiConnected = 1;
       LED_blink_once(170); //blink in blue upon connection
       timeManager(true); //force an NTP time update
+
       String logstring = getTimeString();
       logstring += "\tConnected to WIFI";
+#ifdef SERIALDEBUG
       Serial.print(logstring);
       Serial.print(" IP = ");
       Serial.println(WiFi.localIP());
-      //SDwriteLogfile(logstring);
+#endif
+      SDwriteLogfile(logstring);
 
     }
 
@@ -144,7 +157,9 @@ void wifiCheckConnection()
     {
       LED_blink_once(10); //blink in orange when not connected
       wifiConnectFailCounter++;
+#ifdef SERIALDEBUG
       Serial.println(F("(re)connecting wifi"));
+#endif
       wifiwatchdog = millis();
       switch (wifiMulti.run()) {
         case WL_CONNECTED:
@@ -152,17 +167,23 @@ void wifiCheckConnection()
           {
             WiFi.config(config.IP, config.Gateway , config.Netmask);
           }
+#ifdef SERIALDEBUG
           Serial.println(F("Connected to:"));
           Serial.print(F("SSID: "));
           Serial.println(WiFi.SSID().c_str());
           Serial.print("IP: ");
           Serial.println(WiFi.localIP());
+#endif
           break;
         case WL_NO_SSID_AVAIL:
+#ifdef SERIALDEBUG
           Serial.println(F("Connecting Failed AP not found"));
+#endif
           break;
         default:
+#ifdef SERIALDEBUG
           Serial.println(F("WiFi Connect Failed."));
+#endif
           break;
       }
     }
@@ -189,18 +210,20 @@ void ConfigureWifi()
 //disconnect and disable wifi during machine running times to not be disturbed
 void disableWifi()
 {
+#ifdef SERIALDEBUG
   Serial.print(F("disabling wifi."));
+#endif
   WiFi.disconnect();
-  delay(100);
-  Serial.print(".");
-  delay(100);
-  Serial.print(".");
+  delay(200);
+
   ESP.wdtFeed();
-  
+
   // WiFi.mode(WIFI_OFF); //turning wifi off can cause crashes... must be a core bug so keep it running and just disconnect
   // WiFi.forceSleepBegin(100); //force sleep begin
   // delay(100);
+#ifdef SERIALDEBUG
   Serial.println(F("disabled"));
+#endif
 }
 
 //re-enable wifi, call this function after 'disableWifi()'

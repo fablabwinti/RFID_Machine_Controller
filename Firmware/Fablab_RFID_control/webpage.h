@@ -25,7 +25,9 @@ bool handleHTTPRequest(String path) {
 
   }
   ESP.wdtFeed(); //kick hardware watchdog
+#ifdef SERIALDEBUG
   Serial.println("handleFileRead: " + path);
+#endif
   if (path.endsWith("/")) path += "index.htm";
   String contentType = getContentType(path);
   String pathWithGz = path + ".gz";
@@ -35,17 +37,20 @@ bool handleHTTPRequest(String path) {
     fs::File file = SPIFFS.open(path, "r");
     // Serial.println(F("sending..."));
     size_t sent = server.streamFile(file, contentType);
-
+#ifdef SERIALDEBUG
     Serial.print("sent: ");
     Serial.print(sent, DEC);
     Serial.print(" of ");
     Serial.print(file.size(), DEC);
     Serial.print(" at ");
     Serial.println(path);
+#endif
     file.close();
     return true;
   }
+#ifdef SERIALDEBUG
   Serial.println("File not Found");
+#endif
   return false;
 }
 
@@ -146,7 +151,9 @@ void webSocketEvent(uint8_t num, WStype_t type, uint8_t * payload, size_t lenght
   ESP.wdtFeed(); //kick hardware watchdog
   switch (type) {
     case WStype_DISCONNECTED:
+#ifdef SERIALDEBUG
       Serial.println(F("Disconnected!"));
+#endif
       websocket_connected--;
       break;
     case WStype_CONNECTED:
@@ -154,8 +161,10 @@ void webSocketEvent(uint8_t num, WStype_t type, uint8_t * payload, size_t lenght
 
         websocket_connected++;
         IPAddress ip = webSocket.remoteIP(num);
+#ifdef SERIALDEBUG
         // Serial.printf("[%u] Connected from %d.%d.%d.%d url: %s\n", num, ip[0], ip[1], ip[2], ip[3], payload);
         Serial.println(F("Client Connected"));
+#endif
         //update client webpage content:
 
         //    String websocketStatusMessage = "H" + String(myHue) + ",S" + String(mySaturation) + ",V" + String(myValue) + ",W" + String(myWhiteLedValue); //Sends a string with the HSV and white led  values to the client website when the conection gets established
@@ -199,7 +208,9 @@ void webSocketEvent(uint8_t num, WStype_t type, uint8_t * payload, size_t lenght
 
         //node settings
         String NDsettings = "NDC_MNAME" + config.MachineName + ",NDC_MID" + String(config.mid) + ",NDC_SADD" + config.serverAddress + ",NDC_PORT" + String(config.serverPort);
+#ifdef SERIALDEBUG
         Serial.println(NDsettings);
+#endif
         webSocket.sendTXT(num, NDsettings);
 
 
@@ -207,9 +218,11 @@ void webSocketEvent(uint8_t num, WStype_t type, uint8_t * payload, size_t lenght
       break;
     case WStype_TEXT:
       {
+#ifdef SERIALDEBUG
         Serial.print(num);
         Serial.print(" get Text: ");
         Serial.println((char*)payload);
+#endif
         //websocket_client = num;
         // send message to client
         //webSocket.sendTXT(num, "Got the message, hello from the ESP and thanks for all the fish");
@@ -234,6 +247,7 @@ void webSocketEvent(uint8_t num, WStype_t type, uint8_t * payload, size_t lenght
             for (int i = 0; i < n; ++i)
             {
               // Print SSID and RSSI for each network found
+#ifdef SERIALDEBUG
               Serial.print(i + 1);
               Serial.print(": ");
               Serial.print(WiFi.SSID(i));
@@ -241,11 +255,14 @@ void webSocketEvent(uint8_t num, WStype_t type, uint8_t * payload, size_t lenght
               Serial.print(WiFi.RSSI(i));
               Serial.print(")");
               Serial.println((WiFi.encryptionType(i) == ENC_TYPE_NONE) ? " " : "*");
+#endif
               String ssid = "SSID" + WiFi.SSID(i);
               webSocket.sendTXT(num, ssid);
             }
           }
+#ifdef SERIALDEBUG
           Serial.println("");
+#endif
           // clean up ram
           WiFi.scanDelete();
         }
@@ -286,14 +303,18 @@ void webSocketEvent(uint8_t num, WStype_t type, uint8_t * payload, size_t lenght
               WS_print(F("HTTP_UPDATE_FAILD Error : " ));
               WS_print(ESPhttpUpdate.getLastErrorString());
               WS_print(F("\r\n"));
+#ifdef SERIALDEBUG
               Serial.printf("HTTP_UPDATE_FAILED Error (%d): %s", ESPhttpUpdate.getLastError(), ESPhttpUpdate.getLastErrorString().c_str());
+#endif
               break;
             case HTTP_UPDATE_NO_UPDATES:
               WS_print(F("HTTP_UPDATE_NO_UPDATES\r\n"));
               break;
             case HTTP_UPDATE_OK:
               WS_print(F("OK\r\n"));
+#ifdef SERIALDEBUG
               Serial.println(F("HTTP_UPDATE_OK"));
+#endif
               break;
           }
         }
@@ -309,7 +330,9 @@ void webSocketEvent(uint8_t num, WStype_t type, uint8_t * payload, size_t lenght
               break;
             case HTTP_UPDATE_OK:
               WS_print(F("OK\r\n"));
+#ifdef SERIALDEBUG
               Serial.println(F("HTTP_UPDATE_OK"));
+#endif
               delay(100);
               ESP.restart();  // reboot
               break;
@@ -329,8 +352,10 @@ void webSocketEvent(uint8_t num, WStype_t type, uint8_t * payload, size_t lenght
             {
               String newSSID = wifidata["SSID"];
               String newWifiPass = wifidata["PASS"];
+#ifdef SERIALDEBUG
               Serial.print(F("Received new wifi credentials: "));
               Serial.println(newSSID + " " + newWifiPass);
+#endif
               WS_print(F("Received new wifi credentials: "));
               WS_print(newSSID + " " + newWifiPass + "\r\n");
               wifiAddAP(newSSID, newWifiPass); //adds accesspoint to the config and saves config
@@ -338,7 +363,11 @@ void webSocketEvent(uint8_t num, WStype_t type, uint8_t * payload, size_t lenght
             }
           }
           else
+          {
+#ifdef SERIALDEBUG
             Serial.println(F("wifiadd json parsing failed"));
+#endif
+          }
         }
         else if (text.indexOf("DHCP") != -1) //IP & DHCP settings (sent as JSON, containing IP, MASK, GATE and DHCP example {"IP": "192.168.1.55", "MASK": "255.255.255.0","GATE": "192.168.1.1","DHCP": "off"} (DHCP can also be "on")
         {
@@ -386,7 +415,11 @@ void webSocketEvent(uint8_t num, WStype_t type, uint8_t * payload, size_t lenght
             WS_print(F("Advanced WiFi Settings saved\r\n"));
           }
           else
+          {
+#ifdef SERIALDEBUG
             Serial.println(F("ipsettings json parsing failed"));
+#endif
+          }
 
         }
         else if (text.indexOf("NDC") != -1) //node settings as a json string,
@@ -419,7 +452,12 @@ void webSocketEvent(uint8_t num, WStype_t type, uint8_t * payload, size_t lenght
             WS_print(F("Server and Machine Settings saved\r\n"));
           }
           else
+          {
+#ifdef SERIALDEBUG
             Serial.println(F("nodesettings json parsing failed"));
+#endif
+          }
+
         }
         else if (text.indexOf("RFIDKEY") != -1) //RFID card codes
         {
@@ -436,7 +474,9 @@ void webSocketEvent(uint8_t num, WStype_t type, uint8_t * payload, size_t lenght
               char hexbyte[3]; //char string for one byte of hex code (plus termination)
               hexbyte[2] = 0; //null termination of char string
               String hexnumber = RFIDcodes["RFIDKEY"].as<String>();
+#ifdef SERIALDEBUG
               Serial.print("got key: (LSB first) ");
+#endif
               for (i = 0; i < 6; i++)
               {
                 //copy two chars to the buffer
@@ -444,29 +484,40 @@ void webSocketEvent(uint8_t num, WStype_t type, uint8_t * payload, size_t lenght
                 hexbyte[1] = hexnumber.charAt(13 - 2 * i);
                 //convert the buffer into a integer number
                 config.RFIDkey[i] = (uint8_t)strtol(hexbyte, 0, 16);
+#ifdef SERIALDEBUG
                 Serial.print(config.RFIDkey[i], HEX);
                 Serial.print(" ");
+#endif
               }
             }
             if (RFIDcodes.containsKey("RFIDCODE"))
             {
               String code = RFIDcodes["RFIDCODE"].as<String>();
               config.RFIDcode[15] = 'X'; //debug only
-
+#ifdef SERIALDEBUG
               Serial.println(" ");
               Serial.print(F("got code: "));
+#endif
               for (i = 0; i < 16; i++)
               {
                 config.RFIDcode[i] = code.charAt(i);
+#ifdef SERIALDEBUG
                 Serial.write(config.RFIDcode[i]);
+#endif
               }
+#ifdef SERIALDEBUG
               Serial.println(" ");
+#endif
             }
             WriteConfig();
             WS_print(F("RFID codes saved\r\n"));
           }
           else
+          {
+#ifdef SERIALDEBUG
             Serial.println(F("RFID code json parsing failed"));
+#endif
+          }
         }
         else if (text.indexOf("APIKEY") != -1) //access to the web configpage
         {
@@ -490,7 +541,11 @@ void webSocketEvent(uint8_t num, WStype_t type, uint8_t * payload, size_t lenght
             WS_print(F("API Settings saved\r\n"));
           }
           else
+          {
+#ifdef SERIALDEBUG
             Serial.println(F("api settings json parsing failed"));
+#endif
+          }
         }
         else if (text.indexOf("WEBUSER") != -1)
         {
@@ -514,7 +569,11 @@ void webSocketEvent(uint8_t num, WStype_t type, uint8_t * payload, size_t lenght
             WS_print(F("Page access Settings saved\r\n"));
           }
           else
+          {
+#ifdef SERIALDEBUG
             Serial.println(F("webaccess settings json parsing failed"));
+#endif
+          }
         }
         else if (text.indexOf("UID") != -1) //amdin UID as json string
         {
@@ -528,10 +587,11 @@ void webSocketEvent(uint8_t num, WStype_t type, uint8_t * payload, size_t lenght
             if (uiddata.containsKey("UID"))
             {
               config.adminUID = uiddata["UID"];
-
+#ifdef SERIALDEBUG
               Serial.println(" ");
               Serial.print(F("got UID: "));
               Serial.println(config.adminUID);
+#endif
             }
 
             WriteConfig();
@@ -541,48 +601,54 @@ void webSocketEvent(uint8_t num, WStype_t type, uint8_t * payload, size_t lenght
             Serial.println(F("webaccess settings json parsing failed"));
         }
       }
-        break;
-      case WStype_BIN:
+      break;
+    case WStype_BIN:
+      {
+#ifdef SERIALDEBUG
+        Serial.println(F("receiving binary WS data:"));
+        Serial.write(payload, lenght);
+        Serial.println("");
+#endif
+
+        static fs::File uploadFile; //file to write to
+        ESP.wdtFeed(); //kick hardware watchdog
+#ifdef SERIALDEBUG
+        Serial.print(F("size:"));
+        Serial.println(lenght);
+#endif
+        uploadFile = SPIFFS.open(KEYFILE, "w"); //open the key file, overwrite if it exists, create it if not
+        if (uploadFile)
         {
-          Serial.println(F("receiving binary WS data:"));
-          Serial.write(payload, lenght);
-          Serial.println("");
-
-          static fs::File uploadFile; //file to write to
-          ESP.wdtFeed(); //kick hardware watchdog
-          Serial.print(F("size:"));
-          Serial.println(lenght);
-          uploadFile = SPIFFS.open(KEYFILE, "w"); //open the key file, overwrite if it exists, create it if not
-          if (uploadFile)
+          if (lenght <= MAXKEYSIZE)
           {
-            if (lenght <= MAXKEYSIZE)
-            {
-              uploadFile.write(payload, lenght);
-              WS_print(F("KEY file saved\r\n"));
-            }
-            else
-            {
-              WS_print(F("file too big"));
-              Serial.println(F("File too large"));
-              uploadFile.close();
-              //delete the key file:
-              SPIFFS.remove(KEYFILE);
-            }
-
-            uploadFile.close();
-
+            uploadFile.write(payload, lenght);
+            WS_print(F("KEY file saved\r\n"));
           }
           else
           {
-            WS_print(F("ERROR: create failed\r\n"));
-            SPIFFS.remove(KEYFILE); //remove the file if it exists (it may be corrupted?)
+            WS_print(F("file too big"));
+#ifdef SERIALDEBUG
+            Serial.println(F("File too large"));
+#endif
+            uploadFile.close();
+            //delete the key file:
+            SPIFFS.remove(KEYFILE);
           }
 
-          //USE_SERIAL.printf("[%u] get binary lenght: %u\n", num, lenght);
-          // hexdump(payload, lenght);
-          // send message to client
-          // webSocket.sendBIN(num, payload, lenght);
+          uploadFile.close();
+
         }
-        break;
+        else
+        {
+          WS_print(F("ERROR: create failed\r\n"));
+          SPIFFS.remove(KEYFILE); //remove the file if it exists (it may be corrupted?)
+        }
+
+        //USE_SERIAL.printf("[%u] get binary lenght: %u\n", num, lenght);
+        // hexdump(payload, lenght);
+        // send message to client
+        // webSocket.sendBIN(num, payload, lenght);
       }
+      break;
   }
+}

@@ -30,6 +30,7 @@ EDB userdatabase(&userDBwriter, &userDBreader); //create the database
 //debug:
 void DBprintError(EDB_Status err)
 {
+#ifdef SERIALDEBUG
   Serial.print(F("ERROR: "));
   switch (err)
   {
@@ -44,6 +45,7 @@ void DBprintError(EDB_Status err)
       Serial.println("OK");
       break;
   }
+#endif
 }
 
 
@@ -57,42 +59,57 @@ void userDBInit(const char* databasepath)
     userDBfile = SPIFFS.open(databasepath, "r+");
 
     if (userDBfile) {
+#ifdef SERIALDEBUG
       Serial.print(F("Opening current table... "));
+#endif
       EDB_Status result = userdatabase.open(0);
       if (result == EDB_OK) {
 
         if (userdatabase.count() > MAXUSERSINDB)
         {
+#ifdef SERIALDEBUG
           Serial.println("error: too many users");
+#endif
         }
         else
         {
+#ifdef SERIALDEBUG
           Serial.println("DONE");
+#endif
           return;
         }
       }
       else {
+#ifdef SERIALDEBUG
         Serial.println(F("ERROR"));
         Serial.print(F("Did not find database in the file "));
         Serial.println(String(db_users));
         Serial.print(F("Creating new table... "));
+#endif
         userdatabase.create(0, USERDB_TABLE_SIZE, (unsigned int)sizeof(userentry));
+#ifdef SERIALDEBUG
         Serial.println("DONE");
+#endif
         return;
       }
     } else {
+#ifdef SERIALDEBUG
       Serial.println("Could not open file " + String(databasepath));
+#endif
       //delete the corrupt file
       SPIFFS.remove(databasepath);
       //create and open new file now
     }
   }
-
+#ifdef SERIALDEBUG
   Serial.print(F("Creating user database... "));
+#endif
   // create table at with starting address 0
   userDBfile = SPIFFS.open(databasepath, "w+");
   userdatabase.create(0, USERDB_TABLE_SIZE, (unsigned int)sizeof(userentry));
+#ifdef SERIALDEBUG
   Serial.println(F("DONE"));
+#endif
 
 }
 
@@ -124,8 +141,10 @@ void userDBerase(const char* databasepath)
 uint16_t userDBfindentry(uint32_t RFIDuid)
 {
   uint16_t i;
+#ifdef SERIALDEBUG
   Serial.print(F("number of user DB entries: "));
   Serial.println(userdatabase.count());
+#endif
   for (i = 1; i <= userdatabase.count(); i++) //entries start from 1
   {
     EDB_Status result = userdatabase.readRec(i, EDB_REC userentry);
@@ -157,7 +176,9 @@ uint16_t userDBfindentry(uint32_t RFIDuid)
 //add an etry to the secondary userDB
 bool userDBaddentry(uint16_t tid, uint32_t RFuid, uint32_t validfrom, uint32_t validuntil, const char* username) //obsolete
 {
+#ifdef SERIALDEBUG
   Serial.print(F("Appending userDB entry... "));
+#endif
 
   userentry.tagid = tid;
   userentry.uid = RFuid;
@@ -170,13 +191,13 @@ bool userDBaddentry(uint16_t tid, uint32_t RFuid, uint32_t validfrom, uint32_t v
     DBprintError(result);
     return false;
   }
-  //Serial.println(F("DONE"));
   return true;
 }
 
 //for debugging purposes
 void userDBprintout(void)
 {
+#ifdef SERIALDEBUG
   uint16_t i;
   Serial.print(F("number of user DB entries: "));
   Serial.println(userdatabase.count());
@@ -195,6 +216,7 @@ void userDBprintout(void)
     Serial.print(F("end: "));
     Serial.println(userentry.ts_validuntil);
   }
+#endif
 }
 
 //prepare database for update: close current DB file, erase secondary DB (in case it already exists), create secondary DB file and open it
@@ -264,39 +286,56 @@ EDB eventdatabase(&eventDBwriter, &eventDBreader); //create the event database
 //open a database file, create it if it does not exist
 void eventDBInit(void)
 {
+#ifdef SERIALDEBUG
   Serial.print(F("EventDB init: "));
-
+#endif
   if (SPIFFS.exists(db_events)) {
+#ifdef SERIALDEBUG
     Serial.println(F("Event database file exists"));
+#endif
     eventDBfile = SPIFFS.open(db_events, "r+"); //open file for reading and writing
 
     if (eventDBfile) {
+#ifdef SERIALDEBUG
       Serial.print(F("Opening eventDB table... "));
+#endif
       EDB_Status result = eventdatabase.open(0);
       if (result == EDB_OK) {
+#ifdef SERIALDEBUG
         Serial.println("DONE");
+#endif
         return;
       } else {
+#ifdef SERIALDEBUG
         Serial.println(F("ERROR"));
         Serial.print(F("Did not find eventDB in the file "));
         Serial.println(String(db_events));
         Serial.print(F("Creating new table... "));
+#endif
         eventdatabase.create(0, EVENTDB_TABLE_SIZE, (unsigned int)sizeof(eventDBpackage));
+#ifdef SERIALDEBUG
         Serial.println("DONE");
+#endif
         return;
       }
     } else {
+#ifdef SERIALDEBUG
       Serial.println("Could not open file " + String(db_events));
+#endif
       //delete the corrupt file
       SPIFFS.remove(db_events);
       //now go on and create a new file with a new table
     }
   }
+#ifdef SERIALDEBUG
   Serial.print(F("Creating event database... "));
+#endif
   // create table at with starting address 0
   eventDBfile = SPIFFS.open(db_events, "w+"); //create file, overwrite if it exists (w+)
   eventdatabase.create(0, EVENTDB_TABLE_SIZE, (unsigned int)sizeof(eventDBpackage));
+#ifdef SERIALDEBUG
   Serial.println(F("DONE"));
+#endif
 }
 
 
@@ -316,17 +355,22 @@ void eventDBdeleteentry(uint16_t entryno)
   {
     eventDBInit();
   }
-
+#ifdef SERIALDEBUG
   Serial.print(F("Deleting entry... "));
+#endif
   if (entryno <= eventdatabase.count()) //if entry exists (entries are from 1 to count, not starting at 0!)
   {
     EDB_Status result = eventdatabase.deleteRec(entryno);
     if (result != EDB_OK) DBprintError(result);
+#ifdef SERIALDEBUG
     Serial.println("DONE");
+#endif
   }
   else
   {
+#ifdef SERIALDEBUG
     Serial.println(F("NOT FOUND"));
+#endif
   }
   eventDBclose();
 
@@ -341,8 +385,9 @@ bool eventDBaddentry(sendoutpackage* evententry)
   {
     eventDBInit();
   }
-
+#ifdef SERIALDEBUG
   Serial.print(F("Appending eventDB entry... "));
+#endif
   ESP.wdtFeed(); //kick hardware watchdog
 
   //make sure the package is pending:
@@ -353,7 +398,9 @@ bool eventDBaddentry(sendoutpackage* evententry)
     eventDBclose();
     return false;
   }
+#ifdef SERIALDEBUG
   Serial.println(F("DONE"));
+#endif
   eventDBclose();
   //entry is now in the database, remove it from the queue
   evententry->pending = false;
@@ -380,7 +427,9 @@ void eventDBgetpending(void)
     EDB_Status result = eventdatabase.readRec(i, EDB_REC eventDBpackage); //eventDBpackage is passed as a pointer
     if (result == EDB_OK)
     {
+#ifdef SERIALDEBUG
       Serial.println(F("read entry from EventDB"));
+#endif
       eventDBentrytosend = i;
       break; //end the for loop now
     }
