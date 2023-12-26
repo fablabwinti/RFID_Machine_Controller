@@ -117,7 +117,6 @@ void sendToServer(sendoutpackage* datastruct, bool saveiffail, bool enforce) {
         }
       }
 
-      uint8_t i;
       uint8_t needupdate = 0;
       String payload = "";
       if (datastruct->pending)  // if sendout flag is set (just double checking)
@@ -128,7 +127,7 @@ void sendToServer(sendoutpackage* datastruct, bool saveiffail, bool enforce) {
         event["timestamp"] = convertToTimestring(datastruct->timestamp); //datastruct->timestamp;
         event["mid"] = config.mid;
         event["eid"] = datastruct->event;
-        if (datatosend[i].tid >= 0)
+        if (datastruct->tid >= 0)
         {
           event["tid"] = datastruct->tid;
         }
