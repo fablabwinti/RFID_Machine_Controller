@@ -261,9 +261,6 @@ void userDBpurge(void)
 int16_t eventDBentrytosend; //index of the event currently being transmitted from the event database (send one by one to have better database control)
 sendoutpackage eventDBpackage; //buffer for one package to be read from DB and sent out
 
-//function prototypes (todo: need to clean up the header file depedency mess sometime)
-void sendToServer(sendoutpackage* datastruct, bool save, bool enforce);
-
 
 #ifndef EVENT_DB_TO_SD //using SPIFFS for event database
 //SD card database for storing unsent events
@@ -360,7 +357,18 @@ void eventDBdeleteentry(uint16_t entryno)
 #endif
   if (entryno <= eventdatabase.count()) //if entry exists (entries are from 1 to count, not starting at 0!)
   {
-    EDB_Status result = eventdatabase.deleteRec(entryno);
+    // unless it's the last one, just mark it as unused, don't delete it, as that would
+    // copy around the whole rest of the records using many separate write operations
+    EDB_Status result;
+    if (entryno == eventdatabase.count())
+    {
+      result = eventdatabase.deleteRec(entryno);
+    }
+    else
+    {
+      eventDBpackage.pending = false;
+      result = eventdatabase.updateRec(entryno, EDB_REC eventDBpackage);
+    }
     if (result != EDB_OK) DBprintError(result);
 #ifdef SERIALDEBUG
     Serial.println("DONE");
@@ -422,10 +430,10 @@ void eventDBgetpending(void)
   uint16_t i;
   //Serial.print(F("number of event DB entries: "));
   //Serial.println(eventdatabase.count());
-  for (i = eventdatabase.count(); i > 0; i--) //start scanning from the end (deleting end entries is faster), also, zero index is not used in EDB
+  for (i = 1; i <= eventdatabase.count(); i++) // start scanning from the beginning to keep chronological order, also, zero index is not used in EDB
   {
     EDB_Status result = eventdatabase.readRec(i, EDB_REC eventDBpackage); //eventDBpackage is passed as a pointer
-    if (result == EDB_OK)
+    if (result == EDB_OK && eventDBpackage.pending)
     {
 #ifdef SERIALDEBUG
       Serial.println(F("read entry from EventDB"));
@@ -434,33 +442,12 @@ void eventDBgetpending(void)
       break; //end the for loop now
     }
   }
+  if (!eventDBpackage.pending) {
+    // whole table is unused, can truncate it
+    eventdatabase.clear();
+  }
   eventDBclose();
 
-}
-
-void checkEventDB(void)
-{
-  static unsigned long EVDBchecktime = millis();
-  static bool EVDBeventPending = false; //set to true if events were saved, sendout is then repeated faster
-
-  if (millis() - EVDBchecktime > 10000 || EVDBeventPending) //check for pending events in the database
-  {
-    EVDBchecktime = millis();
-    eventDBgetpending(); //read an entry from the event database (if any) and save it to eventDBpackage struct
-    if (eventDBpackage.pending)
-    {
-      EVDBeventPending = true;
-      sendToServer(&eventDBpackage, false, false); //send to server, do not save again
-      if (eventDBpackage.pending == false) //if sent out successfully, delete this entry from the database (sendout sets pending = false)
-      {
-        eventDBdeleteentry(eventDBentrytosend);
-      }
-    }
-    else
-    {
-      EVDBeventPending = false;
-    }
-  }
 }
 
 

@@ -70,8 +70,9 @@ bool readKeyfromSPIFFS(uint8_t* charbuffer, uint16_t buffersize)
   }
 }
 
-//send all pending events to the server, save to event database (SPIFFs or SD card) in case 'saveiffail' = true, try to connect up to 10 times if 'enforce' = true (saved to database immediately if connect fails)
-void sendToServer(sendoutpackage* datastruct, bool saveiffail, bool enforce) {
+//send one pending event to the server, save to event database (SPIFFs or SD card) in case 'saveiffail' = true, try to connect up to 10 times if 'enforce' = true (saved to database immediately if connect fails)
+// return true iff sent successfully
+bool sendToServer(sendoutpackage* datastruct, bool saveiffail, bool enforce) {
   // checks if we can already send more data. if we can, check if data needs to be sent.
   // then format the data and send it out through the ether
 
@@ -79,7 +80,7 @@ void sendToServer(sendoutpackage* datastruct, bool saveiffail, bool enforce) {
 
   // Use WiFiClient class to create TCP connections
   //WiFiClient client;
-  if (readKeyfromSPIFFS((uint8_t*) pubkey, MAXKEYSIZE) == false) return; //read public key from spiffs (upload through webpage)
+  if (readKeyfromSPIFFS((uint8_t*) pubkey, MAXKEYSIZE) == false) return false; //read public key from spiffs (upload through webpage)
 
 
 
@@ -91,6 +92,8 @@ void sendToServer(sendoutpackage* datastruct, bool saveiffail, bool enforce) {
   client.setTimeout(500); //use short timeout, the server is local and should react pretty fast if it is available, if not this reduces unnecessary long delays
   static uint8_t connectfailcounter = 0;
   static uint8_t unhealthy_delaycounter = 10; //on first run, assume the server connectin is ok
+
+  bool success = false;
 
   if (WiFi.status() == WL_CONNECTED) {
     if ((millis() - serverUpdateTime > SERVERMININTERVAL) || enforce)  // do not send data more often than SERVERMININTERVAL to ease on server traffic
@@ -109,7 +112,7 @@ void sendToServer(sendoutpackage* datastruct, bool saveiffail, bool enforce) {
         unhealthy_delaycounter++;
         if (unhealthy_delaycounter < 8)
         {
-          return; //if server connection seems to be bad, only update at greater intervals
+          return false; //if server connection seems to be bad, only update at greater intervals
         }
         else
         {
@@ -137,7 +140,7 @@ void sendToServer(sendoutpackage* datastruct, bool saveiffail, bool enforce) {
 
 
       if (needupdate == 0)
-        return;
+        return false;
 #ifdef SERIALDEBUG
       Serial.println("Sendoutdata: ");
       Serial.println(payload);
@@ -164,9 +167,9 @@ void sendToServer(sendoutpackage* datastruct, bool saveiffail, bool enforce) {
             Serial.println(F("writing entry to database"));
             eventDBaddentry(datastruct); //transfer this event over to the event database (pending flag is removed there so it will not be sent from queue)
           }
-          return;
+          return false;
         }
-        if (enforce == false) return; //if not forced to try to resend, try again later, else, retry.
+        if (enforce == false) return false; //if not forced to try to resend, try again later, else, retry.
       }
       Serial.println(F("Server connect successful"));
       connectfailcounter = 0;
@@ -192,6 +195,7 @@ void sendToServer(sendoutpackage* datastruct, bool saveiffail, bool enforce) {
       Serial.println(line);
       if (line.indexOf("200 OK") != -1) {
         datastruct->pending = 0;  // reset flag after sending
+        success = true;
         serverhealthy = true;
 #ifdef SAVE_LOG_TO_SD
         SDwriteStringToLog(payload);//write it to the SD card log as a backup measure
@@ -223,23 +227,59 @@ void sendToServer(sendoutpackage* datastruct, bool saveiffail, bool enforce) {
       eventDBaddentry(datastruct); //transfer this event over to the event database (pending flag is removed there so it will not be sent from queue)
     }
   }
+  return success;
 }
 
 //send pending events to the server (they are automatically transferred to the events database if sending fails)
 //if 'enforce' = true the data is sent immediately or saved to event database if it fails multiple times, use enforce to make sure data is not lost (used to send login data as no wifi access is allwed after a login)
 void sendPendingEvents(bool enforce)
 {
-  uint8_t i;
-  for (i = 0; i < SERVERPACKETS; i++)  // go through all possible data structs, there can be multiple events pending
+  static signed long EVDBchecktime = millis();
+
+  sendoutpackage* oldestEventInQueue = findFirstEventInQueue();
+
+  // if we're not in a hurry, wait until it's time
+  if (!enforce && (signed long)millis() - EVDBchecktime < 0) return;
+  // check again in 10 seconds at the latest (will be shortened in some circumstances below)
+  EVDBchecktime = millis() + 10000;
+  
+  // any events in the database need to go out first
+  eventDBpackage.pending = false;
+  eventDBgetpending(); //read an entry from the event database (if any) and save it to eventDBpackage struct
+  if (eventDBpackage.pending)
   {
-    if (datatosend[i].pending)  // if sendout flag is set
+    sendToServer(&eventDBpackage, false, enforce); //send to server, do not save again
+    if (eventDBpackage.pending == false) //if sent out successfully, delete this entry from the database (sendout sets pending = false)
     {
+      eventDBdeleteentry(eventDBentrytosend);
+      // we're done for now, continue next time - but if there are events in the queue, make it soon
+      if (oldestEventInQueue != NULL)
+      {
+        EVDBchecktime -= 10000;
+      }
+      return;
+    }
+  }
+
+  // if we're still here, then either there was nothing or it could not be sent
+  // - process the oldest entry from the queue differently depending on that
+  if (oldestEventInQueue != NULL)
+  {
+    if (eventDBpackage.pending)
+    {
+      // there was an entry in the database and it could not be sent:
+      // drop one from the queue into the database so they don't spend too much time in the queue and risk getting lost on power loss
+      eventDBaddentry(oldestEventInQueue);
+    }
+    else {
+      // database was empty, try to send the oldest one in the queue
       yield();
       ESP.wdtFeed(); //kick hardware watchdog
-      sendToServer(&datatosend[i], true, enforce); //send the data, save to event database if sending fails
-      if (enforce == false)
+      bool success = sendToServer(oldestEventInQueue, true, enforce); //send the data, save to event database if sending fails
+      // if sending worked and there are more, continue soon
+      if (success && findFirstEventInQueue() != NULL)
       {
-        return; //return, do the others later (to not block login events for too long)
+        EVDBchecktime -= 10000;
       }
     }
   }

@@ -141,7 +141,18 @@ void eventDBdeleteentry(uint16_t entryno)
 #endif
     if (entryno <= eventdatabase.count()) //if entry exists (entries are from 1 to count, not starting at 0!)
     {
-      EDB_Status result = eventdatabase.deleteRec(entryno);
+      // unless it's the last one, just mark it as unused, don't delete it, as that would
+      // copy around the whole rest of the records using many separate write operations
+      EDB_Status result;
+      if (entryno == eventdatabase.count())
+      {
+        result = eventdatabase.deleteRec(entryno);
+      }
+      else
+      {
+        eventDBpackage.pending = false;
+        result = eventdatabase.updateRec(entryno, EDB_REC eventDBpackage);
+      }
       if (result != EDB_OK) DBprintError(result);
 #ifdef SERIALDEBUG
       Serial.println("DONE");
@@ -209,10 +220,10 @@ void eventDBgetpending(void)
     uint16_t i;
     //Serial.print(F("number of event DB entries: "));
     //Serial.println(eventdatabase.count());
-    for (i = eventdatabase.count(); i > 0; i--) //start scanning from the end (deleting end entries is faster), also, zero index is not used in EDB
+    for (i = 1; i <= eventdatabase.count(); i++) // start scanning from the beginning to keep chronological order, also, zero index is not used in EDB
     {
       EDB_Status result = eventdatabase.readRec(i, EDB_REC eventDBpackage); //eventDBpackage is passed as a pointer
-      if (result == EDB_OK)
+      if (result == EDB_OK && eventDBpackage.pending)
       {
 #ifdef SERIALDEBUG
         Serial.println(F("read entry from EventDB"));
@@ -220,6 +231,10 @@ void eventDBgetpending(void)
         eventDBentrytosend = i;
         break; //end the for loop now
       }
+    }
+    if (!eventDBpackage.pending) {
+      // whole table is unused, can truncate it
+      eventdatabase.clear();
     }
     eventDBclose();
   }
@@ -436,14 +451,13 @@ bool SDinit(uint8_t pin)
 void SDmanager(void)
 {
   static unsigned long SDchecktime = millis();
-  static bool SDeventPending = false; //set to true if events were saved to SD, sendout is then repeated faster
   if (SDstate == SD_UNKNOWN) //first time run
   {
     SDinit(SD_CSN_PIN);
   }
   else
   {
-    if (millis() - SDchecktime > 1000 || SDeventPending) //check the state of the SD card once every second, this function also checks for pending events in the SD database
+    if (millis() - SDchecktime > 1000) //check the state of the SD card once every second
     {
       SDchecktime = millis();
       //check the SD state:
@@ -455,27 +469,7 @@ void SDmanager(void)
           Serial.println(F("SDcard Removed"));
           createErrorEvent("SD card removed");
           SDcardOK = false;
-          SDeventPending = false;
         }
-#ifdef EVENT_DB_TO_SD
-        else //SD is initialized and ready: check for pending events (if using SD for events database)
-        {
-          eventDBgetpending();
-          if (eventDBpackage.pending)
-          {
-            SDeventPending = true;
-            sendToServer(&eventDBpackage, false, false); //send to server, do not save again
-            if (eventDBpackage.pending == false) //if sent out successfully, delete this entry from the database (sendout sets pending = false)
-            {
-              eventDBdeleteentry(eventDBentrytosend);
-            }
-          }
-          else
-          {
-            SDeventPending = false;
-          }
-        }
-#endif
         return;
       }
       else if (SDstate == SD_REMOVED)

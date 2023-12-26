@@ -307,11 +307,8 @@ void loop() {
       if (millis() > postlogoutmillis + 10000) //only check and send data after 10 seconds after logout, wifi is not yet connected before
       {
         UpdateDBfromServer(); //update the user database if necessary
-        SDmanager();  // check SD card (and send locally saved eventsDatabase)
-#ifndef EVENT_DB_TO_SD //if using SPIFFS for event database
-        checkEventDB(); //check if there are unsent event in the database (SPIFFS only, if using SD card for events it is checked in SDmanager)
-#endif
-        sendPendingEvents(false);  // send data out (if available in RAM, does not check the events database)
+        SDmanager();  // check SD card
+        sendPendingEvents(false);  // send data out from events database and RAM queue
         timeManager(false); // check the local time
       }
 
