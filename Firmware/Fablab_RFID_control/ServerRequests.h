@@ -361,27 +361,18 @@ void UpdateDBfromServer(void) {
     //read the message body next and parse the json stream:
     //note: the json library cannot handle big, incomplete streams so we need to divide the stram into json objects manually
 
-    client.readStringUntil('['); //discard the rest of the header and the inital bracket
-    while (client.available() > 0)
+    client.find("\r\n\r\n[", 5); //discard the rest of the header and the inital bracket
+    DynamicJsonDocument root(512); //create a buffer
+    do
     {
       delay(1); //wait for more data and make way for background activity if needed
 
-      str = "["; //add initial array bracket
-      for (uint8_t i = 0; i < 5; i++)
-      {
-        str += client.readStringUntil('}');
-        str = str + "}"; //insert discarded closing bracket
-      }
-      client.read(); //discard ','
-      str += "]";  //add terminating array bracket
-      //Serial.println(str);
-      delay(1); //run background functions
-
-      DynamicJsonDocument root(512);//crate a buffer
-      DeserializationError jsonerror = deserializeJson(root, str); //parse the text
-
+      DeserializationError jsonerror = deserializeJson(root, client); //parse the text
       if (jsonerror) {
-        Serial.println("JSON parsing failed!");
+#ifdef SERIALDEBUG
+        Serial.println("User JSON parsing failed!");
+        Serial.println(jsonerror.c_str());
+#endif
         client.stop();
         {
           updateCleanup(false); //cleanup the database, unsuccessful update
@@ -389,50 +380,49 @@ void UpdateDBfromServer(void) {
           return; //parsing failed for some reason (incomplete stream?)
         }
       }
-
+#ifdef SERIALDEBUG
       serializeJsonPretty(root, Serial);//debug!!!
       Serial.println(".");
+#endif
       ESP.wdtFeed(); //kick hardware watchdog
       delay(1); //run background functions
 
-      for (int i = 0; i < root.size(); i++)
-      {
-
-        Serial.println(" ");
-
-        //check if received database entry is fully defined (i.e. all required fields exist)
-        //if a key does not exists it is 'null' or zero if it is an integer. the .containsKey("x") is not applicable for arrays, only for objects
-        //none of the numbers can be zero (lowest tid and uid is 1, 0 is reserved for admin tag)
-        uint16_t tid = root[i]["tid"];
-        uint32_t uid = root[i]["uid"];
-        const char* name = root[i]["name"];
-        uint32_t start = root[i]["start"];
-        uint32_t end = root[i]["end"];
-        
-        if (name && tid > 0 && uid > 0 && start > 0 && end > 0) //if name checks if the pointer is nullpointer
-        {
-           Serial.println(F("adding valid user entry"));
-//          Serial.println(tid);
-//          Serial.println(root[i]["name"].as<String>());
-//          Serial.println(uid);
-//          Serial.println(start);
-//          Serial.println(end);
+      //check if received database entry is fully defined (i.e. all required fields exist)
+      //if a key does not exists it is 'null' or zero if it is an integer. the .containsKey("x") is not applicable for arrays, only for objects
+      //none of the numbers can be zero (lowest tid and uid is 1, 0 is reserved for admin tag)
+      uint16_t tid = root["tid"];
+      uint32_t uid = root["uid"];
+      const char* name = root["name"];
+      uint32_t start = root["start"];
+      uint32_t end = root["end"];
       
-          delay(50); //wait for more data to arrive
+      if (name && tid > 0 && uid > 0 && start > 0 && end > 0) //if name checks if the pointer is nullpointer
+      {
+#ifdef SERIALDEBUG
+         Serial.println(F("adding valid user entry"));
+//        Serial.println(tid);
+//        Serial.println(root[i]["name"].as<String>());
+//        Serial.println(uid);
+//        Serial.println(start);
+//        Serial.println(end);
+#endif
 
-          if (userDBaddentry(tid, uid, start, end, name) == false)
-          {
-            updateCleanup(false); //cleanup the database, unsuccessful update
-            return;
-          }
-        }
-        else
+        delay(50); //wait for more data to arrive
+
+        if (userDBaddentry(tid, uid, start, end, name) == false)
         {
-          Serial.println(F("user entry invalid (JSON key missing)"));
+          updateCleanup(false); //cleanup the database, unsuccessful update
+          return;
         }
       }
+      else
+      {
+#ifdef SERIALDEBUG
+        Serial.println(F("user entry invalid (JSON key missing)"));
+#endif
+      }
+    } while (client.findUntil(",", 1, "]", 1));
 
-    }
 
     /////////////////////////////
     // MACHINE SETTINGS UPDATE //
@@ -501,7 +491,7 @@ void UpdateDBfromServer(void) {
       DeserializationError jsonerror = deserializeJson(machinesettings, str);
 
       if (jsonerror) {
-        Serial.println("JSON parsing failed!");
+        Serial.println("Machine JSON parsing failed!");
         Serial.println(jsonerror.c_str());
         client.stop();
         return; //parsing failed for some reason (incomplete stream?)
