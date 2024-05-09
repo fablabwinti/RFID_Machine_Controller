@@ -353,11 +353,6 @@ RTC MODULE</text>
 <wire x1="60.579" y1="49.784" x2="61.722" y2="50.292" width="0.254" layer="25"/>
 <wire x1="61.722" y1="50.292" x2="61.722" y2="49.149" width="0.254" layer="25"/>
 <wire x1="61.722" y1="49.149" x2="60.579" y2="49.784" width="0.254" layer="25"/>
-<wire x1="79.629" y1="60.579" x2="78.994" y2="60.579" width="0.254" layer="25"/>
-<wire x1="78.994" y1="60.579" x2="78.359" y2="60.579" width="0.254" layer="25"/>
-<wire x1="78.994" y1="60.579" x2="79.502" y2="59.436" width="0.254" layer="25"/>
-<wire x1="79.502" y1="59.436" x2="78.359" y2="59.436" width="0.254" layer="25"/>
-<wire x1="78.359" y1="59.436" x2="78.994" y2="60.579" width="0.254" layer="25"/>
 <wire x1="59.563" y1="61.468" x2="62.357" y2="61.468" width="0.254" layer="25"/>
 <wire x1="62.357" y1="61.468" x2="62.357" y2="60.452" width="0.254" layer="25"/>
 <wire x1="62.357" y1="60.452" x2="59.563" y2="60.452" width="0.254" layer="25"/>
@@ -5224,10 +5219,6 @@ You are welcome to use this library for commercial purposes. For attribution, we
 <attribute name="NAME" x="83.905" y="55.857" size="1.016" layer="25" font="vector" ratio="22" rot="R90"/>
 <attribute name="VALUE" x="83.905" y="56.365" size="1.27" layer="27" rot="R90"/>
 </element>
-<element name="D2" library="diode" package="MINIMELF" value="" x="79" y="60" smashed="yes" rot="R270">
-<attribute name="NAME" x="76.714" y="61.397" size="1.016" layer="25" font="vector" ratio="22" rot="R270"/>
-<attribute name="VALUE" x="76.587" y="61.651" size="1.27" layer="27" rot="R270"/>
-</element>
 <element name="C8" library="resistor" package="C0603" value="100nF" x="86" y="61" smashed="yes" rot="R270">
 <attribute name="NAME" x="86.762" y="61.889" size="1.016" layer="25" font="vector" ratio="22" rot="R270"/>
 <attribute name="VALUE" x="84.095" y="61.635" size="1.27" layer="27" rot="R270"/>
@@ -5273,6 +5264,10 @@ You are welcome to use this library for commercial purposes. For attribution, we
 <attribute name="VALUE" x="92.0481" y="50.816" size="0.02" layer="28" rot="MR0"/>
 </element>
 <element name="U$6" library="logos" package="OSHW-LOGO-L" value="" x="61.95" y="3.45"/>
+<element name="R13" library="resistor" package="R0603" value="10k" x="79.2" y="60" smashed="yes" rot="R90">
+<attribute name="NAME" x="78.165" y="59.765" size="1.016" layer="25" font="vector" ratio="22" rot="R90"/>
+<attribute name="VALUE" x="81.105" y="59.365" size="1.27" layer="27" rot="R90"/>
+</element>
 </elements>
 <signals>
 <signal name="GND">
@@ -5493,7 +5488,6 @@ You are welcome to use this library for commercial purposes. For attribution, we
 <contactref element="LED" pad="1"/>
 <contactref element="JP2" pad="1"/>
 <contactref element="U$2" pad="J1.5"/>
-<contactref element="D2" pad="C"/>
 <contactref element="SP1" pad="1"/>
 <contactref element="C8" pad="1"/>
 <wire x1="67.2408" y1="55" x2="67.2408" y2="46.1588" width="0.6096" layer="1"/>
@@ -5509,8 +5503,6 @@ You are welcome to use this library for commercial purposes. For attribution, we
 <via x="87.63" y="61.976" extent="1-16" drill="0.3048"/>
 <wire x1="87.63" y1="61.976" x2="86.126" y2="61.976" width="0.6096" layer="1"/>
 <wire x1="86.126" y1="61.976" x2="86" y2="61.85" width="0.6096" layer="1"/>
-<wire x1="79" y1="61.7" x2="79" y2="61.982" width="0.3048" layer="1"/>
-<wire x1="79" y1="61.982" x2="80.01" y2="62.992" width="0.3048" layer="1"/>
 <wire x1="80.01" y1="62.992" x2="85.598" y2="62.992" width="0.3048" layer="1"/>
 <wire x1="85.598" y1="62.992" x2="85.852" y2="62.738" width="0.3048" layer="1"/>
 <wire x1="85.852" y1="62.738" x2="85.852" y2="61.998" width="0.3048" layer="1"/>
@@ -5583,6 +5575,9 @@ You are welcome to use this library for commercial purposes. For attribution, we
 <wire x1="29.2" y1="1.6" x2="28.19" y2="2.61" width="0.8128" layer="1"/>
 <wire x1="28.19" y1="2.61" x2="28.19" y2="5" width="0.8128" layer="1"/>
 <wire x1="56.4" y1="43.2" x2="66.1" y2="43.2" width="0.8128" layer="1"/>
+<contactref element="R13" pad="2"/>
+<wire x1="80.01" y1="62.992" x2="79.2" y2="62.182" width="0.3048" layer="1"/>
+<wire x1="79.2" y1="62.182" x2="79.2" y2="60.85" width="0.3048" layer="1"/>
 </signal>
 <signal name="+3V3">
 <contactref element="SD" pad="4"/>
@@ -6067,15 +6062,14 @@ You are welcome to use this library for commercial purposes. For attribution, we
 <signal name="N$8">
 <contactref element="T2" pad="1"/>
 <contactref element="SP1" pad="2"/>
-<contactref element="D2" pad="A"/>
-<wire x1="82.9746" y1="62.016" x2="82.082" y2="62.016" width="0.3048" layer="1"/>
-<wire x1="82.082" y1="62.016" x2="79.502" y2="59.436" width="0.3048" layer="1"/>
-<wire x1="79.502" y1="59.436" x2="79.502" y2="58.802" width="0.3048" layer="1"/>
-<wire x1="79.502" y1="58.802" x2="79" y2="58.3" width="0.3048" layer="1"/>
+<wire x1="82.9746" y1="62.016" x2="82.066" y2="62.016" width="0.3048" layer="1"/>
 <wire x1="74.7592" y1="55" x2="74.7592" y2="56.2172" width="0.4064" layer="1"/>
 <wire x1="74.7592" y1="56.2172" x2="76.708" y2="58.166" width="0.4064" layer="1"/>
-<wire x1="76.708" y1="58.166" x2="78.866" y2="58.166" width="0.4064" layer="1"/>
-<wire x1="78.866" y1="58.166" x2="79" y2="58.3" width="0.4064" layer="1"/>
+<contactref element="R13" pad="1"/>
+<wire x1="76.708" y1="58.166" x2="78.216" y2="58.166" width="0.4064" layer="1"/>
+<wire x1="78.216" y1="58.166" x2="79.2" y2="59.15" width="0.4064" layer="1"/>
+<wire x1="79.2" y1="59.15" x2="79.216" y2="59.15" width="0.4064" layer="1"/>
+<wire x1="82.066" y1="62.016" x2="79.2" y2="59.15" width="0.3048" layer="1"/>
 </signal>
 <signal name="N$11">
 <contactref element="T2" pad="3"/>

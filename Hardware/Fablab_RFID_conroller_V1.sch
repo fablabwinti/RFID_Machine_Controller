@@ -12221,7 +12221,6 @@ You are welcome to use this library for commercial purposes. For attribution, we
 <part name="GND19" library="supply1" deviceset="GND" device=""/>
 <part name="T2" library="zetex" deviceset="NPNSOT23" device=""/>
 <part name="R11" library="resistor" deviceset="R-EU_" device="R0603" value="1k"/>
-<part name="D2" library="diode" deviceset="DIODE-" device="MINIMELF"/>
 <part name="P+7" library="supply1" deviceset="+5V" device=""/>
 <part name="C8" library="resistor" deviceset="C-EU" device="C0603" value="100nF"/>
 <part name="F1" library="special" deviceset="FUSE" device=""/>
@@ -12248,6 +12247,7 @@ You are welcome to use this library for commercial purposes. For attribution, we
 <part name="SJ1" library="SparkFun-Passives" deviceset="JUMPER-PAD-3-2OF3_NC_BY_TRACE" device="_LARGE"/>
 <part name="SJ2" library="SparkFun-Passives" deviceset="JUMPER-PAD-3-2OF3_NC_BY_TRACE" device="_LARGE"/>
 <part name="+3V6" library="supply1" deviceset="+3V3" device=""/>
+<part name="R13" library="resistor" deviceset="R-EU_" device="R0603" value="10k"/>
 </parts>
 <sheets>
 <sheet>
@@ -12281,8 +12281,6 @@ even if SD-card is not used</text>
 have the supply 
 reversed, use solder
 jumpers to switch</text>
-<text x="332.74" y="81.28" size="1.778" layer="92">Errata:
-Replace D2 with 10k resistor!</text>
 <text x="281.94" y="7.62" size="1.778" layer="94">Version 1.1</text>
 </plain>
 <instances>
@@ -12348,10 +12346,6 @@ Replace D2 with 10k resistor!</text>
 <attribute name="VALUE" x="342.9" y="50.8" size="1.778" layer="96"/>
 </instance>
 <instance part="R11" gate="G$1" x="342.9" y="45.72"/>
-<instance part="D2" gate="G$1" x="345.44" y="58.42" smashed="yes" rot="R90">
-<attribute name="NAME" x="342.4174" y="55.88" size="1.778" layer="95" rot="R90"/>
-<attribute name="VALUE" x="347.7514" y="60.96" size="1.778" layer="96" rot="R90"/>
-</instance>
 <instance part="P+7" gate="1" x="355.6" y="71.12" smashed="yes">
 <attribute name="VALUE" x="355.6" y="73.66" size="1.778" layer="96" rot="R90"/>
 </instance>
@@ -12427,6 +12421,7 @@ Replace D2 with 10k resistor!</text>
 <instance part="+3V6" gate="G$1" x="332.74" y="111.76" smashed="yes">
 <attribute name="VALUE" x="335.28" y="111.76" size="1.778" layer="96" rot="R90"/>
 </instance>
+<instance part="R13" gate="G$1" x="345.44" y="58.42" rot="R90"/>
 </instances>
 <busses>
 </busses>
@@ -12468,9 +12463,7 @@ Replace D2 with 10k resistor!</text>
 <wire x1="63.5" y1="38.1" x2="35.56" y2="38.1" width="0.1524" layer="91"/>
 </segment>
 <segment>
-<pinref part="D2" gate="G$1" pin="C"/>
 <pinref part="SP1" gate="S1" pin="+"/>
-<wire x1="345.44" y1="60.96" x2="345.44" y2="63.5" width="0.1524" layer="91"/>
 <wire x1="345.44" y1="63.5" x2="355.6" y2="63.5" width="0.1524" layer="91"/>
 <wire x1="355.6" y1="63.5" x2="355.6" y2="68.58" width="0.1524" layer="91"/>
 <junction x="355.6" y="63.5"/>
@@ -12479,6 +12472,7 @@ Replace D2 with 10k resistor!</text>
 <wire x1="365.76" y1="55.88" x2="365.76" y2="68.58" width="0.1524" layer="91"/>
 <wire x1="365.76" y1="68.58" x2="355.6" y2="68.58" width="0.1524" layer="91"/>
 <junction x="355.6" y="68.58"/>
+<pinref part="R13" gate="G$1" pin="2"/>
 </segment>
 <segment>
 <wire x1="83.82" y1="210.82" x2="83.82" y2="205.74" width="0.1524" layer="91"/>
@@ -12959,8 +12953,7 @@ Replace D2 with 10k resistor!</text>
 <wire x1="355.6" y1="50.8" x2="355.6" y2="53.34" width="0.1524" layer="91"/>
 <wire x1="355.6" y1="53.34" x2="345.44" y2="53.34" width="0.1524" layer="91"/>
 <junction x="355.6" y="53.34"/>
-<pinref part="D2" gate="G$1" pin="A"/>
-<wire x1="345.44" y1="53.34" x2="345.44" y2="55.88" width="0.1524" layer="91"/>
+<pinref part="R13" gate="G$1" pin="1"/>
 </segment>
 </net>
 <net name="N$11" class="0">
