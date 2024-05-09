@@ -12283,8 +12283,7 @@ reversed, use solder
 jumpers to switch</text>
 <text x="332.74" y="81.28" size="1.778" layer="92">Errata:
 Replace D2 with 10k resistor!</text>
-<text x="226.06" y="236.22" size="1.778" layer="92">Errata:
-Missing connection-&gt; use jumperwire</text>
+<text x="281.94" y="7.62" size="1.778" layer="94">Version 1.1</text>
 </plain>
 <instances>
 <instance part="GPIO0" gate="G$1" x="167.64" y="93.98" rot="R180"/>
@@ -12368,8 +12367,8 @@ Missing connection-&gt; use jumperwire</text>
 <instance part="R8" gate="G$1" x="264.16" y="182.88"/>
 <instance part="R9" gate="G$1" x="254" y="210.82"/>
 <instance part="R10" gate="G$1" x="259.08" y="203.2" rot="R270"/>
-<instance part="P+6" gate="1" x="266.7" y="241.3" smashed="yes">
-<attribute name="VALUE" x="266.7" y="243.84" size="1.778" layer="96" rot="R90"/>
+<instance part="P+6" gate="1" x="266.7" y="238.76" smashed="yes">
+<attribute name="VALUE" x="266.7" y="241.3" size="1.778" layer="96" rot="R90"/>
 </instance>
 <instance part="D1" gate="G$1" x="266.7" y="226.06" smashed="yes" rot="R90">
 <attribute name="NAME" x="263.6774" y="223.52" size="1.778" layer="95" rot="R90"/>
@@ -12504,6 +12503,15 @@ Missing connection-&gt; use jumperwire</text>
 <junction x="106.68" y="210.82"/>
 <pinref part="P+2" gate="1" pin="+5V"/>
 <wire x1="96.52" y1="210.82" x2="96.52" y2="213.36" width="0.1524" layer="91"/>
+</segment>
+<segment>
+<pinref part="D1" gate="G$1" pin="C"/>
+<wire x1="266.7" y1="228.6" x2="266.7" y2="231.14" width="0.1524" layer="91"/>
+<pinref part="REL1" gate="G$1" pin="COIL1"/>
+<wire x1="266.7" y1="231.14" x2="266.7" y2="236.22" width="0.1524" layer="91"/>
+<wire x1="271.78" y1="231.14" x2="266.7" y2="231.14" width="0.1524" layer="91"/>
+<junction x="266.7" y="231.14"/>
+<pinref part="P+6" gate="1" pin="+5V"/>
 </segment>
 </net>
 <net name="+3V3" class="0">
@@ -12981,16 +12989,6 @@ Missing connection-&gt; use jumperwire</text>
 <wire x1="266.7" y1="220.98" x2="266.7" y2="215.9" width="0.1524" layer="91"/>
 <wire x1="271.78" y1="220.98" x2="266.7" y2="220.98" width="0.1524" layer="91"/>
 <junction x="266.7" y="220.98"/>
-</segment>
-</net>
-<net name="N$10" class="0">
-<segment>
-<pinref part="D1" gate="G$1" pin="C"/>
-<wire x1="266.7" y1="228.6" x2="266.7" y2="231.14" width="0.1524" layer="91"/>
-<pinref part="REL1" gate="G$1" pin="COIL1"/>
-<wire x1="266.7" y1="231.14" x2="266.7" y2="236.22" width="0.1524" layer="91"/>
-<wire x1="271.78" y1="231.14" x2="266.7" y2="231.14" width="0.1524" layer="91"/>
-<junction x="266.7" y="231.14"/>
 </segment>
 </net>
 <net name="N$13" class="0">

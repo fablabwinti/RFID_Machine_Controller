@@ -444,7 +444,7 @@ REVERSED</text>
 DAMIAN SCHNEIDER
 FABLAB WINTERTHUR
 20. MAY 2017</text>
-<text x="74.2" y="1.6" size="1.4224" layer="25" font="vector" ratio="22">VERSION 1</text>
+<text x="74.2" y="1.6" size="1.4224" layer="25" font="vector" ratio="22">VERSION 1.1</text>
 <rectangle x1="34.6356" y1="23.34" x2="35.042" y2="23.4416" layer="26" rot="R90"/>
 <rectangle x1="34.6864" y1="24.2036" x2="34.9912" y2="24.3052" layer="26" rot="R90"/>
 <rectangle x1="34.3816" y1="25.7276" x2="35.296" y2="25.8292" layer="26" rot="R90"/>
@@ -5539,8 +5539,7 @@ You are welcome to use this library for commercial purposes. For attribution, we
 <wire x1="65.9" y1="43" x2="66.1" y2="43.2" width="1.016" layer="1"/>
 <polygon width="0.254" layer="1" isolate="0.3" orphans="yes">
 <vertex x="66" y="43.5"/>
-<vertex x="58" y="43.5"/>
-<vertex x="56" y="41.5"/>
+<vertex x="56" y="43.5"/>
 <vertex x="56" y="8"/>
 <vertex x="52" y="4"/>
 <vertex x="30.5" y="4"/>
@@ -5568,8 +5567,22 @@ You are welcome to use this library for commercial purposes. For attribution, we
 <wire x1="66.434" y1="43.434" x2="66.294" y2="43.294" width="0.2032" layer="1"/>
 <wire x1="14.088" y1="13.284" x2="18.088" y2="10.088" width="0.2032" layer="1"/>
 <wire x1="18.088" y1="10.088" x2="18.5" y2="10.5" width="0.2032" layer="1"/>
-<wire x1="46.19" y1="9.22" x2="65.9" y2="43" width="0" layer="19" extent="1-1"/>
-<wire x1="28.19" y1="5" x2="46" y2="5" width="0" layer="19" extent="16-16"/>
+<contactref element="D1" pad="C"/>
+<contactref element="REL1" pad="COIL1"/>
+<wire x1="53.39" y1="49.12" x2="56.4" y2="49.12" width="0.8128" layer="1"/>
+<wire x1="56.4" y1="49.12" x2="56.74" y2="49.12" width="0.8128" layer="1"/>
+<wire x1="56.74" y1="49.12" x2="57.404" y2="49.784" width="0.8128" layer="1"/>
+<wire x1="57.404" y1="49.784" x2="59.516" y2="49.784" width="0.8128" layer="1"/>
+<wire x1="59.516" y1="49.784" x2="59.55" y2="49.75" width="0.8128" layer="1"/>
+<wire x1="56.4" y1="49.12" x2="56.4" y2="43.2" width="0.8128" layer="1"/>
+<wire x1="56.4" y1="43.2" x2="56.4" y2="12" width="0.8128" layer="1"/>
+<wire x1="56.4" y1="12" x2="60.4" y2="8" width="0.8128" layer="1"/>
+<wire x1="60.4" y1="8" x2="60.4" y2="4" width="0.8128" layer="1"/>
+<wire x1="60.4" y1="4" x2="58" y2="1.6" width="0.8128" layer="1"/>
+<wire x1="58" y1="1.6" x2="29.2" y2="1.6" width="0.8128" layer="1"/>
+<wire x1="29.2" y1="1.6" x2="28.19" y2="2.61" width="0.8128" layer="1"/>
+<wire x1="28.19" y1="2.61" x2="28.19" y2="5" width="0.8128" layer="1"/>
+<wire x1="56.4" y1="43.2" x2="66.1" y2="43.2" width="0.8128" layer="1"/>
 </signal>
 <signal name="+3V3">
 <contactref element="SD" pad="4"/>
@@ -6023,14 +6036,6 @@ You are welcome to use this library for commercial purposes. For attribution, we
 <wire x1="64.008" y1="52.324" x2="62.992" y2="51.308" width="0.8128" layer="1"/>
 <wire x1="62.992" y1="51.308" x2="62.992" y2="49.792" width="0.8128" layer="1"/>
 <wire x1="62.992" y1="49.792" x2="62.95" y2="49.75" width="0.8128" layer="1"/>
-</signal>
-<signal name="N$10">
-<contactref element="D1" pad="C"/>
-<contactref element="REL1" pad="COIL1"/>
-<wire x1="53.39" y1="49.12" x2="56.74" y2="49.12" width="0.8128" layer="1"/>
-<wire x1="56.74" y1="49.12" x2="57.404" y2="49.784" width="0.8128" layer="1"/>
-<wire x1="57.404" y1="49.784" x2="59.516" y2="49.784" width="0.8128" layer="1"/>
-<wire x1="59.516" y1="49.784" x2="59.55" y2="49.75" width="0.8128" layer="1"/>
 </signal>
 <signal name="N$13">
 <contactref element="REL1" pad="SW_NO"/>
