@@ -485,7 +485,7 @@ void UpdateDBfromServer(void) {
       str += client.readStringUntil(']'); //read full json string
       Serial.println(str);
 
-      DynamicJsonDocument machinesettings(256);//crate a buffer
+      DynamicJsonDocument machinesettings(512); //create a buffer
 
       //ReadLoggingStream loggingStream(client, Serial);
       DeserializationError jsonerror = deserializeJson(machinesettings, str);
@@ -507,7 +507,13 @@ void UpdateDBfromServer(void) {
         config.mPrice =  (uint16_t)(price * 100); //price is a float, multiply by 100 to get cents
         config.mPeriod = machinesettings["period"];
         config.mMinPeriods = machinesettings["min_periods"];
-
+        JsonVariant value = machinesettings["minp_price"];
+        if (!value.isNull()) { // absent for older servers, null by default for newer servers
+          config.mMinPPrice = (uint16_t)((float)value * 100 + 0.5f);
+        }
+        else {
+          config.mMinPPrice = config.mMinPeriods * config.mPrice;
+        }
 
         if (machinesettings.containsKey("offdelay"))
         {

@@ -44,8 +44,10 @@
 #define EE_WEBUSER_ADDR EE_WEBPASS_ADDR+DEFAULTSTRINGLENGTH     //address for username for config webpage access
 #define EE_SERVERAPIKEY_ADDR EE_WEBUSER_ADDR+DEFAULTSTRINGLENGTH     //address for key for server API access
 #define EE_SERVERAPIUSER_ADDR EE_SERVERAPIKEY_ADDR+DEFAULTSTRINGLENGTH     //address for username for server API access
+//additional settings for version 1
+#define EE_MMINPPRICE_ADDR EE_SERVERAPIUSER_ADDR+DEFAULTSTRINGLENGTH //address for machine min. periods price, uint16_t
 
-#define EE_END EE_SERVERAPIUSER_ADDR+DEFAULTSTRINGLENGTH             //address reserved
+#define EE_END EE_MMINPPRICE_ADDR+2                                  //address reserved
 
 //additional config stuff needed:
 /*
@@ -109,6 +111,7 @@ struct NodeConfig {
   uint16_t mPrice; //price per period in cents
   uint8_t mPeriod; //pricing period in minutes
   uint8_t mMinPeriods; //minimum periods that are billed
+  uint16_t mMinPPrice; //price for the first mMinPeriods periods in cents (usually mMinPeriods*mPrice, sometimes 0)
   uint16_t mSwitchoffDelay; //delay in seconds for relay switch-off after logout
   String serverAddress;         //server address tring (can be an IP)
   uint16_t serverPort;         //port of server
@@ -169,6 +172,7 @@ void WriteConfig() {
   EEPROM.write(0, 'C');
   EEPROM.write(1, 'F');
   EEPROM.write(2, 'G');
+  EEPROM.write(3, 1); // version
 
 
   for (i = 0; i < MULTIWIFIS ; i++)
@@ -216,6 +220,9 @@ void WriteConfig() {
   WriteStringToEEPROM(EE_WEBUSER_ADDR, config.webUser, DEFAULTSTRINGLENGTH);
   WriteStringToEEPROM(EE_SERVERAPIKEY_ADDR, config.APIkey, DEFAULTSTRINGLENGTH);
   WriteStringToEEPROM(EE_SERVERAPIUSER_ADDR, config.APIuser, DEFAULTSTRINGLENGTH);
+  
+  // version 1
+  EEPROMWriteByteArray(EE_MMINPPRICE_ADDR, (uint8_t*)&config.mMinPPrice, 2); //uint16_t
 
   EEPROM.commit();
   EEPROM.end();
@@ -258,6 +265,7 @@ void writeDefaultConfig(void) {
   config.mPrice = 100; //price per period in cents
   config.mPeriod = 15; //pricing period in minutes
   config.mMinPeriods = 1; //minimum periods that are billed
+  config.mMinPPrice = config.mMinPeriods * config.mPrice; //price for the first mMinPeriods periods in cents
   config.mSwitchoffDelay = 0; //delay in seconds for relay switch-off after logout
 
   config.serverAddress = "";
@@ -283,8 +291,11 @@ void ReadConfig() {
   Serial.println("Reading Configuration");
 #endif
   if (EEPROM.read(0) == 'C' && EEPROM.read(1) == 'F' && EEPROM.read(2) == 'G') {
+    uint8_t version = EEPROM.read(3);
+    // version 0 did not write a version number, but it's likely to be 0xFF from an erased flash
+    if (version == 0xFF) version = 0;
 #ifdef SERIALDEBUG
-    Serial.println("Configurarion Found!");
+    Serial.println(String("Configuration version ") + version + " found!");
 #endif
 
     for (i = 0; i < MULTIWIFIS ; i++)
@@ -331,7 +342,17 @@ void ReadConfig() {
     config.webUser = ReadStringFromEEPROM(EE_WEBUSER_ADDR);;
     config.APIkey = ReadStringFromEEPROM(EE_SERVERAPIKEY_ADDR);;
     config.APIuser = ReadStringFromEEPROM(EE_SERVERAPIUSER_ADDR);;
-
+    
+    if (version >= 1) {
+      EEPROMReadByteArray(EE_MMINPPRICE_ADDR, (uint8_t*)&config.mMinPPrice, 2); //uint16_t
+      if (config.mMinPPrice == 0xFFFF) {
+        // probably version wasn't actually 1 and we're reading uninitialized flash
+        config.mMinPPrice = config.mMinPeriods * config.mPrice;
+      }
+    }
+    else {
+      config.mMinPPrice = config.mMinPeriods * config.mPrice;
+    }
 
   } else {
 #ifdef SERIALDEBUG

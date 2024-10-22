@@ -268,16 +268,15 @@ void displayUserInfo(void)
   uint16_t cost = 0; //cost in cents
   if(timeinuse > 30) //after 30 seconds, start counting cost, bill the minimum amount, then increase by pricing period
   {
-    if(useminutes <= (uint16_t)config.mMinPeriods*(uint16_t)config.mPeriod) //initially, bill the minimum number of periods
+    //initially, bill the minimum number of periods
+    cost = config.mMinPPrice;
+    //after minimum number of periods, start counting periods
+    if(timeinuse > 60*(time_t)config.mMinPeriods*(time_t)config.mPeriod) 
     {
-      cost = (uint16_t)config.mMinPeriods * (uint16_t)config.mPrice;
+      time_t periodSeconds = 60*(time_t)config.mPeriod;
+      uint16_t numberofperiods = (timeinuse + periodSeconds - 1)/periodSeconds; // rounded up
+      cost += (numberofperiods - config.mMinPeriods)*config.mPrice;
     }
-    else //after minimum number of periods, start counting periods
-    {
-      uint16_t numberofperiods = (timeinuse/60)/config.mPeriod+1; //example: period = 15min -> 65min => 4+1 period when using integer math
-      cost = numberofperiods*(uint16_t)config.mPrice;
-    }
-    
   }
   
   snprintf(temparr, sizeof(temparr), "%d.%02d.", cost / 100, cost % 100);
