@@ -36,8 +36,10 @@ Select the following settings under "Tools"
 
 ![image](https://github.com/user-attachments/assets/e9b4005c-9c74-44d9-99d8-364a309bd660)
 
+### Install Libraries
+Tools -> Manage Libraries
 
-
+Install all libraries as described in Fablab_RFID_control.ino, line 52 to 70 (?)
 
 # License
 -Firmware under GNU LGPL Version 3
