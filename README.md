@@ -41,6 +41,8 @@ Tools -> Manage Libraries
 
 Install all libraries as described in Fablab_RFID_control.ino, line 52 to 70 (?)
 
+MRFC522: Download from git (https://github.com/miguelbalboa/rfid) and add it to the library (.../Documents/Arduino/Libraries/...)
+
 # License
 -Firmware under GNU LGPL Version 3
 -Hardware under Creative Commons 4.0 license: CC-BY-SA
