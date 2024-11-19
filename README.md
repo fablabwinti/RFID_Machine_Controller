@@ -31,6 +31,11 @@ Tools -> Boards -> Boards Manager
 Search for "esp8266" and install it
 ### Select Board
 Tools -> Boards -> esp8622 -> "Generic ESP8622 Module"
+### Board Configurations
+Select the following settings under "Tools"
+![image](https://github.com/user-attachments/assets/e9b4005c-9c74-44d9-99d8-364a309bd660)
+
+
 
 
 # License
