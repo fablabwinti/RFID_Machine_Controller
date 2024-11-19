@@ -24,12 +24,12 @@ This repository contains the hardware design files (eagle) and the firmware (Ard
 - Transmit log data to server as soon as it is available
 
 ## Arduino IDE
-# Add Board to IDE
+### Add Board to IDE
 File -> Preferences -> Settings -> Additional boards manager URLs: http://arduino.esp8266.com/stable/package_esp8266com_index.json  
-# Install Board
+### Install Board
 Tools -> Boards -> Boards Manager
 Search for "esp8266" and install it
-# Select Board
+### Select Board
 Tools -> Boards -> esp8622 -> "Generic ESP8622 Module"
 
 
