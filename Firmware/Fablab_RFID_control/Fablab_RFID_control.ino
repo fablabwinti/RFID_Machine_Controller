@@ -49,12 +49,12 @@
     ESP version 2.5.2 (Not working with 2.6.x !!! something changed in the wifisecure library)
 
     Libraries used:
-  Using library EDB at version 1.0.6
+  Using library EDB at version 1.0.4   https://github.com/jwhiddon/EDB
   Using library SPI at version 1.0
-  Using library MRFC522 at version 1.3.6
+  Using library MRFC522 at version 1.4.10
   Using library FastLED at version 3.2.1
-  Using library Time at version 1.5
-  Using library Rtc_by_Makuna at version 2.0.2
+  Using library Time at version 1.5   https://github.com/PaulStoffregen/Time
+  Using library Rtc_by_Makuna at version 2.0.2   https://github.com/Makuna/Rtc
   Using library Adafruit_SSD1306 at version 1.1.2
   Using library Adafruit_GFX at version 1.2.3
   Using library ESP8266WiFi at version 1.0
@@ -66,8 +66,7 @@
   Using library ESP8266SdFat at version 1.0.16
   Using library ESP8266mDNS at version 1.2
   Using library WebSockets at version 2.0.9
-  Using library ArduinoJson at version 6.12.0
-  Using library Hash at version 1.0
+  Using library ArduinoJson at version 6.12.0   https://bblanchon.github.io/ArduinoJson/
 
  * */
 
@@ -87,14 +86,14 @@
 #define FASTLED_ESP8266_RAW_PIN_ORDER
 
 #include <FS.h> //spiff file system
-#include <EDB.h> //use version 1.0.6 https://github.com/jwhiddon/EDB
+#include <EDB.h>
 #include <SPI.h>
-#include <MFRC522.h> //RFID library (V1.3.6 tested)
-#include <FastLED.h> //(V3.1.6 tested) (need to comment line 15 in led_sysdefs_esp8266.h on lates esp version, boolean error)
-#include <TimeLib.h>  //Time library https://github.com/PaulStoffregen/Time
-#include "RtcDS3231.h" //RTC library by makuna: https://github.com/Makuna/Rtc (V2.0.2 tested)
-#include <Adafruit_SSD1306.h> //oled display library (V1.1.2 tested)
-#include <Adafruit_GFX.h> //(V1.2.3 tested)
+#include <MFRC522.h> //RFID library
+#include <FastLED.h> // (need to comment line 15 in led_sysdefs_esp8266.h on lates esp version, boolean error)
+#include <TimeLib.h>  //Time library
+#include "RtcDS3231.h" //RTC library by makuna
+#include <Adafruit_SSD1306.h> //oled display library
+#include <Adafruit_GFX.h>
 #include <ESP8266WiFi.h>
 #include <ESP8266WiFiMulti.h>
 //#include <WiFiClient.h>
@@ -110,8 +109,8 @@
 #include "SdFat.h" //
 using namespace sdfat;
 #include <ESP8266mDNS.h>  //works on mac out of the box, need to install apple's 'Bonjour' service to work on other systems
-#include <WebSocketsServer.h> (V2.0.9 tested)
-#include <ArduinoJson.h> // https://bblanchon.github.io/ArduinoJson/  (V5.13.0 tested)
+#include <WebSocketsServer.h>
+#include <ArduinoJson.h>
 #include "helpers.h"
 #include "sound.h"
 #include "LED.h"
